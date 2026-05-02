@@ -138,6 +138,25 @@
     background: #1c3867;
     color: #f3f0eb;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Subtle custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d6d0c8;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #7d736a;
+  }
 }
 
 @layer components {

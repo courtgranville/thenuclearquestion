@@ -1,53 +1,84 @@
 import { Link, useLocation } from "wouter";
+import { motion, useScroll, useTransform } from "framer-motion";
 
 /*
   DESIGN: Editorial Archive — Light Scholarly Journal
-  Thin, minimal header. "The Nuclear Question" as a nameplate.
-  Navigation: Series (home), About
+  Header shrinks subtly on scroll (h-14 → h-12), increases backdrop blur.
+  Active nav item has an animated underline indicator.
 */
 
 export default function SiteHeader() {
   const [location] = useLocation();
+  const { scrollY } = useScroll();
+
+  // Transform header height based on scroll position
+  const headerHeight = useTransform(scrollY, [0, 100], [56, 48]);
+  const backdropBlur = useTransform(scrollY, [0, 100], [8, 16]);
+  const titleSize = useTransform(scrollY, [0, 100], [18, 16]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-sm border-b border-border">
-      <div className="container flex items-center justify-between h-14">
+    <motion.header
+      className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-background/90"
+      style={{
+        height: headerHeight,
+        backdropFilter: useTransform(backdropBlur, (v) => `blur(${v}px)`),
+      }}
+    >
+      <div className="container h-full flex items-center justify-between">
         <Link href="/">
-          <span
-            className="font-serif text-lg tracking-tight text-foreground hover:text-primary transition-colors duration-200"
-            style={{ fontWeight: 500 }}
+          <motion.span
+            className="font-serif tracking-tight text-foreground hover:text-primary transition-colors duration-200"
+            style={{
+              fontWeight: 500,
+              fontSize: titleSize,
+            }}
           >
             The Nuclear Question
-          </span>
+          </motion.span>
         </Link>
 
         <nav className="flex items-center gap-6">
-          <Link href="/">
-            <span
-              className={`text-sm tracking-wide transition-colors duration-200 ${
-                location === "/"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-            >
-              Series
-            </span>
-          </Link>
-          <Link href="/about">
-            <span
-              className={`text-sm tracking-wide transition-colors duration-200 ${
-                location === "/about"
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-            >
-              About
-            </span>
-          </Link>
+          <NavLink href="/" label="Series" active={location === "/"} />
+          <NavLink
+            href="/about"
+            label="About"
+            active={location === "/about"}
+          />
         </nav>
       </div>
-    </header>
+    </motion.header>
+  );
+}
+
+function NavLink({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link href={href}>
+      <span className="relative group">
+        <span
+          className={`text-sm tracking-wide transition-colors duration-200 ${
+            active
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+          style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+        >
+          {label}
+        </span>
+        {/* Animated underline */}
+        <span
+          className={`absolute -bottom-1 left-0 h-px bg-primary transition-all duration-300 ease-out ${
+            active ? "w-full" : "w-0 group-hover:w-full"
+          }`}
+        />
+      </span>
+    </Link>
   );
 }
