@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 
 /*
-  DESIGN: Editorial Archive — Dark Scholarly Journal
+  DESIGN: Editorial Archive — Light Scholarly Journal
   Thin, minimal header. "The Nuclear Question" as a nameplate.
   Navigation: Series (home), About
 */

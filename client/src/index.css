@@ -4,11 +4,21 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  DESIGN: "Editorial Archive" — Dark Scholarly Journal
-  - Near-black background for maximum poster contrast
-  - Warm off-white text echoing poster paper colour
-  - Muted olive-green accent from poster nuclear-green
+  DESIGN: "Editorial Archive" — Light Scholarly Journal
+  - Light off-white background (#f3f0eb) slightly lighter than poster cream (#ece7df)
+  - Dark blueish-grey text (#0d1a1e) from poster palette
+  - Poster colour accents: blue, green, red, ochre, teal, stone
   - Playfair Display (serif) headlines, IBM Plex Sans body, IBM Plex Mono data
+
+  Poster palette reference:
+  #1c3867 - blue (water)
+  #217b3d - green (land)
+  #0d1a1e - blueish-grey (text)
+  #a51e22 - red (deaths)
+  #ece7df - poster background
+  #b5822e - ochre (highlights)
+  #7d736a - stone (emissions)
+  #4a6e70 - teal (highlights)
 */
 
 @theme inline {
@@ -55,38 +65,47 @@
 
 :root {
   --radius: 0.25rem;
-  --background: oklch(0.13 0.005 60);
-  --foreground: oklch(0.92 0.01 70);
-  --card: oklch(0.16 0.005 60);
-  --card-foreground: oklch(0.92 0.01 70);
-  --popover: oklch(0.16 0.005 60);
-  --popover-foreground: oklch(0.92 0.01 70);
-  --primary: oklch(0.52 0.08 140);
-  --primary-foreground: oklch(0.95 0.01 70);
-  --secondary: oklch(0.20 0.005 60);
-  --secondary-foreground: oklch(0.75 0.01 70);
-  --muted: oklch(0.22 0.005 60);
-  --muted-foreground: oklch(0.60 0.01 70);
-  --accent: oklch(0.52 0.08 140);
-  --accent-foreground: oklch(0.95 0.01 70);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.25 0.005 60);
-  --input: oklch(0.25 0.005 60);
-  --ring: oklch(0.52 0.08 140);
-  --chart-1: oklch(0.52 0.08 140);
-  --chart-2: oklch(0.60 0.06 140);
-  --chart-3: oklch(0.45 0.08 140);
-  --chart-4: oklch(0.70 0.04 70);
-  --chart-5: oklch(0.40 0.06 140);
-  --sidebar: oklch(0.14 0.005 60);
-  --sidebar-foreground: oklch(0.92 0.01 70);
-  --sidebar-accent: oklch(0.20 0.005 60);
-  --sidebar-accent-foreground: oklch(0.92 0.01 70);
-  --sidebar-border: oklch(0.25 0.005 60);
-  --sidebar-ring: oklch(0.52 0.08 140);
-  --sidebar-primary: oklch(0.52 0.08 140);
-  --sidebar-primary-foreground: oklch(0.95 0.01 70);
+  /* Background: slightly lighter than poster cream #ece7df */
+  --background: #f3f0eb;
+  --foreground: #0d1a1e;
+  /* Card: matches poster background for subtle contrast */
+  --card: #ece7df;
+  --card-foreground: #0d1a1e;
+  --popover: #f3f0eb;
+  --popover-foreground: #0d1a1e;
+  /* Primary: poster blue (water) */
+  --primary: #1c3867;
+  --primary-foreground: #f3f0eb;
+  /* Secondary: lighter warm tone */
+  --secondary: #e5e0d8;
+  --secondary-foreground: #0d1a1e;
+  /* Muted: stone tones */
+  --muted: #e5e0d8;
+  --muted-foreground: #7d736a;
+  /* Accent: ochre */
+  --accent: #b5822e;
+  --accent-foreground: #f3f0eb;
+  /* Destructive: poster red */
+  --destructive: #a51e22;
+  --destructive-foreground: #f3f0eb;
+  /* Border: subtle warm grey */
+  --border: #d6d0c8;
+  --input: #d6d0c8;
+  --ring: #1c3867;
+  /* Chart colours from poster palette */
+  --chart-1: #1c3867;
+  --chart-2: #217b3d;
+  --chart-3: #a51e22;
+  --chart-4: #b5822e;
+  --chart-5: #4a6e70;
+  --sidebar: #ece7df;
+  --sidebar-foreground: #0d1a1e;
+  --sidebar-accent: #e5e0d8;
+  --sidebar-accent-foreground: #0d1a1e;
+  --sidebar-border: #d6d0c8;
+  --sidebar-ring: #1c3867;
+  --sidebar-primary: #1c3867;
+  --sidebar-primary-foreground: #f3f0eb;
 }
 
 @layer base {
@@ -116,8 +135,8 @@
   }
 
   ::selection {
-    background: oklch(0.52 0.08 140 / 0.3);
-    color: oklch(0.95 0.01 70);
+    background: #1c3867;
+    color: #f3f0eb;
   }
 }
 
