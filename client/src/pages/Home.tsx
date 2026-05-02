@@ -72,19 +72,13 @@ function PosterCard({
             <div className="lg:w-2/5 flex flex-col justify-between">
               <div>
                 {/* Number with section colour indicator */}
-                <div className="relative flex items-center gap-2.5">
-                  <span
-                    className="absolute -top-2 -left-1 text-6xl lg:text-7xl font-serif text-foreground/[0.04] select-none pointer-events-none"
-                    style={{ fontWeight: 700 }}
-                  >
-                    {poster.number}
-                  </span>
+                <div className="flex items-center gap-2.5">
                   <span
                     className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: sectionColour }}
                   />
                   <span
-                    className="relative text-xs tracking-[0.2em] uppercase text-muted-foreground block"
+                    className="text-xs tracking-[0.2em] uppercase text-muted-foreground block"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
                     {poster.number}

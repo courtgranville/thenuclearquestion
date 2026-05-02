@@ -453,7 +453,7 @@ export default function PosterPage() {
                   <img
                     src={poster.imagePath}
                     alt={poster.title}
-                    className="w-full rounded-sm border border-border/60 shadow-lg shadow-black/8 group-hover:shadow-xl group-hover:shadow-black/12 transition-all duration-300 group-hover:-translate-y-1"
+                    className="w-full rounded-sm border border-border/60 transition-all duration-300"
                   />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/5 rounded-sm">
                     <div className="bg-background/80 backdrop-blur-sm px-4 py-2 rounded-sm flex items-center gap-2">
