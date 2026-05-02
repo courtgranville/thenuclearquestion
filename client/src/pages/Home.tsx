@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion, useInView } from "framer-motion";
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
@@ -13,7 +13,14 @@ import { ArrowRight } from "lucide-react";
   DESIGN: Editorial Archive — Light Scholarly Journal
   Landing: Entry animation → Strong thesis question → sequential poster cards.
   Each card animates in on scroll with enhanced hover states.
+  Section colour indicators: blue dot for desirability, ochre for feasibility, red for objections.
 */
+
+const SECTION_COLOURS: Record<string, string> = {
+  desirability: "#1c3867",
+  feasibility: "#b5822e",
+  objections: "#a51e22",
+};
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -28,6 +35,14 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.12 } },
 };
 
+function hasSeenIntro(): boolean {
+  try {
+    return sessionStorage.getItem("intro-seen") === "true";
+  } catch {
+    return false;
+  }
+}
+
 function PosterCard({
   poster,
   index,
@@ -37,6 +52,7 @@ function PosterCard({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const sectionColour = SECTION_COLOURS[poster.section] || "#1c3867";
 
   return (
     <motion.div
@@ -55,8 +71,8 @@ function PosterCard({
             {/* Text column */}
             <div className="lg:w-2/5 flex flex-col justify-between">
               <div>
-                {/* Large watermark number */}
-                <div className="relative">
+                {/* Number with section colour indicator */}
+                <div className="relative flex items-center gap-2.5">
                   <span
                     className="absolute -top-2 -left-1 text-6xl lg:text-7xl font-serif text-foreground/[0.04] select-none pointer-events-none"
                     style={{ fontWeight: 700 }}
@@ -64,14 +80,18 @@ function PosterCard({
                     {poster.number}
                   </span>
                   <span
-                    className="relative text-xs tracking-[0.2em] uppercase text-muted-foreground mb-3 block"
+                    className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: sectionColour }}
+                  />
+                  <span
+                    className="relative text-xs tracking-[0.2em] uppercase text-muted-foreground block"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
                     {poster.number}
                   </span>
                 </div>
                 <h3
-                  className="font-serif text-2xl lg:text-3xl text-foreground mb-3 group-hover:text-primary transition-colors duration-300"
+                  className="font-serif text-2xl lg:text-3xl text-foreground mt-3 mb-3 group-hover:text-primary transition-colors duration-300"
                   style={{ fontWeight: 600 }}
                 >
                   {poster.title}
@@ -103,7 +123,6 @@ function PosterCard({
                   className="w-full h-full object-cover object-top opacity-90 group-hover:opacity-100 transition-all duration-500 group-hover:scale-[1.02]"
                   loading={index < 2 ? "eager" : "lazy"}
                 />
-                {/* Subtle overlay on hover */}
                 <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/[0.02] transition-colors duration-500 rounded-sm" />
               </div>
             </div>
@@ -124,6 +143,7 @@ function SectionHeader({
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-60px" });
   const desc = sectionDescriptions[section];
+  const colour = SECTION_COLOURS[section] || "#1c3867";
 
   return (
     <motion.div
@@ -131,12 +151,12 @@ function SectionHeader({
       initial={{ opacity: 0, y: 16 }}
       animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
       transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="mb-8 mt-16 first:mt-0"
+      className="mb-8 mt-14 first:mt-0"
     >
       <div className="flex items-center gap-4 mb-4">
         <span
-          className="text-xs tracking-[0.25em] uppercase text-primary whitespace-nowrap"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          className="text-xs tracking-[0.25em] uppercase whitespace-nowrap"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", color: colour }}
         >
           {label}
         </span>
@@ -144,7 +164,11 @@ function SectionHeader({
           className="flex-1 h-px bg-border"
           initial={{ scaleX: 0 }}
           animate={isInView ? { scaleX: 1 } : { scaleX: 0 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={{
+            duration: 0.8,
+            delay: 0.2,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
           style={{ originX: 0 }}
         />
       </div>
@@ -164,18 +188,8 @@ function SectionHeader({
 }
 
 export default function Home() {
-  const [showIntro, setShowIntro] = useState(false);
-  const [introComplete, setIntroComplete] = useState(false);
-
-  useEffect(() => {
-    // Only show intro once per session
-    const hasSeenIntro = sessionStorage.getItem("intro-seen");
-    if (!hasSeenIntro) {
-      setShowIntro(true);
-    } else {
-      setIntroComplete(true);
-    }
-  }, []);
+  const alreadySeen = hasSeenIntro();
+  const [introComplete, setIntroComplete] = useState(alreadySeen);
 
   const handleIntroComplete = useCallback(() => {
     sessionStorage.setItem("intro-seen", "true");
@@ -190,8 +204,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Intro animation — first visit only */}
-      {showIntro && !introComplete && (
+      {!introComplete && (
         <IntroAnimation onComplete={handleIntroComplete} />
       )}
 
@@ -202,7 +215,7 @@ export default function Home() {
         {/* Hero */}
         <section className="pt-14">
           <div className="container">
-            <div className="min-h-[70vh] flex flex-col justify-center max-w-4xl py-20">
+            <div className="min-h-[55vh] flex flex-col justify-center max-w-4xl py-16 lg:py-20">
               <motion.div
                 initial="hidden"
                 animate={introComplete ? "visible" : "hidden"}
@@ -227,8 +240,14 @@ export default function Home() {
                   <motion.hr
                     className="border-primary/30 mb-8 max-w-24"
                     initial={{ width: 0 }}
-                    animate={introComplete ? { width: "6rem" } : { width: 0 }}
-                    transition={{ duration: 0.8, delay: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+                    animate={
+                      introComplete ? { width: "6rem" } : { width: 0 }
+                    }
+                    transition={{
+                      duration: 0.8,
+                      delay: 0.6,
+                      ease: [0.25, 0.46, 0.45, 0.94],
+                    }}
                   />
                 </motion.div>
                 <motion.p
@@ -258,8 +277,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Poster Series */}
-        <section className="pb-24">
+        {/* Poster Series — anchor for "Series" nav link */}
+        <section id="series" className="pb-20 scroll-mt-16">
           <div className="container">
             {sections.map((section) => {
               const sectionPosters = posters.filter(

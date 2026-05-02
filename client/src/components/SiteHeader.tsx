@@ -1,20 +1,34 @@
 import { Link, useLocation } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
+import { useCallback } from "react";
 
 /*
   DESIGN: Editorial Archive — Light Scholarly Journal
   Header shrinks subtly on scroll (h-14 → h-12), increases backdrop blur.
   Active nav item has an animated underline indicator.
+  "Series" link smooth-scrolls to #series when already on homepage.
 */
 
 export default function SiteHeader() {
   const [location] = useLocation();
   const { scrollY } = useScroll();
 
-  // Transform header height based on scroll position
   const headerHeight = useTransform(scrollY, [0, 100], [56, 48]);
   const backdropBlur = useTransform(scrollY, [0, 100], [8, 16]);
   const titleSize = useTransform(scrollY, [0, 100], [18, 16]);
+
+  const handleSeriesClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (location === "/") {
+        e.preventDefault();
+        const el = document.getElementById("series");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    },
+    [location]
+  );
 
   return (
     <motion.header
@@ -38,7 +52,12 @@ export default function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-6">
-          <NavLink href="/" label="Series" active={location === "/"} />
+          <NavLink
+            href="/"
+            label="Series"
+            active={location === "/"}
+            onClick={handleSeriesClick}
+          />
           <NavLink
             href="/about"
             label="About"
@@ -54,13 +73,15 @@ function NavLink({
   href,
   label,
   active,
+  onClick,
 }: {
   href: string;
   label: string;
   active: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <Link href={href}>
+    <Link href={href} onClick={onClick}>
       <span className="relative group">
         <span
           className={`text-sm tracking-wide transition-colors duration-200 ${
@@ -72,7 +93,6 @@ function NavLink({
         >
           {label}
         </span>
-        {/* Animated underline */}
         <span
           className={`absolute -bottom-1 left-0 h-px bg-primary transition-all duration-300 ease-out ${
             active ? "w-full" : "w-0 group-hover:w-full"

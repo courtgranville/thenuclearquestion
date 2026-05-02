@@ -25,7 +25,14 @@ import { toast } from "sonner";
   - Download toast feedback
   - Keyboard hints in lightbox
   - Animated blockquote border
+  - Subtle border on poster image for separation from background
 */
+
+const SECTION_COLOURS: Record<string, string> = {
+  desirability: "#1c3867",
+  feasibility: "#b5822e",
+  objections: "#a51e22",
+};
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -67,7 +74,6 @@ function Lightbox({
     });
   }, []);
 
-  // Hide keyboard hints after 3 seconds
   useEffect(() => {
     const timer = setTimeout(() => setShowHints(false), 3000);
     return () => clearTimeout(timer);
@@ -87,7 +93,6 @@ function Lightbox({
     };
   }, [onClose, handleZoomIn, handleZoomOut]);
 
-  // Pan/drag handlers for zoomed state
   const handleMouseDown = (e: React.MouseEvent) => {
     if (scale > 1) {
       setIsDragging(true);
@@ -104,11 +109,8 @@ function Lightbox({
     }
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  const handleMouseUp = () => setIsDragging(false);
 
-  // Touch handlers for mobile pan
   const handleTouchStart = (e: React.TouchEvent) => {
     if (scale > 1 && e.touches.length === 1) {
       setIsDragging(true);
@@ -129,9 +131,7 @@ function Lightbox({
     }
   };
 
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
+  const handleTouchEnd = () => setIsDragging(false);
 
   return (
     <motion.div
@@ -200,7 +200,11 @@ function Lightbox({
       {/* Image */}
       <div
         className={`flex-1 overflow-hidden flex items-center justify-center p-4 ${
-          scale > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "cursor-zoom-in"
+          scale > 1
+            ? isDragging
+              ? "cursor-grabbing"
+              : "cursor-grab"
+            : "cursor-zoom-in"
         }`}
         onClick={(e) => {
           e.stopPropagation();
@@ -261,6 +265,10 @@ export default function PosterPage() {
   const nextPoster =
     currentIndex < posters.length - 1 ? posters[currentIndex + 1] : null;
 
+  const sectionColour = poster
+    ? SECTION_COLOURS[poster.section] || "#1c3867"
+    : "#1c3867";
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [params.id]);
@@ -309,7 +317,7 @@ export default function PosterPage() {
             </div>
 
             {/* Main content */}
-            <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 pb-16">
+            <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 pb-12">
               {/* Text column */}
               <motion.div
                 className="lg:w-2/5 lg:sticky lg:top-24 lg:self-start"
@@ -320,8 +328,15 @@ export default function PosterPage() {
                 <motion.div variants={fadeUp}>
                   <div className="flex items-center gap-3 mb-4">
                     <span
-                      className="text-xs tracking-[0.25em] uppercase text-primary"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: sectionColour }}
+                    />
+                    <span
+                      className="text-xs tracking-[0.25em] uppercase"
+                      style={{
+                        fontFamily: "'IBM Plex Mono', monospace",
+                        color: sectionColour,
+                      }}
                     >
                       {poster.sectionLabel}
                     </span>
@@ -411,8 +426,11 @@ export default function PosterPage() {
                     className="group inline-flex items-center gap-2 text-sm text-primary hover:text-foreground transition-colors duration-200"
                     style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
                   >
-                    <Download className="w-4 h-4 group-hover:animate-bounce" />
-                    Download full-resolution PDF
+                    <Download className="w-4 h-4 transform group-hover:-translate-y-0.5 transition-transform duration-200" />
+                    <span className="relative">
+                      Download full-resolution PDF
+                      <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground group-hover:w-full transition-all duration-300 ease-out" />
+                    </span>
                   </a>
                 </motion.div>
               </motion.div>
@@ -422,7 +440,11 @@ export default function PosterPage() {
                 className="lg:w-3/5"
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
+                transition={{
+                  duration: 0.6,
+                  delay: 0.15,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                }}
               >
                 <div
                   className="relative cursor-zoom-in group"
@@ -431,7 +453,7 @@ export default function PosterPage() {
                   <img
                     src={poster.imagePath}
                     alt={poster.title}
-                    className="w-full rounded-sm shadow-xl shadow-black/10 group-hover:shadow-2xl group-hover:shadow-black/15 transition-all duration-300 group-hover:-translate-y-1"
+                    className="w-full rounded-sm border border-border/60 shadow-lg shadow-black/8 group-hover:shadow-xl group-hover:shadow-black/12 transition-all duration-300 group-hover:-translate-y-1"
                   />
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/5 rounded-sm">
                     <div className="bg-background/80 backdrop-blur-sm px-4 py-2 rounded-sm flex items-center gap-2">
@@ -449,7 +471,7 @@ export default function PosterPage() {
             </div>
 
             {/* Navigation */}
-            <nav className="border-t border-border py-8 mb-8">
+            <nav className="border-t border-border py-6 mb-6">
               <div className="flex justify-between items-center">
                 {prevPoster ? (
                   <Link href={`/poster/${prevPoster.id}`}>
