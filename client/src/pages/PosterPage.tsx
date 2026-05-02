@@ -4,7 +4,9 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
 import PageTransition from "@/components/PageTransition";
-import WasteQuantitiesViz from "@/components/WasteQuantitiesViz";
+import Poster003Viz from "@/components/Poster003Viz";
+import Poster005Viz from "@/components/Poster005Viz";
+import Poster006Viz from "@/components/Poster006Viz";
 import { posters } from "@/lib/posterData";
 import {
   ArrowLeft,
@@ -471,8 +473,8 @@ export default function PosterPage() {
               </motion.div>
             </div>
 
-            {/* Interactive Visualisation (poster 006 only) */}
-            {poster.id === "006" && (
+            {/* Interactive Visualisations */}
+            {(poster.id === "003" || poster.id === "005" || poster.id === "006") && (
               <motion.section
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -484,22 +486,18 @@ export default function PosterPage() {
                     className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
-                    Interactive Visualisation
+                    Interactive Visualisations
                   </p>
                   <h3
                     className="font-serif text-2xl text-foreground mb-2"
                     style={{ fontWeight: 600 }}
                   >
-                    Waste Quantities by Classification
+                    Explore the Data
                   </h3>
-                  <p
-                    className="text-sm text-muted-foreground max-w-2xl"
-                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-                  >
-                    The UK has produced approximately 4.45 million cubic metres of radioactive waste since the beginning of its nuclear programme. The forms below are scaled proportionally to volume — yet the smallest form contains almost all of the radioactivity.
-                  </p>
                 </div>
-                <WasteQuantitiesViz />
+                {poster.id === "003" && <Poster003Viz />}
+                {poster.id === "005" && <Poster005Viz />}
+                {poster.id === "006" && <Poster006Viz />}
               </motion.section>
             )}
 
