@@ -4,6 +4,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
 import PageTransition from "@/components/PageTransition";
+import WasteQuantitiesViz from "@/components/WasteQuantitiesViz";
 import { posters } from "@/lib/posterData";
 import {
   ArrowLeft,
@@ -469,6 +470,38 @@ export default function PosterPage() {
                 </div>
               </motion.div>
             </div>
+
+            {/* Interactive Visualisation (poster 006 only) */}
+            {poster.id === "006" && (
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="mt-16 mb-12"
+              >
+                <div className="mb-6">
+                  <p
+                    className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  >
+                    Interactive Visualisation
+                  </p>
+                  <h3
+                    className="font-serif text-2xl text-foreground mb-2"
+                    style={{ fontWeight: 600 }}
+                  >
+                    Waste Quantities by Classification
+                  </h3>
+                  <p
+                    className="text-sm text-muted-foreground max-w-2xl"
+                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                  >
+                    The UK has produced approximately 4.45 million cubic metres of radioactive waste since the beginning of its nuclear programme. The forms below are scaled proportionally to volume — yet the smallest form contains almost all of the radioactivity.
+                  </p>
+                </div>
+                <WasteQuantitiesViz />
+              </motion.section>
+            )}
 
             {/* Navigation */}
             <nav className="border-t border-border py-6 mb-6">
