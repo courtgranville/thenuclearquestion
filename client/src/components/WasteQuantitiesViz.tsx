@@ -44,7 +44,7 @@ const WASTE_TYPES: WasteType[] = [
     id: "llw",
     name: "Low Level Waste",
     abbreviation: "LLW",
-    color: "#1b3967",
+    color: "#4b6e70",
     volume: "1,340,000 m\u00B3",
     volumePercent: "30.2%",
     radioactivity: "<0.001%",
@@ -59,7 +59,7 @@ const WASTE_TYPES: WasteType[] = [
     id: "ilw",
     name: "Intermediate Level Waste",
     abbreviation: "ILW",
-    color: "#4b6e70",
+    color: "#1b3967",
     volume: "496,000 m\u00B3",
     volumePercent: "11.1%",
     radioactivity: "4.4%",
@@ -96,7 +96,7 @@ WASTE_TYPES.forEach((wt) => {
   ID_TO_WASTE_TYPE[wt.blobGroupId] = wt.id;
 });
 
-const SVG_URL = "/manus-storage/006-waste-quantities-v4_ea671e2f.svg";
+const SVG_URL = "/manus-storage/processed_006_v4_8319645c.svg";
 
 // Helper: walk up the DOM from an element to find the nearest ancestor with a known ID
 function findWasteTypeFromElement(el: Element | null): string | null {
