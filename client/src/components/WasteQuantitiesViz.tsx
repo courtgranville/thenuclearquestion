@@ -2,14 +2,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /*
-  INTERACTIVE WASTE QUANTITIES VISUALISATION — v2 (performance optimised)
+  INTERACTIVE WASTE QUANTITIES VISUALISATION — v5
   
-  Key changes from v1:
-  - Constrained max-height to 500px so the whole thing is visible at once
-  - Removed drop-shadow filter (extremely expensive on 2000+ path SVG)
-  - Use CSS classes with will-change:opacity for GPU-composited transitions
-  - Simplified transition to opacity-only (no filter)
-  - Added debounce on hover to reduce rapid state changes
+  Uses EVENT DELEGATION on the container div for robust interaction.
+  Direct style.opacity manipulation for guaranteed SVG compatibility.
+  Double-rAF for initial SVG setup after dangerouslySetInnerHTML.
 */
 
 interface WasteType {
@@ -21,9 +18,10 @@ interface WasteType {
   volumePercent: string;
   radioactivity: string;
   description: string;
-  blobId: string;
-  titleId: string;
-  dataId: string;
+  blobGroupId: string;
+  labelGroupId: string;
+  dataGroupId: string;
+  hitAreaId: string;
 }
 
 const WASTE_TYPES: WasteType[] = [
@@ -37,37 +35,40 @@ const WASTE_TYPES: WasteType[] = [
     radioactivity: "<0.001%",
     description:
       "Includes rubble, soil, and other materials from decommissioned nuclear sites. Radioactivity is so low it poses negligible risk and can be disposed of in landfill-type facilities.",
-    blobId: "vllw-blob",
-    titleId: "vllw-title-text",
-    dataId: "vllw-data-text",
+    blobGroupId: "blob-vllw",
+    labelGroupId: "label-vllw",
+    dataGroupId: "data-vllw",
+    hitAreaId: "hit-vllw",
   },
   {
     id: "llw",
     name: "Low Level Waste",
     abbreviation: "LLW",
-    color: "#4b6e70",
+    color: "#1b3967",
     volume: "1,340,000 m\u00B3",
     volumePercent: "30.2%",
     radioactivity: "<0.001%",
     description:
       "Protective clothing, tools, and filters from day-to-day operations. Contains small amounts of short-lived radioactivity. Compacted and stored in near-surface repositories.",
-    blobId: "llw-blob",
-    titleId: "llw-title-text",
-    dataId: "llw-data-text",
+    blobGroupId: "blob-llw",
+    labelGroupId: "label-llw",
+    dataGroupId: "data-llw",
+    hitAreaId: "hit-llw",
   },
   {
     id: "ilw",
     name: "Intermediate Level Waste",
     abbreviation: "ILW",
-    color: "#1b3967",
+    color: "#4b6e70",
     volume: "496,000 m\u00B3",
     volumePercent: "11.1%",
     radioactivity: "4.4%",
     description:
       "Reactor components, chemical sludges, and resins. Requires shielding during handling but not cooling. Typically encased in cement or bitumen and stored in engineered vaults.",
-    blobId: "ilw-blob",
-    titleId: "ilw-title-text",
-    dataId: "ilw-data-text",
+    blobGroupId: "blob-ilw",
+    labelGroupId: "label-ilw",
+    dataGroupId: "data-ilw",
+    hitAreaId: "hit-ilw",
   },
   {
     id: "hlw",
@@ -79,13 +80,36 @@ const WASTE_TYPES: WasteType[] = [
     radioactivity: "95.6%",
     description:
       "Spent fuel and reprocessing liquors. Extremely radioactive and heat-generating. Requires deep geological disposal. Despite containing almost all the radioactivity, it occupies less than 0.1% of total waste volume.",
-    blobId: "hlw-blob",
-    titleId: "hlw-title-text",
-    dataId: "hlw-data-text",
+    blobGroupId: "blob-hlw",
+    labelGroupId: "label-hlw",
+    dataGroupId: "data-hlw",
+    hitAreaId: "hit-hlw",
   },
 ];
 
-const SVG_URL = "/manus-storage/waste-quantities_9d1b6de0.svg";
+// Map from hit-area/label/data element IDs to waste type IDs
+const ID_TO_WASTE_TYPE: Record<string, string> = {};
+WASTE_TYPES.forEach((wt) => {
+  ID_TO_WASTE_TYPE[wt.hitAreaId] = wt.id;
+  ID_TO_WASTE_TYPE[wt.labelGroupId] = wt.id;
+  ID_TO_WASTE_TYPE[wt.dataGroupId] = wt.id;
+  ID_TO_WASTE_TYPE[wt.blobGroupId] = wt.id;
+});
+
+const SVG_URL = "/manus-storage/006-waste-quantities-v4_ea671e2f.svg";
+
+// Helper: walk up the DOM from an element to find the nearest ancestor with a known ID
+function findWasteTypeFromElement(el: Element | null): string | null {
+  let current = el;
+  while (current) {
+    const id = current.getAttribute("id") || current.id;
+    if (id && ID_TO_WASTE_TYPE[id]) {
+      return ID_TO_WASTE_TYPE[id];
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
 
 export default function WasteQuantitiesViz() {
   const svgContainerRef = useRef<HTMLDivElement>(null);
@@ -94,7 +118,6 @@ export default function WasteQuantitiesViz() {
   const [activeType, setActiveType] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch SVG on mount
   useEffect(() => {
@@ -111,127 +134,120 @@ export default function WasteQuantitiesViz() {
       .catch(() => {
         if (!cancelled) setLoadError(true);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // After SVG is rendered into DOM, attach event listeners and inject optimised styles
+  // After SVG is injected, apply styles via double-rAF
   useEffect(() => {
     if (!svgHTML || !svgContainerRef.current) return;
-    
-    const container = svgContainerRef.current;
-    const svgEl = container.querySelector("svg");
-    if (!svgEl) return;
+    let cancelled = false;
 
-    // Constrain SVG size — key fix: make it viewable all at once
-    svgEl.style.width = "100%";
-    svgEl.style.height = "auto";
-    svgEl.style.maxHeight = "65vh";
-    svgEl.style.display = "block";
-    svgEl.style.margin = "0 auto";
-    svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (cancelled || !svgContainerRef.current) return;
+        const container = svgContainerRef.current;
+        const svgEl = container.querySelector("svg");
+        if (!svgEl) return;
 
-    // Inject optimised CSS — opacity only, no filters, GPU-composited
-    const styleEl = document.createElementNS("http://www.w3.org/2000/svg", "style");
-    styleEl.textContent = `
-      g[id$="-blob"], g[id$="-title-text"], g[id$="-data-text"] {
-        will-change: opacity;
-        transition: opacity 0.25s ease-out;
-        cursor: pointer;
-      }
-      g[id$="-blob"].dimmed, g[id$="-title-text"].dimmed, g[id$="-data-text"].dimmed {
-        opacity: 0.15;
-      }
-      g[id$="-blob"].highlighted, g[id$="-title-text"].highlighted, g[id$="-data-text"].highlighted {
-        opacity: 1;
-      }
-    `;
-    svgEl.prepend(styleEl);
+        // Make SVG responsive
+        svgEl.style.width = "100%";
+        svgEl.style.height = "auto";
+        svgEl.style.maxHeight = "70vh";
+        svgEl.style.display = "block";
+        svgEl.style.margin = "0 auto";
+        svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-    // Attach listeners with debounced hover
-    const cleanups: (() => void)[] = [];
-
-    WASTE_TYPES.forEach((wt) => {
-      const elements = [
-        container.querySelector(`#${wt.blobId}`),
-        container.querySelector(`#${wt.titleId}`),
-        container.querySelector(`#${wt.dataId}`),
-      ].filter(Boolean) as Element[];
-
-      elements.forEach((el) => {
-        const onEnter = () => {
-          if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-          setActiveType(wt.id);
-        };
-        const onLeave = () => {
-          hoverTimeoutRef.current = setTimeout(() => setActiveType(null), 50);
-        };
-        const onClick = (e: Event) => {
-          e.stopPropagation();
-          setSelectedType((prev) => prev === wt.id ? null : wt.id);
-        };
-
-        el.addEventListener("mouseenter", onEnter);
-        el.addEventListener("mouseleave", onLeave);
-        el.addEventListener("click", onClick);
-
-        cleanups.push(() => {
-          el.removeEventListener("mouseenter", onEnter);
-          el.removeEventListener("mouseleave", onLeave);
-          el.removeEventListener("click", onClick);
+        // Set transition on all interactive groups
+        WASTE_TYPES.forEach((wt) => {
+          [wt.blobGroupId, wt.labelGroupId, wt.dataGroupId].forEach((gid) => {
+            const el = container.querySelector(`#${gid}`) as SVGElement | null;
+            if (el) {
+              el.style.transition = "opacity 0.3s ease";
+            }
+          });
         });
+
+        setSvgReady(true);
       });
     });
 
-    setSvgReady(true);
-
     return () => {
-      cleanups.forEach((fn) => fn());
-      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      cancelled = true;
+      cancelAnimationFrame(rafId);
     };
   }, [svgHTML]);
 
-  // Update SVG visual states using CSS classes (much faster than inline style manipulation)
+  // EVENT DELEGATION: handle mouseover/mouseout/click on the container div
+  // This is much more robust than attaching to individual SVG elements
+  const handleMouseOver = useCallback(
+    (e: React.MouseEvent) => {
+      if (selectedType) return; // Don't change hover when something is selected
+      const wasteId = findWasteTypeFromElement(e.target as Element);
+      setActiveType(wasteId);
+    },
+    [selectedType]
+  );
+
+  const handleMouseOut = useCallback(
+    (e: React.MouseEvent) => {
+      if (selectedType) return;
+      // Only clear if we're leaving the SVG area entirely
+      const related = e.relatedTarget as Element | null;
+      if (related && svgContainerRef.current?.contains(related)) {
+        // Still inside the container — check if the new target is a waste element
+        const wasteId = findWasteTypeFromElement(related);
+        setActiveType(wasteId);
+      } else {
+        setActiveType(null);
+      }
+    },
+    [selectedType]
+  );
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      const wasteId = findWasteTypeFromElement(e.target as Element);
+      if (wasteId) {
+        e.stopPropagation();
+        setSelectedType((prev) => (prev === wasteId ? null : wasteId));
+      } else {
+        // Clicked on empty space — deselect
+        setSelectedType(null);
+      }
+    },
+    []
+  );
+
+  // Apply opacity changes whenever activeType or selectedType changes
   useEffect(() => {
-    if (!svgReady || !svgContainerRef.current) return;
+    if (!svgContainerRef.current) return;
     const container = svgContainerRef.current;
     const currentHighlight = selectedType || activeType;
 
     WASTE_TYPES.forEach((wt) => {
-      const blob = container.querySelector(`#${wt.blobId}`);
-      const titleText = container.querySelector(`#${wt.titleId}`);
-      const dataText = container.querySelector(`#${wt.dataId}`);
+      [wt.blobGroupId, wt.labelGroupId, wt.dataGroupId].forEach((gid) => {
+        const el = container.querySelector(`#${gid}`) as SVGElement | null;
+        if (!el) return;
 
-      const elements = [blob, titleText, dataText].filter(Boolean) as Element[];
-
-      if (currentHighlight === null) {
-        // Reset all
-        elements.forEach((el) => {
-          el.classList.remove("dimmed", "highlighted");
-        });
-      } else if (currentHighlight === wt.id) {
-        // Highlight this one
-        elements.forEach((el) => {
-          el.classList.remove("dimmed");
-          el.classList.add("highlighted");
-        });
-      } else {
-        // Dim this one
-        elements.forEach((el) => {
-          el.classList.remove("highlighted");
-          el.classList.add("dimmed");
-        });
-      }
+        if (currentHighlight === null) {
+          el.style.opacity = "";
+        } else if (currentHighlight === wt.id) {
+          el.style.opacity = "1";
+        } else {
+          el.style.opacity = "0.12";
+        }
+      });
     });
-  }, [activeType, selectedType, svgReady]);
+  }, [activeType, selectedType]);
 
-  const handleLegendHover = useCallback((id: string | null) => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    if (id) {
-      setActiveType(id);
-    } else {
-      hoverTimeoutRef.current = setTimeout(() => setActiveType(null), 50);
-    }
-  }, []);
+  const handleLegendHover = useCallback(
+    (id: string | null) => {
+      if (!selectedType) setActiveType(id);
+    },
+    [selectedType]
+  );
 
   const handleLegendClick = useCallback((id: string) => {
     setSelectedType((prev) => (prev === id ? null : id));
@@ -250,10 +266,10 @@ export default function WasteQuantitiesViz() {
   }
 
   return (
-    <div className="w-full">
-      {/* Legend / interactive buttons — moved above SVG for immediate access */}
+    <div className="w-full max-w-4xl mx-auto">
+      {/* Legend buttons */}
       {svgReady && (
-        <div className="mb-4 flex flex-wrap gap-3 justify-center">
+        <div className="mb-5 flex flex-wrap gap-3 justify-center">
           {WASTE_TYPES.map((wt) => (
             <button
               key={wt.id}
@@ -264,7 +280,7 @@ export default function WasteQuantitiesViz() {
                 px-3 py-1.5 rounded-sm text-xs tracking-wide uppercase transition-all duration-200 border
                 ${
                   selectedType === wt.id
-                    ? "border-current"
+                    ? "border-current shadow-sm"
                     : "border-border/60 hover:border-current"
                 }
               `}
@@ -285,19 +301,19 @@ export default function WasteQuantitiesViz() {
         </div>
       )}
 
-      {/* Info panel — appears between legend and SVG */}
+      {/* Info panel */}
       <AnimatePresence mode="wait">
         {currentInfo && (
           <motion.div
             key={currentInfo.id}
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.2 }}
-            className="mb-4 overflow-hidden"
+            className="mb-5"
           >
             <div
-              className="p-4 rounded-sm border border-border/60"
+              className="p-4 rounded-sm border border-border/60 bg-card"
               style={{ borderLeftColor: currentInfo.color, borderLeftWidth: 3 }}
             >
               <div className="flex items-baseline gap-3 mb-2">
@@ -308,7 +324,7 @@ export default function WasteQuantitiesViz() {
                   {currentInfo.name} ({currentInfo.abbreviation})
                 </h4>
               </div>
-              <div className="grid grid-cols-3 gap-4 mb-2">
+              <div className="grid grid-cols-3 gap-4 mb-3">
                 <div>
                   <p
                     className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
@@ -351,19 +367,25 @@ export default function WasteQuantitiesViz() {
         )}
       </AnimatePresence>
 
-      {/* SVG container — constrained to fit viewport without scrolling */}
-      <div className="w-full relative">
+      {/* SVG container with event delegation */}
+      <div className="w-full relative" style={{ cursor: "default" }}>
         {!svgHTML && !loadError && (
-          <div className="flex items-center justify-center" style={{ minHeight: "300px" }}>
+          <div
+            className="flex items-center justify-center"
+            style={{ minHeight: "300px" }}
+          >
             <div className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" />
           </div>
         )}
         {svgHTML && (
           <div
             ref={svgContainerRef}
-            className="w-full transition-opacity duration-300 mx-auto"
-            style={{ opacity: svgReady ? 1 : 0.3, maxWidth: "700px" }}
+            className="w-full"
+            style={{ opacity: svgReady ? 1 : 0.3, cursor: "crosshair" }}
             dangerouslySetInnerHTML={{ __html: svgHTML }}
+            onMouseOver={handleMouseOver}
+            onMouseOut={handleMouseOut}
+            onClick={handleClick}
           />
         )}
       </div>
@@ -375,8 +397,8 @@ export default function WasteQuantitiesViz() {
           style={{ fontFamily: "'IBM Plex Mono', monospace" }}
         >
           {selectedType
-            ? "Click again to deselect"
-            : "Hover or click a waste type to explore"}
+            ? "Click anywhere or the button again to deselect"
+            : "Hover over the shapes or click a waste type to explore"}
         </p>
       )}
     </div>
