@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 /*
   POSTER 003 — Interactive Scenario Comparison
@@ -10,6 +10,8 @@ import { useState, useRef, useEffect } from "react";
     3. Dendrograms — energy mix breakdown
   
   Each section has its own 3 scenario buttons below the image.
+  SVGs are loaded inline with per-scenario viewBoxes that center each
+  scenario's content within a stable container size.
 */
 
 interface ScenarioData {
@@ -54,19 +56,44 @@ const scenarios: ScenarioData[] = [
 // SVG URLs organised by viz type then scenario
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_36edbd00.svg",
-    s2: "/manus-storage/003-S2-dots_e8df5455.svg",
-    s3: "/manus-storage/003-S3-dots_ea3acbb0.svg",
+    s1: "/manus-storage/003-S1-dots_fa4b7fd8.svg",
+    s2: "/manus-storage/003-S2-dots_e37907c1.svg",
+    s3: "/manus-storage/003-S3-dots_72258e34.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_bffd3e07.svg",
-    s2: "/manus-storage/003-S2-deaths_1577e2d4.svg",
-    s3: "/manus-storage/003-S3-deaths_7414b63a.svg",
+    s1: "/manus-storage/003-S1-deaths_d35281db.svg",
+    s2: "/manus-storage/003-S2-deaths_7e8bfd36.svg",
+    s3: "/manus-storage/003-S3-deaths_48e64cc6.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_ea791179.svg",
-    s2: "/manus-storage/003-S2-dendrogram_ba0800bb.svg",
-    s3: "/manus-storage/003-S3-dendrogram_d3ba9108.svg",
+    s1: "/manus-storage/003-S1-dendrogram_e45ae38b.svg",
+    s2: "/manus-storage/003-S2-dendrogram_e68a2f7f.svg",
+    s3: "/manus-storage/003-S3-dendrogram_74753a7b.svg",
+  },
+};
+
+/*
+  Per-scenario viewBoxes that CENTER each scenario's content within
+  a stable container size (max content dimensions + padding).
+  Container size is the same for all 3 scenarios within each viz type,
+  so switching scenarios doesn't change the container dimensions —
+  only the viewBox origin shifts to keep content centered.
+*/
+const svgViewBoxes: Record<string, Record<string, string>> = {
+  dots: {
+    s1: "-185.8 -95.3 1371.6 1301.1",
+    s2: "-125.5 -72.0 1371.6 1301.1",
+    s3: "-145.7 -134.7 1371.6 1301.1",
+  },
+  deaths: {
+    s1: "-181.5 -174.4 1412.5 1400.5",
+    s2: "-268.0 -250.5 1412.5 1400.5",
+    s3: "-292.3 -282.0 1412.5 1400.5",
+  },
+  dendrogram: {
+    s1: "-249.8 -59.2 1224.3 1046.3",
+    s2: "-263.5 -59.2 1224.3 1046.3",
+    s3: "-273.4 -57.2 1224.3 1046.3",
   },
 };
 
@@ -88,24 +115,49 @@ const vizSections = [
   },
 ];
 
-/* ── Reusable image display with loading state ── */
-function VizImage({
+/* ── Inline SVG display with per-scenario centered viewBox ── */
+function InlineSvg({
   src,
   alt,
+  viewBox,
 }: {
   src: string;
   alt: string;
+  viewBox: string;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const [svgContent, setSvgContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLoaded(false);
-  }, [src]);
+    setLoading(true);
+    setSvgContent(null);
+
+    fetch(src)
+      .then((res) => res.text())
+      .then((text) => {
+        let modified = text
+          // Replace existing viewBox with our centered one
+          .replace(/viewBox="[^"]*"/, `viewBox="${viewBox}"`)
+          // Remove fixed width/height so it scales to container
+          .replace(/\s+width="[^"]*"/, "")
+          .replace(/\s+height="[^"]*"/, "");
+
+        setSvgContent(modified);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [src, viewBox]);
 
   return (
-    <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden min-h-[200px]">
-      {!loaded && (
+    <div
+      ref={containerRef}
+      className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
+      style={{ minHeight: "200px" }}
+      role="img"
+      aria-label={alt}
+    >
+      {loading && (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2">
             <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
@@ -118,16 +170,13 @@ function VizImage({
           </div>
         </div>
       )}
-      <img
-        ref={imgRef}
-        key={src}
-        src={src}
-        alt={alt}
-        className={`w-full h-auto transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
-        style={{ maxHeight: "85vh" }}
-        onLoad={() => setLoaded(true)}
-        draggable={false}
-      />
+      {svgContent && (
+        <div
+          className="w-full flex items-center justify-center"
+          style={{ maxHeight: "85vh" }}
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      )}
     </div>
   );
 }
@@ -247,6 +296,7 @@ export default function Poster003Viz() {
         const activeId = activeScenarios[section.id];
         const svgUrl = svgUrls[section.id][activeId];
         const scenario = scenarios.find((s) => s.id === activeId)!;
+        const viewBox = svgViewBoxes[section.id][activeId];
 
         return (
           <div key={section.id} className="w-full">
@@ -266,10 +316,11 @@ export default function Poster003Viz() {
               </h4>
             </div>
 
-            {/* Full-bleed SVG image */}
-            <VizImage
+            {/* Full-bleed centered SVG */}
+            <InlineSvg
               src={svgUrl}
               alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
+              viewBox={viewBox}
             />
 
             {/* Scenario buttons below the image */}
