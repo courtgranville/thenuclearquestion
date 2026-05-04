@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 /*
-  INTERACTIVE SVG COMPONENT — v7
+  INTERACTIVE SVG COMPONENT — v8
   
   Architecture:
   - Click/tap only (no hover) for mobile-first smoothness
@@ -12,6 +12,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
   - Generic: works with any SVG that has ID'd groups
   - Full-bleed: no max-width constraint — parent controls width
   - Legend defaults to bottom position
+  - viewBoxOverride is baked into the SVG HTML string before injection
+    so it persists across React re-renders (dangerouslySetInnerHTML)
 */
 
 export interface RegionInfo {
@@ -49,8 +51,7 @@ export default function InteractiveSVG({
   viewBoxOverride,
 }: InteractiveSVGProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const heightLocked = useRef(false);
+  const lockedHeight = useRef<number | null>(null);
   const [svgHTML, setSvgHTML] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -76,16 +77,13 @@ export default function InteractiveSVG({
   // Build the scoped CSS string for the current selection state
   const dynamicCSS = useMemo(() => {
     if (allGroupIds.length === 0) return "";
-    // Scope all selectors to our container using the scopeId
     const scope = `#${scopeId}`;
     const selectors = allGroupIds.map((gid) => `${scope} #${CSS.escape(gid)}`);
 
     let css = `${selectors.join(", ")} { transition: opacity 0.25s ease-out; will-change: opacity; }\n`;
 
     if (selected) {
-      // Dim all groups
       css += `${selectors.join(", ")} { opacity: 0.08; }\n`;
-      // Highlight selected region's groups
       const activeRegion = regions.find((r) => r.id === selected);
       if (activeRegion) {
         const activeSelectors = activeRegion.groupIds.map(
@@ -96,6 +94,61 @@ export default function InteractiveSVG({
     }
     return css;
   }, [selected, allGroupIds, regions, scopeId]);
+
+  // Prepare the final SVG HTML with viewBox override and sizing baked in.
+  // This ensures the viewBox persists across React re-renders.
+  const preparedSvgHTML = useMemo(() => {
+    if (!svgHTML) return null;
+    let html = svgHTML;
+
+    // Replace viewBox attribute in the <svg> tag
+    if (viewBoxOverride) {
+      html = html.replace(
+        /(<svg[^>]*?)viewBox="[^"]*"/i,
+        `$1viewBox="${viewBoxOverride}"`
+      );
+    }
+
+    // Inject inline styles into the <svg> tag to ensure consistent sizing
+    const svgStyles = [
+      'width: 100%',
+      'display: block',
+      'margin: 0 auto',
+    ];
+    
+    // If we've locked a height, bake it in; otherwise use auto + maxHeight
+    if (lockedHeight.current !== null) {
+      svgStyles.push(`height: ${lockedHeight.current}px`);
+    } else {
+      svgStyles.push('height: auto');
+      svgStyles.push(`max-height: ${maxHeight}`);
+    }
+
+    // Add preserveAspectRatio
+    if (!html.includes('preserveAspectRatio')) {
+      html = html.replace(
+        /(<svg[^>]*?)(>)/i,
+        `$1 preserveAspectRatio="xMidYMid meet"$2`
+      );
+    }
+
+    // Inject or merge style attribute
+    if (html.match(/<svg[^>]*?style="[^"]*"/i)) {
+      // SVG already has a style attribute — append our styles
+      html = html.replace(
+        /(<svg[^>]*?)style="([^"]*)"/i,
+        `$1style="$2; ${svgStyles.join('; ')}"`
+      );
+    } else {
+      // No existing style — add one
+      html = html.replace(
+        /(<svg[^>]*?)(>)/i,
+        `$1 style="${svgStyles.join('; ')}"$2`
+      );
+    }
+
+    return html;
+  }, [svgHTML, viewBoxOverride, maxHeight, lockedHeight.current]);
 
   // Fetch SVG with retry using XMLHttpRequest
   useEffect(() => {
@@ -136,9 +189,11 @@ export default function InteractiveSVG({
     };
   }, [svgUrl]);
 
-  // After SVG is injected, make it responsive and mark ready
+  // After SVG is injected, measure and lock height on first render
   useEffect(() => {
-    if (!svgHTML || !containerRef.current) return;
+    if (!preparedSvgHTML || !containerRef.current) return;
+    if (lockedHeight.current !== null) return; // Already locked
+
     const container = containerRef.current;
 
     const raf1 = requestAnimationFrame(() => {
@@ -146,32 +201,14 @@ export default function InteractiveSVG({
         const svgEl = container.querySelector("svg");
         if (!svgEl) return;
 
-        svgEl.style.width = "100%";
-        svgEl.style.display = "block";
-        svgEl.style.margin = "0 auto";
-        svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
-
-        // Override viewBox to crop whitespace if specified
-        if (viewBoxOverride) {
-          svgEl.setAttribute("viewBox", viewBoxOverride);
+        const rect = svgEl.getBoundingClientRect();
+        if (rect.height > 0) {
+          lockedHeight.current = rect.height;
+          // Force a re-render to bake the locked height into the SVG HTML
+          setReady(true);
+        } else if (!ready) {
+          setReady(true);
         }
-
-        // Lock the SVG height after first render to prevent size jumps on selection.
-        // We set height to "auto" first to measure, then lock it to a fixed pixel value.
-        if (!heightLocked.current) {
-          svgEl.style.height = "auto";
-          svgEl.style.maxHeight = maxHeight;
-          requestAnimationFrame(() => {
-            const rect = svgEl.getBoundingClientRect();
-            if (rect.height > 0) {
-              svgEl.style.height = `${rect.height}px`;
-              svgEl.style.maxHeight = "none";
-              heightLocked.current = true;
-            }
-          });
-        }
-
-        if (!ready) setReady(true);
       });
       (container as any).__raf2 = raf2;
     });
@@ -182,7 +219,7 @@ export default function InteractiveSVG({
         cancelAnimationFrame((container as any).__raf2);
       }
     };
-  }, [svgHTML, maxHeight, ready, viewBoxOverride]);
+  }, [preparedSvgHTML]);
 
   // Click handler using event delegation
   const handleClick = useCallback(
@@ -311,8 +348,8 @@ export default function InteractiveSVG({
       )}
 
       {/* SVG container */}
-      <div ref={wrapperRef} className="w-full relative">
-        {!svgHTML && !loadError && (
+      <div className="w-full relative">
+        {!preparedSvgHTML && !loadError && (
           <div
             className="flex items-center justify-center"
             style={{ minHeight: "200px" }}
@@ -320,7 +357,7 @@ export default function InteractiveSVG({
             <div className="w-5 h-5 border-2 border-border border-t-primary rounded-full animate-spin" />
           </div>
         )}
-        {svgHTML && (
+        {preparedSvgHTML && (
           <div
             id={scopeId}
             ref={containerRef}
@@ -330,7 +367,7 @@ export default function InteractiveSVG({
               transition: "opacity 0.3s ease",
               cursor: "pointer",
             }}
-            dangerouslySetInnerHTML={{ __html: svgHTML }}
+            dangerouslySetInnerHTML={{ __html: preparedSvgHTML }}
             onClick={handleClick}
           />
         )}
