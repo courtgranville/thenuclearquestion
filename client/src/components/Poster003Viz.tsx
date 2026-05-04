@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 /*
   POSTER 003 — Interactive Scenario Comparison
@@ -10,8 +10,8 @@ import { useState, useEffect, useRef } from "react";
     3. Dendrograms — energy mix breakdown
   
   Each section has its own 3 scenario buttons below the image.
-  SVGs are loaded inline with per-scenario viewBoxes that center each
-  scenario's content within a stable container size.
+  SVGs have viewBox pre-cropped to tight content bounds.
+  The component renders them at full width with a fixed aspect-ratio container.
 */
 
 interface ScenarioData {
@@ -53,48 +53,36 @@ const scenarios: ScenarioData[] = [
   },
 ];
 
-// SVG URLs organised by viz type then scenario
+// SVG URLs — pre-cropped to tight content bounds
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_fa4b7fd8.svg",
-    s2: "/manus-storage/003-S2-dots_e37907c1.svg",
-    s3: "/manus-storage/003-S3-dots_72258e34.svg",
+    s1: "/manus-storage/003-S1-dots_7657a643.svg",
+    s2: "/manus-storage/003-S2-dots_6f78f1da.svg",
+    s3: "/manus-storage/003-S3-dots_48ae5fde.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_d35281db.svg",
-    s2: "/manus-storage/003-S2-deaths_7e8bfd36.svg",
-    s3: "/manus-storage/003-S3-deaths_48e64cc6.svg",
+    s1: "/manus-storage/003-S1-deaths_77eec245.svg",
+    s2: "/manus-storage/003-S2-deaths_938c248c.svg",
+    s3: "/manus-storage/003-S3-deaths_f3f1bf1a.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_e45ae38b.svg",
-    s2: "/manus-storage/003-S2-dendrogram_e68a2f7f.svg",
-    s3: "/manus-storage/003-S3-dendrogram_74753a7b.svg",
+    s1: "/manus-storage/003-S1-dendrogram_51074b6b.svg",
+    s2: "/manus-storage/003-S2-dendrogram_41a4ecab.svg",
+    s3: "/manus-storage/003-S3-dendrogram_2686af7f.svg",
   },
 };
 
 /*
-  Per-scenario viewBoxes that CENTER each scenario's content within
-  a stable container size (max content dimensions + padding).
-  Container size is the same for all 3 scenarios within each viz type,
-  so switching scenarios doesn't change the container dimensions —
-  only the viewBox origin shifts to keep content centered.
+  Aspect ratios for each viz type's container.
+  Derived from container_w / container_h:
+    dots:       673.9 / 370.1 = 1.821
+    deaths:     753.8 / 545.2 = 1.383
+    dendrogram: 622.6 / 356.6 = 1.746
 */
-const svgViewBoxes: Record<string, Record<string, string>> = {
-  dots: {
-    s1: "-185.8 -95.3 1371.6 1301.1",
-    s2: "-125.5 -72.0 1371.6 1301.1",
-    s3: "-145.7 -134.7 1371.6 1301.1",
-  },
-  deaths: {
-    s1: "-181.5 -174.4 1412.5 1400.5",
-    s2: "-268.0 -250.5 1412.5 1400.5",
-    s3: "-292.3 -282.0 1412.5 1400.5",
-  },
-  dendrogram: {
-    s1: "-249.8 -59.2 1224.3 1046.3",
-    s2: "-263.5 -59.2 1224.3 1046.3",
-    s3: "-273.4 -57.2 1224.3 1046.3",
-  },
+const vizAspectRatios: Record<string, number> = {
+  dots: 673.9 / 370.1,
+  deaths: 753.8 / 545.2,
+  dendrogram: 622.6 / 356.6,
 };
 
 const vizSections = [
@@ -115,45 +103,86 @@ const vizSections = [
   },
 ];
 
-/* ── Inline SVG display with per-scenario centered viewBox ── */
+/* ── SVG cache to avoid re-fetching ── */
+const svgCache: Record<string, string> = {};
+
+/* ── Inline SVG display — uses ref-based DOM injection to avoid React state issues ── */
 function InlineSvg({
   src,
   alt,
-  viewBox,
+  aspectRatio,
 }: {
   src: string;
   alt: string;
-  viewBox: string;
+  aspectRatio: number;
 }) {
-  const [svgContent, setSvgContent] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    setSvgContent(null);
 
-    fetch(src)
-      .then((res) => res.text())
-      .then((text) => {
-        let modified = text
-          // Replace existing viewBox with our centered one
-          .replace(/viewBox="[^"]*"/, `viewBox="${viewBox}"`)
-          // Remove fixed width/height so it scales to container
-          .replace(/\s+width="[^"]*"/, "")
-          .replace(/\s+height="[^"]*"/, "");
+    // Clear previous content
+    if (containerRef.current) {
+      containerRef.current.innerHTML = "";
+    }
 
-        setSvgContent(modified);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [src, viewBox]);
+    const injectSvg = (svgText: string) => {
+      if (cancelled || !containerRef.current) return;
+
+      // Remove any fixed width/height so SVG scales to container
+      let modified = svgText
+        .replace(/(<svg[^>]*?)\s+width="[^"]*"/g, "$1")
+        .replace(/(<svg[^>]*?)\s+height="[^"]*"/g, "$1");
+
+      // Ensure the SVG fills its container
+      modified = modified.replace(
+        /(<svg[^>]*?)>/,
+        '$1 style="width:100%;height:100%;display:block">'
+      );
+
+      containerRef.current.innerHTML = modified;
+      setLoading(false);
+    };
+
+    // Check cache first
+    if (svgCache[src]) {
+      injectSvg(svgCache[src]);
+      return;
+    }
+
+    // Use synchronous XHR to avoid async state issues with debug collector
+    // We wrap it in a setTimeout to keep the UI responsive
+    const timer = setTimeout(() => {
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", src, false); // synchronous
+        xhr.send();
+        if (xhr.status >= 200 && xhr.status < 400) {
+          svgCache[src] = xhr.responseText;
+          injectSvg(xhr.responseText);
+        } else {
+          if (!cancelled) setLoading(false);
+        }
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [src]);
 
   return (
     <div
-      ref={containerRef}
       className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
-      style={{ minHeight: "200px" }}
+      style={{
+        width: "100%",
+        aspectRatio: `${aspectRatio}`,
+      }}
       role="img"
       aria-label={alt}
     >
@@ -170,13 +199,10 @@ function InlineSvg({
           </div>
         </div>
       )}
-      {svgContent && (
-        <div
-          className="w-full flex items-center justify-center"
-          style={{ maxHeight: "85vh" }}
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-        />
-      )}
+      <div
+        ref={containerRef}
+        className="w-full h-full"
+      />
     </div>
   );
 }
@@ -296,7 +322,7 @@ export default function Poster003Viz() {
         const activeId = activeScenarios[section.id];
         const svgUrl = svgUrls[section.id][activeId];
         const scenario = scenarios.find((s) => s.id === activeId)!;
-        const viewBox = svgViewBoxes[section.id][activeId];
+        const ar = vizAspectRatios[section.id];
 
         return (
           <div key={section.id} className="w-full">
@@ -318,9 +344,10 @@ export default function Poster003Viz() {
 
             {/* Full-bleed centered SVG */}
             <InlineSvg
+              key={`${section.id}-${activeId}`}
               src={svgUrl}
               alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
-              viewBox={viewBox}
+              aspectRatio={ar}
             />
 
             {/* Scenario buttons below the image */}
