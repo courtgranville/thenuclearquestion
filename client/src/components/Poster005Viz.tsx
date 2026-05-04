@@ -107,21 +107,23 @@ const dendroCategories: ReactorCategory[] = [
 
 // Map filter: target circles by fill color
 // All circles start visible. When a category is active, only matching fill circles stay full opacity.
+// IMPORTANT: Many circles have fill-opacity=".55" inline. We use opacity (not fill-opacity) for dimming
+// but must set it high enough that semi-transparent circles remain visible when selected.
 function getMapFilterStyle(activeColor: string | null) {
   if (!activeColor) {
-    return `
-      circle[fill]:not([fill="none"]) {
-        transition: opacity 0.3s ease-out;
-      }
-    `;
+    // Default state: no filter, all circles visible as-is
+    return ``;
   }
+  // When filtering: dim non-matching circles, keep matching ones at full opacity
   return `
-    circle[fill]:not([fill="none"]) {
+    circle[fill]:not([fill="none"]):not([fill="${activeColor}"]) {
+      opacity: 0.1 !important;
       transition: opacity 0.3s ease-out;
-      opacity: 0.08 !important;
     }
     circle[fill="${activeColor}"] {
       opacity: 1 !important;
+      fill-opacity: 1 !important;
+      transition: opacity 0.3s ease-out;
     }
   `;
 }
@@ -130,17 +132,26 @@ function getMapFilterStyle(activeColor: string | null) {
 // The blob forms are polylines with stroke=COLOR inside groups that also have
 // polylines with fill=#ece7df. We need to dim both the stroke polylines AND
 // the fill polylines of non-matching groups.
+// NOTE: Some circles have fill-opacity="0" (the 25 retired circles that are invisible by default
+// in the dendrogram). We should NOT force those visible.
 function getDendroFilterStyle(activeColor: string | null, allColors: string[]) {
   if (!activeColor) {
-    return `
-      circle[fill]:not([fill="none"]) {
-        transition: opacity 0.3s ease-out;
-      }
-      polyline {
-        transition: opacity 0.3s ease-out;
-      }
-    `;
+    // Default state: no filter, everything visible as-is
+    return ``;
   }
+
+  // Build rules to dim non-matching circles by fill color
+  const dimCircleRules = allColors
+    .filter((c) => c !== activeColor)
+    .map(
+      (c) => `
+    circle[fill="${c}"]:not([fill-opacity="0"]) {
+      opacity: 0.1 !important;
+      transition: opacity 0.3s ease-out;
+    }
+  `
+    )
+    .join("\n");
 
   // Build rules to dim non-matching polylines (by stroke color)
   const dimPolylineRules = allColors
@@ -148,26 +159,24 @@ function getDendroFilterStyle(activeColor: string | null, allColors: string[]) {
     .map(
       (c) => `
     polyline[stroke="${c}"] {
-      opacity: 0.08 !important;
+      opacity: 0.1 !important;
+      transition: opacity 0.3s ease-out;
     }
   `
     )
     .join("\n");
 
   return `
-    circle[fill]:not([fill="none"]) {
-      transition: opacity 0.3s ease-out;
-      opacity: 0.08 !important;
-    }
     circle[fill="${activeColor}"] {
       opacity: 1 !important;
-    }
-    polyline {
+      fill-opacity: 1 !important;
       transition: opacity 0.3s ease-out;
     }
     polyline[stroke="${activeColor}"] {
       opacity: 1 !important;
+      transition: opacity 0.3s ease-out;
     }
+    ${dimCircleRules}
     ${dimPolylineRules}
   `;
 }
