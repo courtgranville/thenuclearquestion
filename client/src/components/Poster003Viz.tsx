@@ -11,12 +11,9 @@ import { useState, useEffect, useRef } from "react";
   
   LABELS ARE PRESERVED — only paragraph annotations and dashed arrows removed.
   
-  CENTERING APPROACH (UNIFIED VIEWBOX):
-  All 3 scenarios within each section share the SAME viewBox (the union of
-  all 3 scenarios' content bounds, centered on the content). This ensures:
-  - Relative sizes between scenarios are preserved
-  - Content is centered within the container
-  - Switching scenarios doesn't change the scale
+  CENTERING: Each SVG has its viewBox individually centered on its content bbox.
+  The container uses a FIXED HEIGHT and lets the SVG center itself within it
+  using preserveAspectRatio="xMidYMid meet". No fixed aspect ratio on the container.
 */
 
 interface ScenarioData {
@@ -58,32 +55,31 @@ const scenarios: ScenarioData[] = [
   },
 ];
 
-// V16 SVG URLs — Union bounding box approach for centering
+// V18 SVG URLs — Individually centered, verified against PDF
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_a7a76eee.svg",
-    s2: "/manus-storage/003-S2-dots_794d654d.svg",
-    s3: "/manus-storage/003-S3-dots_48ad4eaa.svg",
+    s1: "/manus-storage/003-S1-dots_009b59b1.svg",
+    s2: "/manus-storage/003-S2-dots_6c8b047b.svg",
+    s3: "/manus-storage/003-S3-dots_e49e227a.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_fbe45ea4.svg",
-    s2: "/manus-storage/003-S2-deaths_e40bb4f7.svg",
-    s3: "/manus-storage/003-S3-deaths_31582851.svg",
+    s1: "/manus-storage/003-S1-deaths_f4e53422.svg",
+    s2: "/manus-storage/003-S2-deaths_cc6007d5.svg",
+    s3: "/manus-storage/003-S3-deaths_8682ba66.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_8b8f77e3.svg",
-    s2: "/manus-storage/003-S2-dendrogram_6a8cae88.svg",
-    s3: "/manus-storage/003-S3-dendrogram_0c267102.svg",
+    s1: "/manus-storage/003-S1-dendrogram_19832a4f.svg",
+    s2: "/manus-storage/003-S2-dendrogram_aeb36071.svg",
+    s3: "/manus-storage/003-S3-dendrogram_8d6b3808.svg",
   },
 };
 
-/*
-  V16 Union bounding box viewBoxes:
-  
-  dots:       554.36 464.97 588.46 361.04  (aspect ~1.630)
-  deaths:     423.27 431.54 795.59 472.29  (aspect ~1.685)
-  dendrogram: 340.62 629.52 544.36 326.28  (aspect ~1.668)
-*/
+// Fixed heights per section (px) — gives each section appropriate visual weight
+const sectionHeight: Record<string, number> = {
+  dots: 420,
+  deaths: 420,
+  dendrogram: 420,
+};
 
 // Section annotations that apply to all scenarios
 const vizSections = [
@@ -104,25 +100,18 @@ const vizSections = [
   },
 ];
 
-// Aspect ratios from union bounding box viewBoxes
-const sectionAspect: Record<string, number> = {
-  dots: 588.46 / 361.04,       // ~1.630
-  deaths: 795.59 / 472.29,     // ~1.685
-  dendrogram: 544.36 / 326.28, // ~1.668
-};
-
 /* ── SVG cache to avoid re-fetching ── */
 const svgCache: Record<string, string> = {};
 
-/* ── Inline SVG display with unified viewBox ── */
+/* ── Inline SVG display with fixed-height container ── */
 function InlineSvg({
   src,
   alt,
-  aspect,
+  height,
 }: {
   src: string;
   alt: string;
-  aspect: number;
+  height: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -182,11 +171,11 @@ function InlineSvg({
 
   return (
     <div
-      className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden mx-auto"
+      className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden mx-auto flex items-center justify-center"
       style={{
         width: "100%",
         maxWidth: "900px",
-        aspectRatio: `${aspect}`,
+        height: `${height}px`,
       }}
       role="img"
       aria-label={alt}
@@ -324,7 +313,7 @@ export default function Poster003Viz() {
         const activeId = activeScenarios[section.id];
         const svgUrl = svgUrls[section.id][activeId];
         const scenario = scenarios.find((s) => s.id === activeId)!;
-        const aspect = sectionAspect[section.id];
+        const height = sectionHeight[section.id];
 
         return (
           <div key={section.id} className="w-full">
@@ -379,13 +368,13 @@ export default function Poster003Viz() {
               </div>
             </div>
 
-            {/* SVG with unified viewBox — same coordinate space for all 3 scenarios */}
+            {/* SVG — fixed height container, SVG centers itself */}
             <div className="max-w-4xl mx-auto px-4">
               <InlineSvg
                 key={`${section.id}-${activeId}`}
                 src={svgUrl}
                 alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
-                aspect={aspect}
+                height={height}
               />
             </div>
 
