@@ -59,13 +59,13 @@ const scenarios: ScenarioData[] = [
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
     s1: "/manus-storage/003-S1-dots_009b59b1.svg",
-    s2: "/manus-storage/003-S2-dots_12dd6665.svg",
+    s2: "/manus-storage/003-S2-dots_84490f76.svg",
     s3: "/manus-storage/003-S3-dots_e49e227a.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_63b44ec7.svg",
-    s2: "/manus-storage/003-S2-deaths_a367d5c3.svg",
-    s3: "/manus-storage/003-S3-deaths_5f5e68c7.svg",
+    s1: "/manus-storage/003-S1-deaths_4c54f3c8.svg",
+    s2: "/manus-storage/003-S2-deaths_a0fdbd40.svg",
+    s3: "/manus-storage/003-S3-deaths_fb3e3182.svg",
   },
   dendrogram: {
     s1: "/manus-storage/003-S1-dendrogram_19832a4f.svg",
