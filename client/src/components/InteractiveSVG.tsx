@@ -147,8 +147,6 @@ export default function InteractiveSVG({
         if (!svgEl) return;
 
         svgEl.style.width = "100%";
-        svgEl.style.height = "auto";
-        svgEl.style.maxHeight = maxHeight;
         svgEl.style.display = "block";
         svgEl.style.margin = "0 auto";
         svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -158,15 +156,17 @@ export default function InteractiveSVG({
           svgEl.setAttribute("viewBox", viewBoxOverride);
         }
 
-        // Lock the wrapper height after first render to prevent size jumps on selection
-        if (!heightLocked.current && wrapperRef.current) {
+        // Lock the SVG height after first render to prevent size jumps on selection.
+        // We set height to "auto" first to measure, then lock it to a fixed pixel value.
+        if (!heightLocked.current) {
+          svgEl.style.height = "auto";
+          svgEl.style.maxHeight = maxHeight;
           requestAnimationFrame(() => {
-            if (wrapperRef.current) {
-              const h = wrapperRef.current.getBoundingClientRect().height;
-              if (h > 0) {
-                wrapperRef.current.style.minHeight = `${h}px`;
-                heightLocked.current = true;
-              }
+            const rect = svgEl.getBoundingClientRect();
+            if (rect.height > 0) {
+              svgEl.style.height = `${rect.height}px`;
+              svgEl.style.maxHeight = "none";
+              heightLocked.current = true;
             }
           });
         }
