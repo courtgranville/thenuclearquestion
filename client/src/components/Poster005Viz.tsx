@@ -129,23 +129,24 @@ function getMapFilterStyle(activeColor: string | null) {
 }
 
 // Dendrogram filter: target circles by fill AND polylines by stroke
-// The blob forms are polylines with stroke=COLOR inside groups that also have
-// polylines with fill=#ece7df. We need to dim both the stroke polylines AND
-// the fill polylines of non-matching groups.
-// NOTE: Some circles have fill-opacity="0" (the 25 retired circles that are invisible by default
-// in the dendrogram). We should NOT force those visible.
+// The blob forms are polylines with stroke=COLOR.
+// Circle structure in the dendrogram SVG:
+//   - 72 large circles (the row of dots): have opacity=".55" and fill=COLOR
+//   - 25 small timeline circles: have fill-opacity="0" and stroke=COLOR (outline only)
+// When filtering: boost matching large circles to opacity:1, dim non-matching to opacity:0.1
+// Leave the small timeline circles (fill-opacity=0) untouched.
 function getDendroFilterStyle(activeColor: string | null, allColors: string[]) {
   if (!activeColor) {
     // Default state: no filter, everything visible as-is
     return ``;
   }
 
-  // Build rules to dim non-matching circles by fill color
+  // Build rules to dim non-matching large circles (those with opacity=".55")
   const dimCircleRules = allColors
     .filter((c) => c !== activeColor)
     .map(
       (c) => `
-    circle[fill="${c}"]:not([fill-opacity="0"]) {
+    circle[fill="${c}"][opacity] {
       opacity: 0.1 !important;
       transition: opacity 0.3s ease-out;
     }
@@ -167,9 +168,8 @@ function getDendroFilterStyle(activeColor: string | null, allColors: string[]) {
     .join("\n");
 
   return `
-    circle[fill="${activeColor}"] {
+    circle[fill="${activeColor}"][opacity] {
       opacity: 1 !important;
-      fill-opacity: 1 !important;
       transition: opacity 0.3s ease-out;
     }
     polyline[stroke="${activeColor}"] {
