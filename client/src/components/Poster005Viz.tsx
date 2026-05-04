@@ -7,8 +7,13 @@ import { useState, useEffect, useRef, useCallback } from "react";
   1. Map — UK reactor locations, filterable by status
   2. Dendrogram — Timeline showing reactor lifespans, filterable by status
   
-  Both use fill-color-based CSS targeting (circle[fill="COLOR"]) to highlight
-  all circles of a given category regardless of SVG group structure.
+  Map filtering: targets circle[fill="COLOR"] — must handle fill-opacity=".55" circles
+  in zoom insets as well as fill-opacity="1" circles on the main map.
+  
+  Dendrogram filtering: targets BOTH:
+  - circle[fill="COLOR"] for the reactor dots at the bottom
+  - polyline[stroke="COLOR"] for the blob forms at the top (organic shapes)
+  - Also dims the filled polylines (#ece7df) in the same parent group
 */
 
 const MAP_URL = "/manus-storage/005-map_d6bf9e9f.svg";
@@ -64,6 +69,7 @@ const mapCategories: ReactorCategory[] = [
 ];
 
 // Dendrogram categories (4 statuses on the timeline)
+// Blob forms use stroke colors; circles use fill colors
 const dendroCategories: ReactorCategory[] = [
   {
     id: "construction",
@@ -99,29 +105,72 @@ const dendroCategories: ReactorCategory[] = [
   },
 ];
 
-// CSS filter style generator for fill-color-based highlighting
-function getFilterStyle(activeColor: string | null, baseStyle: string) {
-  if (!activeColor) return baseStyle;
-  return (
-    baseStyle +
-    `
-    circle { opacity: 0.06; }
-    circle[fill="${activeColor}"] { opacity: 1; }
-  `
-  );
+// Map filter: target circles by fill color
+// All circles start visible. When a category is active, only matching fill circles stay full opacity.
+function getMapFilterStyle(activeColor: string | null) {
+  if (!activeColor) {
+    return `
+      circle[fill]:not([fill="none"]) {
+        transition: opacity 0.3s ease-out;
+      }
+    `;
+  }
+  return `
+    circle[fill]:not([fill="none"]) {
+      transition: opacity 0.3s ease-out;
+      opacity: 0.08 !important;
+    }
+    circle[fill="${activeColor}"] {
+      opacity: 1 !important;
+    }
+  `;
 }
 
-const MAP_BASE_STYLE = `
-  circle {
-    transition: opacity 0.25s ease-out;
+// Dendrogram filter: target circles by fill AND polylines by stroke
+// The blob forms are polylines with stroke=COLOR inside groups that also have
+// polylines with fill=#ece7df. We need to dim both the stroke polylines AND
+// the fill polylines of non-matching groups.
+function getDendroFilterStyle(activeColor: string | null, allColors: string[]) {
+  if (!activeColor) {
+    return `
+      circle[fill]:not([fill="none"]) {
+        transition: opacity 0.3s ease-out;
+      }
+      polyline {
+        transition: opacity 0.3s ease-out;
+      }
+    `;
   }
-`;
 
-const DENDRO_BASE_STYLE = `
-  circle {
-    transition: opacity 0.25s ease-out;
-  }
-`;
+  // Build rules to dim non-matching polylines (by stroke color)
+  const dimPolylineRules = allColors
+    .filter((c) => c !== activeColor)
+    .map(
+      (c) => `
+    polyline[stroke="${c}"] {
+      opacity: 0.08 !important;
+    }
+  `
+    )
+    .join("\n");
+
+  return `
+    circle[fill]:not([fill="none"]) {
+      transition: opacity 0.3s ease-out;
+      opacity: 0.08 !important;
+    }
+    circle[fill="${activeColor}"] {
+      opacity: 1 !important;
+    }
+    polyline {
+      transition: opacity 0.3s ease-out;
+    }
+    polyline[stroke="${activeColor}"] {
+      opacity: 1 !important;
+    }
+    ${dimPolylineRules}
+  `;
+}
 
 /* ─── Shared Legend Component ─── */
 function CategoryLegend({
@@ -217,20 +266,8 @@ function CategoryLegend({
   );
 }
 
-/* ─── SVG Interactive Section ─── */
-function InteractiveSVGSection({
-  svgUrl,
-  categories,
-  baseStyle,
-  label,
-  minHeight = "400px",
-}: {
-  svgUrl: string;
-  categories: ReactorCategory[];
-  baseStyle: string;
-  label: string;
-  minHeight?: string;
-}) {
+/* ─── Map Interactive Section ─── */
+function MapSection() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [svgContent, setSvgContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -238,22 +275,22 @@ function InteractiveSVGSection({
 
   useEffect(() => {
     setLoading(true);
-    fetch(svgUrl)
+    fetch(MAP_URL)
       .then((r) => r.text())
       .then((text) => {
         setSvgContent(text);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [svgUrl]);
+  }, []);
 
-  // Apply fill-color-based filtering
+  // Apply fill-color-based filtering via injected <style>
   useEffect(() => {
     if (!containerRef.current || !svgContent) return;
     const svg = containerRef.current.querySelector("svg");
     if (!svg) return;
 
-    const activeCat = categories.find((c) => c.id === activeCategory);
+    const activeCat = mapCategories.find((c) => c.id === activeCategory);
     const activeColor = activeCat ? activeCat.color : null;
 
     let styleEl = svg.querySelector(
@@ -267,8 +304,8 @@ function InteractiveSVGSection({
       styleEl.setAttribute("class", "interactive-style");
       svg.insertBefore(styleEl, svg.firstChild);
     }
-    styleEl.textContent = getFilterStyle(activeColor, baseStyle);
-  }, [activeCategory, svgContent, categories, baseStyle]);
+    styleEl.textContent = getMapFilterStyle(activeColor);
+  }, [activeCategory, svgContent]);
 
   const handleCategoryClick = useCallback((id: string) => {
     setActiveCategory((prev) => (prev === id ? null : id));
@@ -276,18 +313,16 @@ function InteractiveSVGSection({
 
   return (
     <div className="w-full">
-      {/* Section label */}
       <p
         className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
         style={{ fontFamily: "'IBM Plex Mono', monospace" }}
       >
-        {label}
+        Reactor Map
       </p>
 
-      {/* SVG container */}
       <div
         className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
-        style={{ minHeight }}
+        style={{ minHeight: "400px" }}
       >
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -309,10 +344,100 @@ function InteractiveSVGSection({
         />
       </div>
 
-      {/* Controls below */}
       <div className="mt-4">
         <CategoryLegend
-          categories={categories}
+          categories={mapCategories}
+          activeCategory={activeCategory}
+          onCategoryClick={handleCategoryClick}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Dendrogram Interactive Section ─── */
+function DendrogramSection() {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [svgContent, setSvgContent] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const allDendroColors = dendroCategories.map((c) => c.color);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(DENDROGRAM_URL)
+      .then((r) => r.text())
+      .then((text) => {
+        setSvgContent(text);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  // Apply filtering via injected <style> — targets circles AND polylines
+  useEffect(() => {
+    if (!containerRef.current || !svgContent) return;
+    const svg = containerRef.current.querySelector("svg");
+    if (!svg) return;
+
+    const activeCat = dendroCategories.find((c) => c.id === activeCategory);
+    const activeColor = activeCat ? activeCat.color : null;
+
+    let styleEl = svg.querySelector(
+      "style.interactive-style"
+    ) as SVGStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElementNS(
+        "http://www.w3.org/2000/svg",
+        "style"
+      );
+      styleEl.setAttribute("class", "interactive-style");
+      svg.insertBefore(styleEl, svg.firstChild);
+    }
+    styleEl.textContent = getDendroFilterStyle(activeColor, allDendroColors);
+  }, [activeCategory, svgContent, allDendroColors]);
+
+  const handleCategoryClick = useCallback((id: string) => {
+    setActiveCategory((prev) => (prev === id ? null : id));
+  }, []);
+
+  return (
+    <div className="w-full">
+      <p
+        className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
+        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+      >
+        Status Dendrogram & Timeline
+      </p>
+
+      <div
+        className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
+        style={{ minHeight: "300px" }}
+      >
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
+              <span
+                className="text-xs text-muted-foreground"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                Loading...
+              </span>
+            </div>
+          </div>
+        )}
+        <div
+          ref={containerRef}
+          className="w-full [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[85vh]"
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      </div>
+
+      <div className="mt-4">
+        <CategoryLegend
+          categories={dendroCategories}
           activeCategory={activeCategory}
           onCategoryClick={handleCategoryClick}
         />
@@ -326,22 +451,10 @@ export default function Poster005Viz() {
   return (
     <div className="w-full space-y-12">
       {/* Section 1: Reactor Map */}
-      <InteractiveSVGSection
-        svgUrl={MAP_URL}
-        categories={mapCategories}
-        baseStyle={MAP_BASE_STYLE}
-        label="Reactor Map"
-        minHeight="400px"
-      />
+      <MapSection />
 
       {/* Section 2: Timeline Dendrogram */}
-      <InteractiveSVGSection
-        svgUrl={DENDROGRAM_URL}
-        categories={dendroCategories}
-        baseStyle={DENDRO_BASE_STYLE}
-        label="Status Dendrogram & Timeline"
-        minHeight="300px"
-      />
+      <DendrogramSection />
     </div>
   );
 }
