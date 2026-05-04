@@ -4,7 +4,10 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
 import PageTransition from "@/components/PageTransition";
+import Poster001Viz from "@/components/Poster001Viz";
+import Poster002Viz from "@/components/Poster002Viz";
 import Poster003Viz from "@/components/Poster003Viz";
+import Poster004Viz from "@/components/Poster004Viz";
 import Poster005Viz from "@/components/Poster005Viz";
 import Poster006Viz from "@/components/Poster006Viz";
 import { posters } from "@/lib/posterData";
@@ -473,33 +476,34 @@ export default function PosterPage() {
               </motion.div>
             </div>
 
-            {/* Interactive Visualisations */}
-            {(poster.id === "003" || poster.id === "005" || poster.id === "006") && (
-              <motion.section
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
-                className="mt-16 mb-12"
-              >
-                <div className="mb-6">
-                  <p
-                    className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Interactive Visualisations
-                  </p>
-                  <h3
-                    className="font-serif text-2xl text-foreground mb-2"
-                    style={{ fontWeight: 600 }}
-                  >
-                    Explore the Data
-                  </h3>
-                </div>
-                {poster.id === "003" && <Poster003Viz />}
-                {poster.id === "005" && <Poster005Viz />}
-                {poster.id === "006" && <Poster006Viz />}
-              </motion.section>
-            )}
+            {/* Interactive Visualisations — all 6 posters */}
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+              className="mt-16 mb-12"
+            >
+              <div className="mb-6">
+                <p
+                  className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  Interactive Visualisations
+                </p>
+                <h3
+                  className="font-serif text-2xl text-foreground mb-2"
+                  style={{ fontWeight: 600 }}
+                >
+                  Explore the Data
+                </h3>
+              </div>
+              {poster.id === "001" && <Poster001Viz />}
+              {poster.id === "002" && <Poster002Viz />}
+              {poster.id === "003" && <Poster003Viz />}
+              {poster.id === "004" && <Poster004Viz />}
+              {poster.id === "005" && <Poster005Viz />}
+              {poster.id === "006" && <Poster006Viz />}
+            </motion.section>
 
             {/* Navigation */}
             <nav className="border-t border-border py-6 mb-6">
