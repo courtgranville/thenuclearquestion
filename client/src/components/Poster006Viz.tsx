@@ -21,9 +21,10 @@ interface VizSectionProps {
   description: string;
   config: { svgUrl: string; regions: any[] };
   maxHeight?: string;
+  viewBoxOverride?: string;
 }
 
-function VizSection({ title, description, config, maxHeight = "85vh" }: VizSectionProps) {
+function VizSection({ title, description, config, maxHeight = "85vh", viewBoxOverride }: VizSectionProps) {
   return (
     <div className="w-full pb-6">
       {/* Section heading */}
@@ -53,6 +54,7 @@ function VizSection({ title, description, config, maxHeight = "85vh" }: VizSecti
         svgUrl={config.svgUrl}
         regions={config.regions}
         maxHeight={maxHeight}
+        viewBoxOverride={viewBoxOverride}
       />
 
       {/* Subtle divider */}
@@ -78,6 +80,7 @@ export default function Poster006Viz() {
         title="Where Does Waste Come From?"
         description="Where Britain's radioactive waste is stored. Circle sizes are proportional to volume — Sellafield holds over 72% of the total."
         config={wasteLocationsConfig}
+        viewBoxOverride="280 180 900 700"
       />
 
       {/* 3. Radiation Doses */}
@@ -85,6 +88,7 @@ export default function Poster006Viz() {
         title="Radiation Doses"
         description="Comparing common radiation doses from everyday activities and nuclear waste. Each burst is scaled to the dose — the largest is a CT scan at 10 mSv."
         config={radiationDosesConfig}
+        viewBoxOverride="350 300 750 650"
       />
 
       {/* 4. Waste Storage */}

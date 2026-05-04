@@ -34,6 +34,7 @@ interface InteractiveSVGProps {
   className?: string;
   legendPosition?: "top" | "bottom";
   maxHeight?: string;
+  viewBoxOverride?: string; // Override SVG viewBox to crop whitespace, e.g. "300 200 800 700"
 }
 
 // Unique ID counter for scoping CSS
@@ -45,6 +46,7 @@ export default function InteractiveSVG({
   className = "",
   legendPosition = "bottom",
   maxHeight = "80vh",
+  viewBoxOverride,
 }: InteractiveSVGProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgHTML, setSvgHTML] = useState<string | null>(null);
@@ -149,6 +151,11 @@ export default function InteractiveSVG({
         svgEl.style.margin = "0 auto";
         svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
+        // Override viewBox to crop whitespace if specified
+        if (viewBoxOverride) {
+          svgEl.setAttribute("viewBox", viewBoxOverride);
+        }
+
         if (!ready) setReady(true);
       });
       (container as any).__raf2 = raf2;
@@ -160,7 +167,7 @@ export default function InteractiveSVG({
         cancelAnimationFrame((container as any).__raf2);
       }
     };
-  }, [svgHTML, maxHeight, ready]);
+  }, [svgHTML, maxHeight, ready, viewBoxOverride]);
 
   // Click handler using event delegation
   const handleClick = useCallback(
