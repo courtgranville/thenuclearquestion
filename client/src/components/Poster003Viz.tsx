@@ -58,31 +58,31 @@ const scenarios: ScenarioData[] = [
   },
 ];
 
-// FINAL SVG URLs — Playwright getBBox() computed symmetric viewBoxes centered on S1.
+// V16 SVG URLs — Union bounding box approach for centering
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_340b5bf5.svg",
-    s2: "/manus-storage/003-S2-dots_86cd941b.svg",
-    s3: "/manus-storage/003-S3-dots_d121d9d7.svg",
+    s1: "/manus-storage/003-S1-dots_a7a76eee.svg",
+    s2: "/manus-storage/003-S2-dots_794d654d.svg",
+    s3: "/manus-storage/003-S3-dots_48ad4eaa.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_81c41dda.svg",
-    s2: "/manus-storage/003-S2-deaths_3280c2eb.svg",
-    s3: "/manus-storage/003-S3-deaths_f70ba98c.svg",
+    s1: "/manus-storage/003-S1-deaths_fbe45ea4.svg",
+    s2: "/manus-storage/003-S2-deaths_e40bb4f7.svg",
+    s3: "/manus-storage/003-S3-deaths_31582851.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_f5961f94.svg",
-    s2: "/manus-storage/003-S2-dendrogram_d1dfad6f.svg",
-    s3: "/manus-storage/003-S3-dendrogram_e360410e.svg",
+    s1: "/manus-storage/003-S1-dendrogram_8b8f77e3.svg",
+    s2: "/manus-storage/003-S2-dendrogram_6a8cae88.svg",
+    s3: "/manus-storage/003-S3-dendrogram_0c267102.svg",
   },
 };
 
 /*
-  FINAL Playwright getBBox() symmetric viewBoxes centered on S1:
+  V16 Union bounding box viewBoxes:
   
-  dots:       402.45 441.86 811.86 376.71  (aspect ~2.155)
-  deaths:     438.53 442.27 877.66 450.82  (aspect ~1.947)
-  dendrogram: 295.47 636.89 578.55 313.24  (aspect ~1.847)
+  dots:       554.36 464.97 588.46 361.04  (aspect ~1.630)
+  deaths:     423.27 431.54 795.59 472.29  (aspect ~1.685)
+  dendrogram: 340.62 629.52 544.36 326.28  (aspect ~1.668)
 */
 
 // Section annotations that apply to all scenarios
@@ -104,11 +104,11 @@ const vizSections = [
   },
 ];
 
-// Aspect ratios from Playwright getBBox() symmetric viewBoxes
+// Aspect ratios from union bounding box viewBoxes
 const sectionAspect: Record<string, number> = {
-  dots: 811.86 / 376.71,       // ~2.155
-  deaths: 877.66 / 450.82,     // ~1.947
-  dendrogram: 578.55 / 313.24, // ~1.847
+  dots: 588.46 / 361.04,       // ~1.630
+  deaths: 795.59 / 472.29,     // ~1.685
+  dendrogram: 544.36 / 326.28, // ~1.668
 };
 
 /* ── SVG cache to avoid re-fetching ── */
