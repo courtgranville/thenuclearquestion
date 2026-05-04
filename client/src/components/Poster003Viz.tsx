@@ -59,7 +59,7 @@ const scenarios: ScenarioData[] = [
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
     s1: "/manus-storage/003-S1-dots_009b59b1.svg",
-    s2: "/manus-storage/003-S2-dots_6c8b047b.svg",
+    s2: "/manus-storage/003-S2-dots_4ed93ddc.svg",
     s3: "/manus-storage/003-S3-dots_e49e227a.svg",
   },
   deaths: {
@@ -103,15 +103,26 @@ const vizSections = [
 /* ── SVG cache to avoid re-fetching ── */
 const svgCache: Record<string, string> = {};
 
+// Scale factors for deaths section so forms are proportional across scenarios.
+// S1 = 699 deaths (baseline, scale 1.0), S2 = 297, S3 = 9.
+// We use sqrt of the ratio since area ~ size^2.
+const deathsScale: Record<string, number> = {
+  s1: 1.0,
+  s2: Math.sqrt(297 / 699),   // ~0.65
+  s3: Math.sqrt(9 / 699),     // ~0.11
+};
+
 /* ── Inline SVG display with fixed-height container ── */
 function InlineSvg({
   src,
   alt,
   height,
+  scale,
 }: {
   src: string;
   alt: string;
   height: number;
+  scale?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -193,7 +204,11 @@ function InlineSvg({
           </div>
         </div>
       )}
-      <div ref={containerRef} className="w-full h-full" />
+      <div
+        ref={containerRef}
+        className="w-full h-full"
+        style={scale && scale !== 1 ? { transform: `scale(${scale})`, transformOrigin: 'center center' } : undefined}
+      />
     </div>
   );
 }
@@ -375,6 +390,7 @@ export default function Poster003Viz() {
                 src={svgUrl}
                 alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
                 height={height}
+                scale={section.id === 'deaths' ? deathsScale[activeId] : undefined}
               />
             </div>
 
