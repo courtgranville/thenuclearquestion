@@ -104,8 +104,8 @@ export const posters: PosterData[] = [
       "The country that built the world\u2019s first commercial nuclear reactor is now the most expensive place in the world to build one.",
     methodology:
       "Reactor data compiled from the Global Energy Monitor Nuclear Power Tracker (2025) and the World Nuclear Association country profile for the United Kingdom. The dataset records project outcomes, not reasons for cancellation.",
-    imagePath: "/manus-storage/005-version2_31d5566d.png",
-    pdfPath: "/manus-storage/005-version2_35e1998a.pdf",
+    imagePath: "/manus-storage/005-preview-1_fea2ab19.png",
+    pdfPath: "/manus-storage/005-version2_ad4c9725.pdf",
   },
   {
     id: "006",
