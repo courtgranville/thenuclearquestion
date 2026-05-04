@@ -80,7 +80,7 @@ export default function Poster006Viz() {
         title="Where Does Waste Come From?"
         description="Where Britain's radioactive waste is stored. Circle sizes are proportional to volume — Sellafield holds over 72% of the total."
         config={wasteLocationsConfig}
-        viewBoxOverride="280 180 900 700"
+        viewBoxOverride="200 120 1100 800"
       />
 
       {/* 3. Radiation Doses */}
