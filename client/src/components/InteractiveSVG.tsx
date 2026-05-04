@@ -49,6 +49,8 @@ export default function InteractiveSVG({
   viewBoxOverride,
 }: InteractiveSVGProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const heightLocked = useRef(false);
   const [svgHTML, setSvgHTML] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -154,6 +156,19 @@ export default function InteractiveSVG({
         // Override viewBox to crop whitespace if specified
         if (viewBoxOverride) {
           svgEl.setAttribute("viewBox", viewBoxOverride);
+        }
+
+        // Lock the wrapper height after first render to prevent size jumps on selection
+        if (!heightLocked.current && wrapperRef.current) {
+          requestAnimationFrame(() => {
+            if (wrapperRef.current) {
+              const h = wrapperRef.current.getBoundingClientRect().height;
+              if (h > 0) {
+                wrapperRef.current.style.minHeight = `${h}px`;
+                heightLocked.current = true;
+              }
+            }
+          });
         }
 
         if (!ready) setReady(true);
@@ -296,7 +311,7 @@ export default function InteractiveSVG({
       )}
 
       {/* SVG container */}
-      <div className="w-full relative">
+      <div ref={wrapperRef} className="w-full relative">
         {!svgHTML && !loadError && (
           <div
             className="flex items-center justify-center"
