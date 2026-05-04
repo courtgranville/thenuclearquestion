@@ -58,32 +58,31 @@ const scenarios: ScenarioData[] = [
   },
 ];
 
-// V4 cleaned SVG URLs — labels kept, paragraph annotations + dashed arrows explicitly removed
-// Content-centered unified viewBoxes per section
+// FINAL SVG URLs — Playwright getBBox() computed symmetric viewBoxes centered on S1.
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_3dc2190d.svg",
-    s2: "/manus-storage/003-S2-dots_2f30339a.svg",
-    s3: "/manus-storage/003-S3-dots_74e24c7c.svg",
+    s1: "/manus-storage/003-S1-dots_340b5bf5.svg",
+    s2: "/manus-storage/003-S2-dots_86cd941b.svg",
+    s3: "/manus-storage/003-S3-dots_d121d9d7.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_4a0ff97f.svg",
-    s2: "/manus-storage/003-S2-deaths_a1123d8d.svg",
-    s3: "/manus-storage/003-S3-deaths_fc47e8e4.svg",
+    s1: "/manus-storage/003-S1-deaths_81c41dda.svg",
+    s2: "/manus-storage/003-S2-deaths_3280c2eb.svg",
+    s3: "/manus-storage/003-S3-deaths_f70ba98c.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_31c24348.svg",
-    s2: "/manus-storage/003-S2-dendrogram_8026312b.svg",
-    s3: "/manus-storage/003-S3-dendrogram_c0fcf76e.svg",
+    s1: "/manus-storage/003-S1-dendrogram_f5961f94.svg",
+    s2: "/manus-storage/003-S2-dendrogram_d1dfad6f.svg",
+    s3: "/manus-storage/003-S3-dendrogram_e360410e.svg",
   },
 };
 
 /*
-  V4 Unified viewBox per section (content-centered):
+  FINAL Playwright getBBox() symmetric viewBoxes centered on S1:
   
-  dots:       -57.99 -55.35 1179.59 1130.27  (aspect ~1.044)
-  deaths:     -170.83 -163.78 1391.20 1379.22 (aspect ~1.009)
-  dendrogram: -232.83 -40.18 1166.06 1012.33  (aspect ~1.152)
+  dots:       402.45 441.86 811.86 376.71  (aspect ~2.155)
+  deaths:     438.53 442.27 877.66 450.82  (aspect ~1.947)
+  dendrogram: 295.47 636.89 578.55 313.24  (aspect ~1.847)
 */
 
 // Section annotations that apply to all scenarios
@@ -105,11 +104,11 @@ const vizSections = [
   },
 ];
 
-// Aspect ratios from unified viewBoxes
+// Aspect ratios from Playwright getBBox() symmetric viewBoxes
 const sectionAspect: Record<string, number> = {
-  dots: 1179.59 / 1130.27,       // ~1.044
-  deaths: 1391.20 / 1379.22,     // ~1.009
-  dendrogram: 1166.06 / 1012.33, // ~1.152
+  dots: 811.86 / 376.71,       // ~2.155
+  deaths: 877.66 / 450.82,     // ~1.947
+  dendrogram: 578.55 / 313.24, // ~1.847
 };
 
 /* ── SVG cache to avoid re-fetching ── */
