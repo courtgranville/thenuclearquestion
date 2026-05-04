@@ -94,104 +94,6 @@ export default function Poster003Viz() {
 
   return (
     <div className="w-full">
-      {/* Scenario tabs */}
-      <div className="flex gap-3 mb-5">
-        {scenarios.map((s) => {
-          const isActive = activeScenario === s.id;
-          return (
-            <button
-              key={s.id}
-              onClick={() => setActiveScenario(s.id)}
-              className={`
-                flex-1 py-3 px-4 rounded-sm border transition-all duration-200 cursor-pointer text-left
-                ${
-                  isActive
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border bg-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-                }
-              `}
-            >
-              <span
-                className="block text-[10px] tracking-[0.15em] uppercase mb-0.5"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                {s.label}
-              </span>
-              <span
-                className="block text-sm font-medium"
-                style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-              >
-                {s.subtitle}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Scenario description + stats */}
-      <div className="mb-5">
-        <p
-          className="text-sm text-muted-foreground leading-relaxed max-w-2xl mb-3"
-          style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-        >
-          {scenario.description}
-        </p>
-        <div className="flex gap-6">
-          <div>
-            <span
-              className="block text-2xl font-serif"
-              style={{ color: "#a51e22", fontWeight: 600 }}
-            >
-              {scenario.deaths.toLocaleString()}
-            </span>
-            <span
-              className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-            >
-              Deaths / year
-            </span>
-          </div>
-          {scenario.livesSaved !== null && (
-            <div>
-              <span
-                className="block text-2xl font-serif"
-                style={{ color: "#267c3e", fontWeight: 600 }}
-              >
-                {scenario.livesSaved.toLocaleString()}
-              </span>
-              <span
-                className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                Lives saved / year
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Viz type tabs */}
-      <div className="flex gap-1 mb-4 border-b border-border/50 pb-px">
-        {vizTypes.map((vt) => (
-          <button
-            key={vt.id}
-            onClick={() => setActiveViz(vt.id)}
-            className={`
-              px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
-              border-b-2 -mb-px cursor-pointer
-              ${
-                activeViz === vt.id
-                  ? "border-foreground text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground/70"
-              }
-            `}
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {vt.label}
-          </button>
-        ))}
-      </div>
-
       {/* SVG display */}
       <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden min-h-[300px]">
         {/* Loading placeholder */}
@@ -218,9 +120,119 @@ export default function Poster003Viz() {
             w-full h-auto transition-opacity duration-300
             ${imgLoaded ? "opacity-100" : "opacity-0"}
           `}
+          style={{ maxHeight: "85vh" }}
           onLoad={() => setImgLoaded(true)}
           draggable={false}
         />
+      </div>
+
+      {/* Controls below the visualisation */}
+      <div className="mt-4 space-y-4">
+        {/* Scenario tabs */}
+        <div className="flex gap-3">
+          {scenarios.map((s) => {
+            const isActive = activeScenario === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setActiveScenario(s.id)}
+                className={`
+                  flex-1 py-3 px-4 rounded-sm border transition-all duration-200 cursor-pointer text-left
+                  ${
+                    isActive
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border bg-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                  }
+                `}
+              >
+                <span
+                  className="block text-[10px] tracking-[0.15em] uppercase mb-0.5"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  {s.label}
+                </span>
+                <span
+                  className="block text-sm font-medium"
+                  style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                >
+                  {s.subtitle}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Viz type tabs */}
+        <div className="flex gap-1 border-b border-border/50 pb-px">
+          {vizTypes.map((vt) => (
+            <button
+              key={vt.id}
+              onClick={() => setActiveViz(vt.id)}
+              className={`
+                px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
+                border-b-2 -mb-px cursor-pointer
+                ${
+                  activeViz === vt.id
+                    ? "border-foreground text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground/70"
+                }
+              `}
+              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            >
+              {vt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Scenario description + stats */}
+        <div className="max-w-2xl mx-auto">
+          <p
+            className="text-sm text-muted-foreground leading-relaxed mb-3"
+            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+          >
+            {scenario.description}
+          </p>
+          <div className="flex gap-6">
+            <div>
+              <span
+                className="block text-2xl font-serif"
+                style={{ color: "#a51e22", fontWeight: 600 }}
+              >
+                {scenario.deaths.toLocaleString()}
+              </span>
+              <span
+                className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                Deaths / year
+              </span>
+            </div>
+            {scenario.livesSaved !== null && (
+              <div>
+                <span
+                  className="block text-2xl font-serif"
+                  style={{ color: "#267c3e", fontWeight: 600 }}
+                >
+                  {scenario.livesSaved.toLocaleString()}
+                </span>
+                <span
+                  className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  Lives saved / year
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Hint */}
+        <p
+          className="text-center text-xs text-muted-foreground"
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        >
+          Switch scenarios and visualisation types to explore
+        </p>
       </div>
     </div>
   );

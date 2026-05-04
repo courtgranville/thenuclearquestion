@@ -11,27 +11,20 @@ import Poster004Viz from "@/components/Poster004Viz";
 import Poster005Viz from "@/components/Poster005Viz";
 import Poster006Viz from "@/components/Poster006Viz";
 import { posters } from "@/lib/posterData";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Download,
-  ZoomIn,
-  ZoomOut,
-  X,
-} from "lucide-react";
-import { useState, useCallback, useEffect, useRef } from "react";
+import { ArrowLeft, ArrowRight, Download } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 /*
   DESIGN: Editorial Archive — Light Scholarly Journal
-  Individual poster page with:
-  - Page transition fade-in
-  - Scroll progress bar
-  - Enhanced lightbox with pan/drag when zoomed
-  - Download toast feedback
-  - Keyboard hints in lightbox
-  - Animated blockquote border
-  - Subtle border on poster image for separation from background
+  LAYOUT v2: Single-column full-bleed layout per user spec:
+    1. Title section (section label, number, title, subtitle)
+    2. Full-bleed paragraphs (description + keyInsight, no repetition)
+    3. Full-bleed interactive data visualisation (maximised width)
+    4. Control buttons BELOW the visualisation (handled by viz components)
+    5. Download paragraph with PDF link
+    6. Full-bleed poster PDF preview at the bottom
+    7. Prev/Next navigation
 */
 
 const SECTION_COLOURS: Record<string, string> = {
@@ -52,192 +45,6 @@ const fadeUp = {
 const stagger = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
-
-function Lightbox({
-  imagePath,
-  title,
-  onClose,
-}: {
-  imagePath: string;
-  title: string;
-  onClose: () => void;
-}) {
-  const [scale, setScale] = useState(1);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [showHints, setShowHints] = useState(true);
-
-  const handleZoomIn = useCallback(
-    () => setScale((s) => Math.min(s + 0.5, 4)),
-    []
-  );
-  const handleZoomOut = useCallback(() => {
-    setScale((s) => {
-      const newScale = Math.max(s - 0.5, 0.5);
-      if (newScale <= 1) setPosition({ x: 0, y: 0 });
-      return newScale;
-    });
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowHints(false), 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "+" || e.key === "=") handleZoomIn();
-      if (e.key === "-") handleZoomOut();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "";
-    };
-  }, [onClose, handleZoomIn, handleZoomOut]);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale > 1) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && scale > 1) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
-      });
-    }
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (scale > 1 && e.touches.length === 1) {
-      setIsDragging(true);
-      setDragStart({
-        x: e.touches[0].clientX - position.x,
-        y: e.touches[0].clientY - position.y,
-      });
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (isDragging && scale > 1 && e.touches.length === 1) {
-      e.preventDefault();
-      setPosition({
-        x: e.touches[0].clientX - dragStart.x,
-        y: e.touches[0].clientY - dragStart.y,
-      });
-    }
-  };
-
-  const handleTouchEnd = () => setIsDragging(false);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
-      className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-md flex flex-col"
-      onClick={onClose}
-    >
-      {/* Controls */}
-      <div className="flex items-center justify-between p-4 relative z-10">
-        <button
-          onClick={onClose}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-        >
-          <X className="w-4 h-4" />
-          Close
-        </button>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleZoomOut();
-            }}
-            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <span
-            className="text-xs text-muted-foreground min-w-[3rem] text-center"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {Math.round(scale * 100)}%
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleZoomIn();
-            }}
-            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Keyboard hints */}
-      <motion.div
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10"
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: showHints ? 1 : 0, y: showHints ? 0 : 8 }}
-        transition={{ duration: 0.3 }}
-      >
-        <div
-          className="bg-foreground/10 backdrop-blur-sm px-4 py-2 rounded-sm"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-        >
-          <span className="text-xs text-muted-foreground">
-            Esc to close · +/- to zoom{scale > 1 ? " · Drag to pan" : ""}
-          </span>
-        </div>
-      </motion.div>
-
-      {/* Image */}
-      <div
-        className={`flex-1 overflow-hidden flex items-center justify-center p-4 ${
-          scale > 1
-            ? isDragging
-              ? "cursor-grabbing"
-              : "cursor-grab"
-            : "cursor-zoom-in"
-        }`}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (scale <= 1) handleZoomIn();
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        <img
-          src={imagePath}
-          alt={title}
-          className="max-w-none transition-transform duration-200 select-none"
-          style={{
-            transform: `scale(${scale}) translate(${position.x / scale}px, ${position.y / scale}px)`,
-            transformOrigin: "center center",
-          }}
-          draggable={false}
-        />
-      </div>
-    </motion.div>
-  );
-}
 
 function AnimatedBlockquote({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -263,7 +70,6 @@ function AnimatedBlockquote({ children }: { children: React.ReactNode }) {
 
 export default function PosterPage() {
   const params = useParams<{ id: string }>();
-  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const poster = posters.find((p) => p.id === params.id);
   const currentIndex = posters.findIndex((p) => p.id === params.id);
@@ -299,18 +105,10 @@ export default function PosterPage() {
       <SiteHeader />
       <ScrollProgress />
 
-      {lightboxOpen && (
-        <Lightbox
-          imagePath={poster.imagePath}
-          title={poster.title}
-          onClose={() => setLightboxOpen(false)}
-        />
-      )}
-
       <PageTransition>
         <main className="pt-14">
           <div className="container">
-            {/* Back link */}
+            {/* ── 0. Back link ── */}
             <div className="pt-8 pb-4">
               <Link href="/">
                 <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
@@ -322,190 +120,222 @@ export default function PosterPage() {
               </Link>
             </div>
 
-            {/* Main content */}
-            <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 pb-12">
-              {/* Text column */}
-              <motion.div
-                className="lg:w-2/5 lg:sticky lg:top-24 lg:self-start"
-                initial="hidden"
-                animate="visible"
-                variants={stagger}
-              >
-                <motion.div variants={fadeUp}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <span
-                      className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: sectionColour }}
-                    />
-                    <span
-                      className="text-xs tracking-[0.25em] uppercase"
-                      style={{
-                        fontFamily: "'IBM Plex Mono', monospace",
-                        color: sectionColour,
-                      }}
-                    >
-                      {poster.sectionLabel}
-                    </span>
-                    <span
-                      className="text-xs text-muted-foreground"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                    >
-                      /
-                    </span>
-                    <span
-                      className="text-xs tracking-[0.2em] uppercase text-muted-foreground"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                    >
-                      {poster.number}
-                    </span>
-                  </div>
-                </motion.div>
-
-                <motion.h1
-                  variants={fadeUp}
-                  className="font-serif text-3xl lg:text-4xl leading-tight mb-3"
-                  style={{ fontWeight: 600 }}
-                >
-                  {poster.title}
-                </motion.h1>
-
-                <motion.p
-                  variants={fadeUp}
-                  className="text-base text-muted-foreground mb-8 italic font-serif"
-                >
-                  {poster.subtitle}
-                </motion.p>
-
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
-                <motion.p
-                  variants={fadeUp}
-                  className="text-sm leading-relaxed text-foreground/80 mb-6"
-                  style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
-                    fontWeight: 300,
-                  }}
-                >
-                  {poster.description}
-                </motion.p>
-
-                <motion.div variants={fadeUp}>
-                  <AnimatedBlockquote>{poster.pullQuote}</AnimatedBlockquote>
-                </motion.div>
-
-                <motion.p
-                  variants={fadeUp}
-                  className="text-sm leading-relaxed text-foreground/80 mb-6"
-                  style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
-                    fontWeight: 300,
-                  }}
-                >
-                  {poster.keyInsight}
-                </motion.p>
-
-                <motion.div variants={fadeUp} className="mb-8">
-                  <p
-                    className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Methodology
-                  </p>
-                  <p
-                    className="text-xs text-muted-foreground leading-relaxed"
+            {/* ── 1. Title section ── */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={stagger}
+              className="pb-8"
+            >
+              <motion.div variants={fadeUp}>
+                <div className="flex items-center gap-3 mb-4">
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: sectionColour }}
+                  />
+                  <span
+                    className="text-xs tracking-[0.25em] uppercase"
                     style={{
-                      fontFamily: "'IBM Plex Sans', sans-serif",
-                      fontWeight: 300,
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      color: sectionColour,
                     }}
                   >
-                    {poster.methodology}
-                  </p>
-                </motion.div>
-
-                <motion.div variants={fadeUp}>
-                  <a
-                    href={poster.pdfPath}
-                    download
-                    onClick={handleDownload}
-                    className="group inline-flex items-center gap-2 text-sm text-primary hover:text-foreground transition-colors duration-200"
-                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    {poster.sectionLabel}
+                  </span>
+                  <span
+                    className="text-xs text-muted-foreground"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
-                    <Download className="w-4 h-4 transform group-hover:-translate-y-0.5 transition-transform duration-200" />
-                    <span className="relative">
-                      Download full-resolution PDF
-                      <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground group-hover:w-full transition-all duration-300 ease-out" />
-                    </span>
-                  </a>
-                </motion.div>
-              </motion.div>
-
-              {/* Poster image column */}
-              <motion.div
-                className="lg:w-3/5"
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{
-                  duration: 0.6,
-                  delay: 0.15,
-                  ease: [0.25, 0.46, 0.45, 0.94],
-                }}
-              >
-                <div
-                  className="relative cursor-zoom-in group"
-                  onClick={() => setLightboxOpen(true)}
-                >
-                  <img
-                    src={poster.imagePath}
-                    alt={poster.title}
-                    className="w-full rounded-sm border border-border/60 transition-all duration-300"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/5 rounded-sm">
-                    <div className="bg-background/80 backdrop-blur-sm px-4 py-2 rounded-sm flex items-center gap-2">
-                      <ZoomIn className="w-4 h-4 text-foreground" />
-                      <span
-                        className="text-sm text-foreground"
-                        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-                      >
-                        View full size
-                      </span>
-                    </div>
-                  </div>
+                    /
+                  </span>
+                  <span
+                    className="text-xs tracking-[0.2em] uppercase text-muted-foreground"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  >
+                    {poster.number}
+                  </span>
                 </div>
               </motion.div>
-            </div>
 
-            {/* Interactive Visualisations — all 6 posters */}
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="mt-16 mb-12"
+              <motion.h1
+                variants={fadeUp}
+                className="font-serif text-3xl lg:text-4xl leading-tight mb-3"
+                style={{ fontWeight: 600 }}
+              >
+                {poster.title}
+              </motion.h1>
+
+              <motion.p
+                variants={fadeUp}
+                className="text-base text-muted-foreground italic font-serif"
+              >
+                {poster.subtitle}
+              </motion.p>
+            </motion.div>
+
+            {/* ── 2. Full-bleed paragraphs ── */}
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              variants={stagger}
+              className="pb-10"
             >
-              <div className="mb-6">
+              <motion.div variants={fadeUp}>
+                <hr className="border-border mb-8" />
+              </motion.div>
+
+              {/* Poster's main description */}
+              <motion.p
+                variants={fadeUp}
+                className="text-sm leading-relaxed text-foreground/80 mb-6 max-w-3xl"
+                style={{
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontWeight: 300,
+                }}
+              >
+                {poster.description}
+              </motion.p>
+
+              {/* Pull quote */}
+              <motion.div variants={fadeUp} className="max-w-3xl">
+                <AnimatedBlockquote>{poster.pullQuote}</AnimatedBlockquote>
+              </motion.div>
+
+              {/* Key insight — additional thesis context */}
+              <motion.p
+                variants={fadeUp}
+                className="text-sm leading-relaxed text-foreground/80 mb-6 max-w-3xl"
+                style={{
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontWeight: 300,
+                }}
+              >
+                {poster.keyInsight}
+              </motion.p>
+
+              {/* Methodology note */}
+              <motion.div variants={fadeUp} className="max-w-3xl">
                 <p
                   className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
                   style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                 >
-                  Interactive Visualisations
+                  Methodology
                 </p>
-                <h3
-                  className="font-serif text-2xl text-foreground mb-2"
-                  style={{ fontWeight: 600 }}
+                <p
+                  className="text-xs text-muted-foreground leading-relaxed"
+                  style={{
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontWeight: 300,
+                  }}
                 >
-                  Explore the Data
-                </h3>
-              </div>
+                  {poster.methodology}
+                </p>
+              </motion.div>
+            </motion.div>
+          </div>
+
+          {/* ── 3. Full-bleed interactive visualisation ── */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="w-full px-2 sm:px-4 lg:px-6 pb-10"
+          >
+            <div className="container mb-4">
+              <p
+                className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                Interactive Visualisation
+              </p>
+              <h3
+                className="font-serif text-2xl text-foreground"
+                style={{ fontWeight: 600 }}
+              >
+                Explore the Data
+              </h3>
+            </div>
+
+            {/* The viz components now render SVG first, controls below */}
+            <div className="w-full">
               {poster.id === "001" && <Poster001Viz />}
               {poster.id === "002" && <Poster002Viz />}
               {poster.id === "003" && <Poster003Viz />}
               {poster.id === "004" && <Poster004Viz />}
               {poster.id === "005" && <Poster005Viz />}
               {poster.id === "006" && <Poster006Viz />}
-            </motion.section>
+            </div>
+          </motion.section>
 
-            {/* Navigation */}
+          <div className="container">
+            {/* ── 5. Download paragraph ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="py-8 border-t border-border"
+            >
+              <p
+                className="text-sm text-muted-foreground mb-3 max-w-2xl"
+                style={{
+                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontWeight: 300,
+                }}
+              >
+                This poster was designed for A1 print at 300 DPI. Download the
+                full-resolution PDF below for the best viewing experience.
+              </p>
+              <a
+                href={poster.pdfPath}
+                download
+                onClick={handleDownload}
+                className="group inline-flex items-center gap-2 text-sm text-primary hover:text-foreground transition-colors duration-200"
+                style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+              >
+                <Download className="w-4 h-4 transform group-hover:-translate-y-0.5 transition-transform duration-200" />
+                <span className="relative">
+                  Download full-resolution PDF
+                  <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground group-hover:w-full transition-all duration-300 ease-out" />
+                </span>
+              </a>
+            </motion.div>
+
+            {/* ── 6. Full-bleed poster preview ── */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{
+                duration: 0.6,
+                delay: 0.2,
+                ease: [0.25, 0.46, 0.45, 0.94],
+              }}
+              className="pb-10"
+            >
+              <p
+                className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                Poster Preview
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Poster image — full bleed */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.35 }}
+            className="w-full px-2 sm:px-4 lg:px-6 pb-12"
+          >
+            <img
+              src={poster.imagePath}
+              alt={poster.title}
+              className="w-full h-auto border border-border/60"
+            />
+          </motion.div>
+
+          {/* ── 7. Navigation ── */}
+          <div className="container">
             <nav className="border-t border-border py-6 mb-6">
               <div className="flex justify-between items-center">
                 {prevPoster ? (

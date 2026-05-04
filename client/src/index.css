@@ -187,4 +187,14 @@
       max-width: 1400px;
     }
   }
+
+  /* Full-bleed: breaks out of .container to span full viewport width */
+  .full-bleed {
+    width: 100vw;
+    position: relative;
+    left: 50%;
+    right: 50%;
+    margin-left: -50vw;
+    margin-right: -50vw;
+  }
 }

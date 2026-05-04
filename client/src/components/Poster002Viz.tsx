@@ -160,19 +160,10 @@ const regions: Region[] = [
 export default function Poster002Viz() {
   return (
     <div className="w-full">
-      <p
-        className="text-sm text-muted-foreground max-w-2xl mb-6 leading-relaxed"
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-      >
-        Each source is shown with its lifecycle land use (green plane) and water
-        consumption (blue circle) per megawatt-hour. The organic forms combine
-        both metrics — nuclear has the smallest combined footprint.
-      </p>
       <InteractiveSVG
         svgUrl={SVG_URL}
         regions={regions}
-        legendPosition="top"
-        maxHeight="75vh"
+        maxHeight="85vh"
       />
     </div>
   );

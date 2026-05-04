@@ -120,19 +120,10 @@ const regions: Region[] = [
 export default function Poster004Viz() {
   return (
     <div className="w-full">
-      <p
-        className="text-sm text-muted-foreground max-w-2xl mb-6 leading-relaxed"
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-      >
-        The UK consumed 1,542 TWh of final energy in 2024. Each organic form is
-        scaled to the carrier's share. Electricity — the only carrier where
-        nuclear operates — accounts for just 18% of the total.
-      </p>
       <InteractiveSVG
         svgUrl={SVG_URL}
         regions={regions}
-        legendPosition="top"
-        maxHeight="75vh"
+        maxHeight="85vh"
       />
     </div>
   );

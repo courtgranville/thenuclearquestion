@@ -176,93 +176,8 @@ export default function Poster005Viz() {
 
   return (
     <div className="w-full">
-      {/* Viz type tabs */}
-      <div className="flex gap-1 mb-5 border-b border-border/50 pb-px">
-        {vizTabs.map((vt) => (
-          <button
-            key={vt.id}
-            onClick={() => {
-              setActiveViz(vt.id);
-              setActiveCategory(null);
-            }}
-            className={`
-              px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
-              border-b-2 -mb-px cursor-pointer
-              ${
-                activeViz === vt.id
-                  ? "border-foreground text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground/70"
-              }
-            `}
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {vt.label}
-          </button>
-        ))}
-      </div>
-
       {activeViz === "map" ? (
         <>
-          {/* Legend buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {categories.map((cat) => {
-              const isActive = activeCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryClick(cat.id)}
-                  className={`
-                    inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-xs
-                    transition-all duration-200 cursor-pointer
-                    ${
-                      isActive
-                        ? "border-current bg-current/5"
-                        : activeCategory
-                          ? "border-border/40 text-muted-foreground/50"
-                          : "border-border text-muted-foreground hover:text-foreground"
-                    }
-                  `}
-                  style={{
-                    fontFamily: "'IBM Plex Mono', monospace",
-                    color: isActive ? cat.color : undefined,
-                  }}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  {cat.name}
-                  <span className="opacity-60">({cat.count})</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Info panel */}
-          {activeInfo && (
-            <div
-              className="mb-4 px-4 py-3 rounded-sm border-l-2 bg-muted/30"
-              style={{ borderLeftColor: activeInfo.color }}
-            >
-              <p
-                className="text-sm font-medium mb-1"
-                style={{
-                  fontFamily: "'IBM Plex Sans', sans-serif",
-                  color: activeInfo.color,
-                }}
-              >
-                {activeInfo.name} — {activeInfo.count} site
-                {activeInfo.count !== 1 ? "s" : ""}
-              </p>
-              <p
-                className="text-xs text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-              >
-                {activeInfo.description}
-              </p>
-            </div>
-          )}
-
           {/* Map SVG */}
           <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden min-h-[400px]">
             {loading && (
@@ -280,52 +195,170 @@ export default function Poster005Viz() {
             )}
             <div
               ref={containerRef}
-              className="w-full [&>svg]:w-full [&>svg]:h-auto"
+              className="w-full [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[85vh]"
               dangerouslySetInnerHTML={{ __html: svgContent }}
             />
           </div>
 
-          {!activeCategory && !loading && (
-            <p
-              className="text-center text-xs text-muted-foreground mt-3"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-            >
-              Tap a category above to filter reactor sites
-            </p>
-          )}
-          {activeCategory && (
-            <p
-              className="text-center text-xs text-muted-foreground mt-3"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-            >
-              Tap again to deselect
-            </p>
-          )}
-        </>
-      ) : (
-        /* Dendrogram - static display */
-        <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden overflow-x-auto min-h-[300px]">
-          {!dendroLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
-                <span
-                  className="text-xs text-muted-foreground"
+          {/* Controls below the visualisation */}
+          <div className="mt-4 space-y-3">
+            {/* Viz type tabs */}
+            <div className="flex gap-1 border-b border-border/50 pb-px">
+              {vizTabs.map((vt) => (
+                <button
+                  key={vt.id}
+                  onClick={() => {
+                    setActiveViz(vt.id);
+                    setActiveCategory(null);
+                  }}
+                  className={`
+                    px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
+                    border-b-2 -mb-px cursor-pointer
+                    ${
+                      activeViz === vt.id
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground/70"
+                    }
+                  `}
                   style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                 >
-                  Loading timeline...
-                </span>
-              </div>
+                  {vt.label}
+                </button>
+              ))}
             </div>
-          )}
-          <img
-            src={DENDROGRAM_URL}
-            alt="UK Nuclear Reactor Timeline Dendrogram"
-            className={`w-full h-auto transition-opacity duration-300 ${dendroLoaded ? "opacity-100" : "opacity-0"}`}
-            onLoad={() => setDendroLoaded(true)}
-            draggable={false}
-          />
-        </div>
+
+            {/* Legend buttons */}
+            <div className="flex flex-wrap gap-2 justify-center">
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategoryClick(cat.id)}
+                    className={`
+                      inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-xs
+                      transition-all duration-200 cursor-pointer
+                      ${
+                        isActive
+                          ? "border-current bg-current/5"
+                          : activeCategory
+                            ? "border-border/40 text-muted-foreground/50"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                      }
+                    `}
+                    style={{
+                      fontFamily: "'IBM Plex Mono', monospace",
+                      color: isActive ? cat.color : undefined,
+                    }}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    {cat.name}
+                    <span className="opacity-60">({cat.count})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Info panel */}
+            {activeInfo && (
+              <div
+                className="max-w-2xl mx-auto px-4 py-3 rounded-sm border-l-2 bg-muted/30"
+                style={{ borderLeftColor: activeInfo.color }}
+              >
+                <p
+                  className="text-sm font-medium mb-1"
+                  style={{
+                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    color: activeInfo.color,
+                  }}
+                >
+                  {activeInfo.name} — {activeInfo.count} site
+                  {activeInfo.count !== 1 ? "s" : ""}
+                </p>
+                <p
+                  className="text-xs text-muted-foreground"
+                  style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                >
+                  {activeInfo.description}
+                </p>
+              </div>
+            )}
+
+            {!activeCategory && !loading && (
+              <p
+                className="text-center text-xs text-muted-foreground"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                Tap a category to filter reactor sites
+              </p>
+            )}
+            {activeCategory && (
+              <p
+                className="text-center text-xs text-muted-foreground"
+                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              >
+                Tap again to deselect
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Dendrogram - static display */}
+          <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden overflow-x-auto min-h-[300px]">
+            {!dendroLoaded && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
+                  <span
+                    className="text-xs text-muted-foreground"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  >
+                    Loading timeline...
+                  </span>
+                </div>
+              </div>
+            )}
+            <img
+              src={DENDROGRAM_URL}
+              alt="UK Nuclear Reactor Timeline Dendrogram"
+              className={`w-full h-auto transition-opacity duration-300 ${dendroLoaded ? "opacity-100" : "opacity-0"}`}
+              style={{ maxHeight: "85vh" }}
+              onLoad={() => setDendroLoaded(true)}
+              draggable={false}
+            />
+          </div>
+
+          {/* Viz type tabs below */}
+          <div className="mt-4">
+            <div className="flex gap-1 border-b border-border/50 pb-px">
+              {vizTabs.map((vt) => (
+                <button
+                  key={vt.id}
+                  onClick={() => {
+                    setActiveViz(vt.id);
+                    setActiveCategory(null);
+                  }}
+                  className={`
+                    px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
+                    border-b-2 -mb-px cursor-pointer
+                    ${
+                      activeViz === vt.id
+                        ? "border-foreground text-foreground"
+                        : "border-transparent text-muted-foreground hover:text-foreground/70"
+                    }
+                  `}
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  {vt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

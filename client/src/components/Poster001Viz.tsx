@@ -156,19 +156,10 @@ const regions: Region[] = [
 export default function Poster001Viz() {
   return (
     <div className="w-full">
-      <p
-        className="text-sm text-muted-foreground max-w-2xl mb-6 leading-relaxed"
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-      >
-        Each organic form is scaled so its area is proportional to lifecycle CO₂
-        emissions per kilowatt-hour. Nuclear (green) is the smallest form — coal
-        is the largest, 173 times bigger.
-      </p>
       <InteractiveSVG
         svgUrl={SVG_URL}
         regions={regions}
-        legendPosition="top"
-        maxHeight="75vh"
+        maxHeight="85vh"
       />
     </div>
   );

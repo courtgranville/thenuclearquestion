@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 /*
-  INTERACTIVE SVG COMPONENT — v6
+  INTERACTIVE SVG COMPONENT — v7
   
   Architecture:
   - Click/tap only (no hover) for mobile-first smoothness
@@ -10,6 +10,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
   - GPU-accelerated opacity transitions
   - XMLHttpRequest for reliable SVG fetching (bypasses debug-collector wrapper)
   - Generic: works with any SVG that has ID'd groups
+  - Full-bleed: no max-width constraint — parent controls width
+  - Legend defaults to bottom position
 */
 
 export interface RegionInfo {
@@ -41,8 +43,8 @@ export default function InteractiveSVG({
   svgUrl,
   regions,
   className = "",
-  legendPosition = "top",
-  maxHeight = "65vh",
+  legendPosition = "bottom",
+  maxHeight = "80vh",
 }: InteractiveSVGProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgHTML, setSvgHTML] = useState<string | null>(null);
@@ -235,7 +237,7 @@ export default function InteractiveSVG({
       }}
     >
       <div
-        className="p-4 rounded-sm border border-border/60 bg-card"
+        className="p-4 rounded-sm border border-border/60 bg-card max-w-2xl mx-auto"
         style={{
           borderLeftColor: selectedRegion.color,
           borderLeftWidth: 3,
@@ -274,17 +276,17 @@ export default function InteractiveSVG({
   );
 
   return (
-    <div className={`w-full max-w-4xl mx-auto ${className}`}>
+    <div className={`w-full ${className}`}>
       {/* Scoped dynamic CSS — lives in the HTML DOM, not inside the SVG */}
       <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
 
-      {/* Legend */}
+      {/* Legend top (if specified) */}
       {ready && legendPosition === "top" && (
         <div className="mb-4">{legend}</div>
       )}
-
-      {/* Info panel */}
-      <div className="mb-4">{infoPanel}</div>
+      {ready && legendPosition === "top" && infoPanel && (
+        <div className="mb-4">{infoPanel}</div>
+      )}
 
       {/* SVG container */}
       <div className="w-full relative">
@@ -315,6 +317,9 @@ export default function InteractiveSVG({
       {/* Legend bottom */}
       {ready && legendPosition === "bottom" && (
         <div className="mt-4">{legend}</div>
+      )}
+      {ready && legendPosition === "bottom" && infoPanel && (
+        <div className="mt-4">{infoPanel}</div>
       )}
 
       {/* Hint */}
