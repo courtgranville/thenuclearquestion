@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 
 /*
   POSTER 003 — Interactive Scenario Comparison
@@ -9,9 +9,18 @@ import { useState, useEffect, useRef, useCallback } from "react";
     2. Deaths — organic forms sized by source's share of deaths
     3. Dendrograms — energy mix breakdown
   
-  Each section has its own 3 scenario buttons below the image.
-  SVGs have viewBox pre-cropped to tight content bounds.
-  The component renders them at full width with a fixed aspect-ratio container.
+  Text annotations have been stripped from the SVGs so that
+  only the visual elements remain.
+  
+  CENTERING APPROACH:
+  Each scenario uses its OWN tight viewBox so the content fills the container.
+  The container has a FIXED height per section (based on the tallest scenario).
+  Each SVG is centered within the container using preserveAspectRatio="xMidYMid meet".
+  This ensures:
+  - Content is always centered horizontally and vertically
+  - Content fills as much of the container as possible
+  - Container doesn't jump in size when switching scenarios
+  - Relative proportions within each scenario are preserved
 */
 
 interface ScenarioData {
@@ -53,38 +62,45 @@ const scenarios: ScenarioData[] = [
   },
 ];
 
-// SVG URLs — pre-cropped to tight content bounds
+// Cleaned SVG URLs (all text annotations removed, only visual elements remain)
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_7657a643.svg",
-    s2: "/manus-storage/003-S2-dots_6f78f1da.svg",
-    s3: "/manus-storage/003-S3-dots_48ae5fde.svg",
+    s1: "/manus-storage/003-S1-dots_88634415.svg",
+    s2: "/manus-storage/003-S2-dots_110e5c90.svg",
+    s3: "/manus-storage/003-S3-dots_ff86fff8.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_77eec245.svg",
-    s2: "/manus-storage/003-S2-deaths_938c248c.svg",
-    s3: "/manus-storage/003-S3-deaths_f3f1bf1a.svg",
+    s1: "/manus-storage/003-S1-deaths_50553125.svg",
+    s2: "/manus-storage/003-S2-deaths_87db3b4c.svg",
+    s3: "/manus-storage/003-S3-deaths_acf0f1f4.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_51074b6b.svg",
-    s2: "/manus-storage/003-S2-dendrogram_41a4ecab.svg",
-    s3: "/manus-storage/003-S3-dendrogram_2686af7f.svg",
+    s1: "/manus-storage/003-S1-dendrogram_fe8b842f.svg",
+    s2: "/manus-storage/003-S2-dendrogram_9603ac5d.svg",
+    s3: "/manus-storage/003-S3-dendrogram_2678cc39.svg",
   },
 };
 
 /*
-  Aspect ratios for each viz type's container.
-  Derived from container_w / container_h:
-    dots:       673.9 / 370.1 = 1.821
-    deaths:     753.8 / 545.2 = 1.383
-    dendrogram: 622.6 / 356.6 = 1.746
+  Per-scenario tight viewBox bounds (from cleaned SVGs with annotations removed):
+  
+  dots:
+    S1: 696.6 471.4 223.6 222.9  (aspect ~1.00)
+    S2: 571.1 502.6 473.0 222.0  (aspect ~2.13)
+    S3: 635.5 484.5 462.8 222.3  (aspect ~2.08)
+  
+  deaths:
+    S1: 652.3 440.4 436.3 426.6  (aspect ~1.02)
+    S2: 590.1 532.7 313.9 261.5  (aspect ~1.20)
+    S3: 570.2 695.3 80.7  63.5   (aspect ~1.27)
+  
+  dendrogram:
+    S1: 359.8 641.4 454.4 266.1  (aspect ~1.71)
+    S2: 430.6 641.5 439.6 266.1  (aspect ~1.65)
+    S3: 458.6 634.4 381.6 280.6  (aspect ~1.36)
 */
-const vizAspectRatios: Record<string, number> = {
-  dots: 673.9 / 370.1,
-  deaths: 753.8 / 545.2,
-  dendrogram: 622.6 / 356.6,
-};
 
+// Section annotations that apply to all scenarios
 const vizSections = [
   {
     id: "dots",
@@ -103,18 +119,29 @@ const vizSections = [
   },
 ];
 
+/*
+  Fixed container heights per section.
+  These are chosen to comfortably fit the tallest/widest scenario in each section.
+  The container width is always 100% (max-w-4xl), so we set a fixed pixel height.
+*/
+const sectionContainerHeight: Record<string, number> = {
+  dots: 420,
+  deaths: 500,
+  dendrogram: 320,
+};
+
 /* ── SVG cache to avoid re-fetching ── */
 const svgCache: Record<string, string> = {};
 
-/* ── Inline SVG display — uses ref-based DOM injection to avoid React state issues ── */
+/* ── Inline SVG display with per-scenario viewBox and fixed container ── */
 function InlineSvg({
   src,
   alt,
-  aspectRatio,
+  containerHeight,
 }: {
   src: string;
   alt: string;
-  aspectRatio: number;
+  containerHeight: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -131,15 +158,15 @@ function InlineSvg({
     const injectSvg = (svgText: string) => {
       if (cancelled || !containerRef.current) return;
 
-      // Remove any fixed width/height so SVG scales to container
+      // Remove any fixed width/height from the SVG but KEEP the original viewBox
       let modified = svgText
         .replace(/(<svg[^>]*?)\s+width="[^"]*"/g, "$1")
         .replace(/(<svg[^>]*?)\s+height="[^"]*"/g, "$1");
 
-      // Ensure the SVG fills its container
+      // Ensure the SVG fills its container and is centered
       modified = modified.replace(
         /(<svg[^>]*?)>/,
-        '$1 style="width:100%;height:100%;display:block">'
+        '$1 style="width:100%;height:100%;display:block" preserveAspectRatio="xMidYMid meet">'
       );
 
       containerRef.current.innerHTML = modified;
@@ -152,12 +179,11 @@ function InlineSvg({
       return;
     }
 
-    // Use synchronous XHR to avoid async state issues with debug collector
-    // We wrap it in a setTimeout to keep the UI responsive
+    // Use synchronous XHR wrapped in setTimeout for UI responsiveness
     const timer = setTimeout(() => {
       try {
         const xhr = new XMLHttpRequest();
-        xhr.open("GET", src, false); // synchronous
+        xhr.open("GET", src, false);
         xhr.send();
         if (xhr.status >= 200 && xhr.status < 400) {
           svgCache[src] = xhr.responseText;
@@ -178,10 +204,11 @@ function InlineSvg({
 
   return (
     <div
-      className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
+      className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden mx-auto flex items-center justify-center"
       style={{
         width: "100%",
-        aspectRatio: `${aspectRatio}`,
+        maxWidth: "900px",
+        height: `${containerHeight}px`,
       }}
       role="img"
       aria-label={alt}
@@ -199,10 +226,7 @@ function InlineSvg({
           </div>
         </div>
       )}
-      <div
-        ref={containerRef}
-        className="w-full h-full"
-      />
+      <div ref={containerRef} className="w-full h-full" />
     </div>
   );
 }
@@ -266,7 +290,7 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
         <div>
           <span
             className="block text-2xl font-serif"
-            style={{ color: "#a51e22", fontWeight: 600 }}
+            style={{ color: "#a51e23", fontWeight: 600 }}
           >
             {scenario.deaths.toLocaleString()}
           </span>
@@ -322,7 +346,7 @@ export default function Poster003Viz() {
         const activeId = activeScenarios[section.id];
         const svgUrl = svgUrls[section.id][activeId];
         const scenario = scenarios.find((s) => s.id === activeId)!;
-        const ar = vizAspectRatios[section.id];
+        const height = sectionContainerHeight[section.id];
 
         return (
           <div key={section.id} className="w-full">
@@ -342,22 +366,57 @@ export default function Poster003Viz() {
               </h4>
             </div>
 
-            {/* Full-bleed centered SVG */}
-            <InlineSvg
-              key={`${section.id}-${activeId}`}
-              src={svgUrl}
-              alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
-              aspectRatio={ar}
-            />
+            {/* Annotation callout — applies to all scenarios */}
+            <div className="max-w-4xl mx-auto px-4 mb-6">
+              <div className="flex items-start gap-3">
+                {section.id === "dots" && (
+                  <p
+                    className="text-sm text-muted-foreground leading-relaxed italic"
+                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                  >
+                    Each <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>red dot</span> represents
+                    one estimated death per year from the UK's electricity generation.
+                    Each <span className="not-italic font-semibold" style={{ color: "#237c3e" }}>green dot</span> represents
+                    one life saved compared to today's energy mix.
+                  </p>
+                )}
+                {section.id === "deaths" && (
+                  <p
+                    className="text-sm text-muted-foreground leading-relaxed italic"
+                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                  >
+                    Organic form area is proportional to <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>deaths</span> from
+                    that source. Labels show each energy source and its estimated annual death toll.
+                  </p>
+                )}
+                {section.id === "dendrogram" && (
+                  <p
+                    className="text-sm text-muted-foreground leading-relaxed italic"
+                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                  >
+                    Circle area represents the percentage each source of electricity takes in an energy mix of ~284 TWh.{" "}
+                    <span className="not-italic font-semibold" style={{ color: "#b4822e" }}>Nuclear</span> is highlighted in yellow.
+                  </p>
+                )}
+              </div>
+            </div>
 
-            {/* Scenario buttons below the image */}
+            {/* SVG with per-scenario viewBox, centered in fixed-height container */}
+            <div className="max-w-4xl mx-auto px-4">
+              <InlineSvg
+                key={`${section.id}-${activeId}`}
+                src={svgUrl}
+                alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
+                containerHeight={height}
+              />
+            </div>
+
+            {/* Scenario buttons + stats below the image */}
             <div className="max-w-4xl mx-auto px-4">
               <ScenarioButtons
                 activeScenario={activeId}
                 onSelect={setters[section.id]}
               />
-
-              {/* Stats for this section's active scenario */}
               <ScenarioStats scenarioId={activeId} />
             </div>
           </div>
