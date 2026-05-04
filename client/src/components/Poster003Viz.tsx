@@ -63,7 +63,7 @@ const svgUrls: Record<string, Record<string, string>> = {
     s3: "/manus-storage/003-S3-dots_e49e227a.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_e11b9506.svg",
+    s1: "/manus-storage/003-S1-deaths-zoomed_da0c557e.svg",
     s2: "/manus-storage/003-S2-deaths_87eabe14.svg",
     s3: "/manus-storage/003-S3-deaths_ef4fb7c9.svg",
   },
@@ -77,7 +77,7 @@ const svgUrls: Record<string, Record<string, string>> = {
 // Fixed heights per section (px) — gives each section appropriate visual weight
 const sectionHeight: Record<string, number> = {
   dots: 420,
-  deaths: 420,
+  deaths: 700,
   dendrogram: 420,
 };
 
