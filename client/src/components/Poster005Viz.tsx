@@ -1,37 +1,31 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 /*
-  POSTER 005 — Interactive Reactor Map
+  POSTER 005 — Interactive Reactor Map + Timeline Dendrogram
   
-  The map SVG already has semantic group IDs:
-  - uk-outline: UK coastline outline
-  - main-map-dots: contains 5 sub-groups:
-    - layer-main-past (#7d746b stone) - 10 circles
-    - layer-main-abandoned (#a61e23 red) - 2 circles
-    - layer-main-paused (#1b3967 blue) - 1 circle
-    - layer-main-future (#b4822e gold) - 3 circles
-    - layer-main-operating (#267c3e green) - 3 circles
+  Layout (per wireframe): Two separate stacked sections:
+  1. Map — UK reactor locations, filterable by status
+  2. Dendrogram — Timeline showing reactor lifespans, filterable by status
   
-  Interaction: Click legend buttons to filter reactor types.
-  CSS class toggling for smooth transitions.
+  Both use fill-color-based CSS targeting (circle[fill="COLOR"]) to highlight
+  all circles of a given category regardless of SVG group structure.
 */
 
 const MAP_URL = "/manus-storage/005-map_d6bf9e9f.svg";
-const DENDROGRAM_URL = "/manus-storage/005-dendrogram_85466d19.svg";
+const DENDROGRAM_URL = "/manus-storage/005-dendrogram-clean_336edeac.svg";
 
 interface ReactorCategory {
   id: string;
-  groupId: string;
   name: string;
   color: string;
   count: number;
   description: string;
 }
 
-const categories: ReactorCategory[] = [
+// Map categories (5 statuses on the geographic map)
+const mapCategories: ReactorCategory[] = [
   {
     id: "operating",
-    groupId: "layer-main-operating",
     name: "Operating",
     color: "#267c3e",
     count: 3,
@@ -39,7 +33,6 @@ const categories: ReactorCategory[] = [
   },
   {
     id: "future",
-    groupId: "layer-main-future",
     name: "Planned / Under Construction",
     color: "#b4822e",
     count: 3,
@@ -48,7 +41,6 @@ const categories: ReactorCategory[] = [
   },
   {
     id: "paused",
-    groupId: "layer-main-paused",
     name: "Paused",
     color: "#1b3967",
     count: 1,
@@ -56,7 +48,6 @@ const categories: ReactorCategory[] = [
   },
   {
     id: "past",
-    groupId: "layer-main-past",
     name: "Decommissioned",
     color: "#7d746b",
     count: 10,
@@ -65,7 +56,6 @@ const categories: ReactorCategory[] = [
   },
   {
     id: "abandoned",
-    groupId: "layer-main-abandoned",
     name: "Cancelled",
     color: "#a61e23",
     count: 2,
@@ -73,293 +63,285 @@ const categories: ReactorCategory[] = [
   },
 ];
 
-const MAP_STYLE = `
-  .map-layer {
+// Dendrogram categories (4 statuses on the timeline)
+const dendroCategories: ReactorCategory[] = [
+  {
+    id: "construction",
+    name: "Under Construction",
+    color: "#b4822e",
+    count: 2,
+    description:
+      "Hinkley Point C1 and C2 — dashed bars projected to target completion.",
+  },
+  {
+    id: "operating",
+    name: "Operating",
+    color: "#237c3e",
+    count: 9,
+    description:
+      "Still running — bars start at construction and run to an open arrow (no end date).",
+  },
+  {
+    id: "retired",
+    name: "Retired",
+    color: "#7d746a",
+    count: 36,
+    description:
+      "Built, operated, shut down — bars span from construction start to shutdown year.",
+  },
+  {
+    id: "cancelled",
+    name: "Cancelled",
+    color: "#a51e23",
+    count: 25,
+    description:
+      "Single dot at decision year — 14,141 MW announced and never built.",
+  },
+];
+
+// CSS filter style generator for fill-color-based highlighting
+function getFilterStyle(activeColor: string | null, baseStyle: string) {
+  if (!activeColor) return baseStyle;
+  return (
+    baseStyle +
+    `
+    circle { opacity: 0.06; }
+    circle[fill="${activeColor}"] { opacity: 1; }
+  `
+  );
+}
+
+const MAP_BASE_STYLE = `
+  circle {
     transition: opacity 0.25s ease-out;
-    will-change: opacity;
-  }
-  .map-dimmed .map-layer {
-    opacity: 0.06;
-  }
-  .map-dimmed .map-active {
-    opacity: 1;
-  }
-  .map-dimmed .map-base {
-    opacity: 0.3;
   }
 `;
 
-const vizTabs = [
-  { id: "map", label: "Reactor Map" },
-  { id: "dendrogram", label: "Timeline" },
-] as const;
+const DENDRO_BASE_STYLE = `
+  circle {
+    transition: opacity 0.25s ease-out;
+  }
+`;
 
-type VizTab = (typeof vizTabs)[number]["id"];
+/* ─── Shared Legend Component ─── */
+function CategoryLegend({
+  categories,
+  activeCategory,
+  onCategoryClick,
+}: {
+  categories: ReactorCategory[];
+  activeCategory: string | null;
+  onCategoryClick: (id: string) => void;
+}) {
+  const activeInfo = categories.find((c) => c.id === activeCategory);
 
-export default function Poster005Viz() {
+  return (
+    <div className="space-y-3">
+      {/* Legend buttons */}
+      <div className="flex flex-wrap gap-2 justify-center">
+        {categories.map((cat) => {
+          const isActive = activeCategory === cat.id;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => onCategoryClick(cat.id)}
+              className={`
+                inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-xs
+                transition-all duration-200 cursor-pointer
+                ${
+                  isActive
+                    ? "border-current bg-current/5"
+                    : activeCategory
+                      ? "border-border/40 text-muted-foreground/50"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                }
+              `}
+              style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                color: isActive ? cat.color : undefined,
+              }}
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: cat.color }}
+              />
+              {cat.name}
+              <span className="opacity-60">({cat.count})</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Info panel */}
+      {activeInfo && (
+        <div
+          className="max-w-2xl mx-auto px-4 py-3 rounded-sm border-l-2 bg-muted/30"
+          style={{ borderLeftColor: activeInfo.color }}
+        >
+          <p
+            className="text-sm font-medium mb-1"
+            style={{
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              color: activeInfo.color,
+            }}
+          >
+            {activeInfo.name} — {activeInfo.count} site
+            {activeInfo.count !== 1 ? "s" : ""}
+          </p>
+          <p
+            className="text-xs text-muted-foreground"
+            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+          >
+            {activeInfo.description}
+          </p>
+        </div>
+      )}
+
+      {!activeCategory && (
+        <p
+          className="text-center text-xs text-muted-foreground"
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        >
+          Tap a category to filter
+        </p>
+      )}
+      {activeCategory && (
+        <p
+          className="text-center text-xs text-muted-foreground"
+          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        >
+          Tap again to deselect
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ─── SVG Interactive Section ─── */
+function InteractiveSVGSection({
+  svgUrl,
+  categories,
+  baseStyle,
+  label,
+  minHeight = "400px",
+}: {
+  svgUrl: string;
+  categories: ReactorCategory[];
+  baseStyle: string;
+  label: string;
+  minHeight?: string;
+}) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [activeViz, setActiveViz] = useState<VizTab>("map");
   const [svgContent, setSvgContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [dendroLoaded, setDendroLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch and inject SVG
   useEffect(() => {
-    if (activeViz !== "map") return;
     setLoading(true);
-    fetch(MAP_URL)
+    fetch(svgUrl)
       .then((r) => r.text())
       .then((text) => {
         setSvgContent(text);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [activeViz]);
+  }, [svgUrl]);
 
-  // Apply CSS classes when SVG is loaded and category changes
+  // Apply fill-color-based filtering
   useEffect(() => {
     if (!containerRef.current || !svgContent) return;
     const svg = containerRef.current.querySelector("svg");
     if (!svg) return;
 
-    // Inject style element if not already present
-    if (!svg.querySelector("style.map-style")) {
-      const style = document.createElementNS(
+    const activeCat = categories.find((c) => c.id === activeCategory);
+    const activeColor = activeCat ? activeCat.color : null;
+
+    let styleEl = svg.querySelector(
+      "style.interactive-style"
+    ) as SVGStyleElement | null;
+    if (!styleEl) {
+      styleEl = document.createElementNS(
         "http://www.w3.org/2000/svg",
         "style"
       );
-      style.setAttribute("class", "map-style");
-      style.textContent = MAP_STYLE;
-      svg.insertBefore(style, svg.firstChild);
-
-      // Add class to all layer groups
-      categories.forEach((cat) => {
-        const group = svg.getElementById(cat.groupId);
-        if (group) group.classList.add("map-layer");
-      });
-
-      // Mark the UK outline as base (always partially visible)
-      const outline = svg.getElementById("uk-outline");
-      if (outline) {
-        outline.classList.add("map-layer", "map-base");
-      }
+      styleEl.setAttribute("class", "interactive-style");
+      svg.insertBefore(styleEl, svg.firstChild);
     }
+    styleEl.textContent = getFilterStyle(activeColor, baseStyle);
+  }, [activeCategory, svgContent, categories, baseStyle]);
 
-    // Toggle dimmed state
-    if (activeCategory) {
-      svg.classList.add("map-dimmed");
-      // Remove active from all, add to selected
-      categories.forEach((cat) => {
-        const group = svg.getElementById(cat.groupId);
-        if (group) {
-          group.classList.toggle("map-active", cat.id === activeCategory);
-        }
-      });
-    } else {
-      svg.classList.remove("map-dimmed");
-      categories.forEach((cat) => {
-        const group = svg.getElementById(cat.groupId);
-        if (group) group.classList.remove("map-active");
-      });
-    }
-  }, [activeCategory, svgContent]);
-
-  const handleCategoryClick = useCallback(
-    (id: string) => {
-      setActiveCategory((prev) => (prev === id ? null : id));
-    },
-    []
-  );
-
-  const activeInfo = categories.find((c) => c.id === activeCategory);
+  const handleCategoryClick = useCallback((id: string) => {
+    setActiveCategory((prev) => (prev === id ? null : id));
+  }, []);
 
   return (
     <div className="w-full">
-      {activeViz === "map" ? (
-        <>
-          {/* Map SVG */}
-          <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden min-h-[400px]">
-            {loading && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
-                  <span
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Loading map...
-                  </span>
-                </div>
-              </div>
-            )}
-            <div
-              ref={containerRef}
-              className="w-full [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[85vh]"
-              dangerouslySetInnerHTML={{ __html: svgContent }}
-            />
-          </div>
+      {/* Section label */}
+      <p
+        className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
+        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+      >
+        {label}
+      </p>
 
-          {/* Controls below the visualisation */}
-          <div className="mt-4 space-y-3">
-            {/* Viz type tabs */}
-            <div className="flex gap-1 border-b border-border/50 pb-px">
-              {vizTabs.map((vt) => (
-                <button
-                  key={vt.id}
-                  onClick={() => {
-                    setActiveViz(vt.id);
-                    setActiveCategory(null);
-                  }}
-                  className={`
-                    px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
-                    border-b-2 -mb-px cursor-pointer
-                    ${
-                      activeViz === vt.id
-                        ? "border-foreground text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground/70"
-                    }
-                  `}
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                >
-                  {vt.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Legend buttons */}
-            <div className="flex flex-wrap gap-2 justify-center">
-              {categories.map((cat) => {
-                const isActive = activeCategory === cat.id;
-                return (
-                  <button
-                    key={cat.id}
-                    onClick={() => handleCategoryClick(cat.id)}
-                    className={`
-                      inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-xs
-                      transition-all duration-200 cursor-pointer
-                      ${
-                        isActive
-                          ? "border-current bg-current/5"
-                          : activeCategory
-                            ? "border-border/40 text-muted-foreground/50"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                      }
-                    `}
-                    style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
-                      color: isActive ? cat.color : undefined,
-                    }}
-                  >
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: cat.color }}
-                    />
-                    {cat.name}
-                    <span className="opacity-60">({cat.count})</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Info panel */}
-            {activeInfo && (
-              <div
-                className="max-w-2xl mx-auto px-4 py-3 rounded-sm border-l-2 bg-muted/30"
-                style={{ borderLeftColor: activeInfo.color }}
-              >
-                <p
-                  className="text-sm font-medium mb-1"
-                  style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
-                    color: activeInfo.color,
-                  }}
-                >
-                  {activeInfo.name} — {activeInfo.count} site
-                  {activeInfo.count !== 1 ? "s" : ""}
-                </p>
-                <p
-                  className="text-xs text-muted-foreground"
-                  style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
-                >
-                  {activeInfo.description}
-                </p>
-              </div>
-            )}
-
-            {!activeCategory && !loading && (
-              <p
-                className="text-center text-xs text-muted-foreground"
+      {/* SVG container */}
+      <div
+        className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
+        style={{ minHeight }}
+      >
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
+              <span
+                className="text-xs text-muted-foreground"
                 style={{ fontFamily: "'IBM Plex Mono', monospace" }}
               >
-                Tap a category to filter reactor sites
-              </p>
-            )}
-            {activeCategory && (
-              <p
-                className="text-center text-xs text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                Tap again to deselect
-              </p>
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Dendrogram - static display */}
-          <div className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden overflow-x-auto min-h-[300px]">
-            {!dendroLoaded && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2">
-                  <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
-                  <span
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Loading timeline...
-                  </span>
-                </div>
-              </div>
-            )}
-            <img
-              src={DENDROGRAM_URL}
-              alt="UK Nuclear Reactor Timeline Dendrogram"
-              className={`w-full h-auto transition-opacity duration-300 ${dendroLoaded ? "opacity-100" : "opacity-0"}`}
-              style={{ maxHeight: "85vh" }}
-              onLoad={() => setDendroLoaded(true)}
-              draggable={false}
-            />
-          </div>
-
-          {/* Viz type tabs below */}
-          <div className="mt-4">
-            <div className="flex gap-1 border-b border-border/50 pb-px">
-              {vizTabs.map((vt) => (
-                <button
-                  key={vt.id}
-                  onClick={() => {
-                    setActiveViz(vt.id);
-                    setActiveCategory(null);
-                  }}
-                  className={`
-                    px-4 py-2 text-xs tracking-[0.1em] uppercase transition-all duration-200
-                    border-b-2 -mb-px cursor-pointer
-                    ${
-                      activeViz === vt.id
-                        ? "border-foreground text-foreground"
-                        : "border-transparent text-muted-foreground hover:text-foreground/70"
-                    }
-                  `}
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                >
-                  {vt.label}
-                </button>
-              ))}
+                Loading...
+              </span>
             </div>
           </div>
-        </>
-      )}
+        )}
+        <div
+          ref={containerRef}
+          className="w-full [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[85vh]"
+          dangerouslySetInnerHTML={{ __html: svgContent }}
+        />
+      </div>
+
+      {/* Controls below */}
+      <div className="mt-4">
+        <CategoryLegend
+          categories={categories}
+          activeCategory={activeCategory}
+          onCategoryClick={handleCategoryClick}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Component ─── */
+export default function Poster005Viz() {
+  return (
+    <div className="w-full space-y-12">
+      {/* Section 1: Reactor Map */}
+      <InteractiveSVGSection
+        svgUrl={MAP_URL}
+        categories={mapCategories}
+        baseStyle={MAP_BASE_STYLE}
+        label="Reactor Map"
+        minHeight="400px"
+      />
+
+      {/* Section 2: Timeline Dendrogram */}
+      <InteractiveSVGSection
+        svgUrl={DENDROGRAM_URL}
+        categories={dendroCategories}
+        baseStyle={DENDRO_BASE_STYLE}
+        label="Status Dendrogram & Timeline"
+        minHeight="300px"
+      />
     </div>
   );
 }
