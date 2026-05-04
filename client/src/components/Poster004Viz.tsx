@@ -6,42 +6,45 @@ import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
   UK final energy consumption by carrier: 1,542 TWh total.
   6 energy carriers shown as organic forms with colored circles and text labels.
   
-  SVG structure:
-  - Colored circles (dots) grouped by source color
-  - Text groups matched to nearest circle cluster
-  - 7 organic forms identified by stroke color
-  - Links (flow lines) connecting carriers to sectors
+  SVG structure (processed):
+  - form-{carrier}: organic form group (fill + stroke sub-groups, 256 paths each)
+  - form-hub: central total energy form (not part of any carrier highlight)
+  - links-{carrier}: connection lines from carrier to end-use sectors
+  - carrier-label-{carrier}: carrier name label near form
+  - dot-{carrier}-{n}: end-use sector circles sized by TWh
+  - text-{carrier}-{n}: end-use sector text labels
+  
+  Color palette (from user):
+  - Bioenergy: #267c3e (green)
+  - Electricity: #b4822e (ochre/gold)
+  - Heat: #4b6e70 (teal)
+  - Natural Gas: #1b3967 (dark blue)
+  - Petroleum: #a61e23 (red)
+  - Solid Fuel: #7d746b (grey/stone)
   
   Interaction: Click legend buttons or tap forms to highlight one carrier.
+  When a carrier is selected, ALL other carriers' elements (forms, dots, text, links) dim.
 */
 
-const SVG_URL = "/manus-storage/004-processed_a9547a07.svg";
+const SVG_URL = "/manus-storage/004-processed_c45fd25b.svg";
 
-// Helper: generate groupIds for circles and text by source name
-// The processed SVG has: dot-{source}-{idx}, text-{source}-{idx}, form-{source}
-// We use CSS attribute selectors via the class names: source-{source}
-// But InteractiveSVG targets by ID, so we need the actual IDs.
-// Since there are many, we'll use the form + a few key IDs.
-// Actually, the CSS scoped approach targets by ID, so we need all IDs.
-// For efficiency, we'll list the form IDs and rely on the class-based approach.
-
-// The InteractiveSVG uses CSS `#id` selectors. For 004, each source has:
-// - form-{source} (the organic form)
-// - form-electricity-2 (second electricity form)
-// - Multiple dot-{source}-{n} and text-{source}-{n}
-// Since listing all 70+ circle IDs is impractical, we'll use a different approach:
-// We'll add CSS class selectors to the dynamic CSS.
-
-// Actually, let's just list the form IDs (the main visual elements) plus
-// any key label IDs. The forms are the primary visual, and dimming them
-// is the main interaction.
+// Helper to generate sequential IDs
+function genIds(prefix: string, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `${prefix}-${i}`);
+}
 
 const regions: Region[] = [
   {
     id: "petroleum",
-    groupIds: ["form-petroleum"],
+    groupIds: [
+      "form-petroleum",
+      "links-petroleum",
+      "carrier-label-petroleum",
+      ...genIds("dot-petroleum", 16),
+      ...genIds("text-petroleum", 16),
+    ],
     name: "Petroleum",
-    color: "#a51e23",
+    color: "#a61e23",
     description:
       "The largest energy carrier in the UK, dominated by transport fuels. Petroleum accounts for nearly half of all final energy consumption — a sector that electrification has barely touched.",
     info: [
@@ -52,9 +55,15 @@ const regions: Region[] = [
   },
   {
     id: "natural-gas",
-    groupIds: ["form-natural-gas"],
+    groupIds: [
+      "form-natural-gas",
+      "links-natural-gas",
+      "carrier-label-natural-gas",
+      ...genIds("dot-natural-gas", 12),
+      ...genIds("text-natural-gas", 12),
+    ],
     name: "Natural Gas",
-    color: "#4b6e70",
+    color: "#1b3967",
     description:
       "The second-largest carrier, primarily used for heating buildings and industrial processes. Replacing gas heating is one of the biggest challenges in decarbonisation.",
     info: [
@@ -65,9 +74,15 @@ const regions: Region[] = [
   },
   {
     id: "electricity",
-    groupIds: ["form-electricity", "form-electricity-2"],
+    groupIds: [
+      "form-electricity",
+      "links-electricity",
+      "carrier-label-electricity",
+      ...genIds("dot-electricity", 12),
+      ...genIds("text-electricity", 12),
+    ],
     name: "Electricity",
-    color: "#267c3e",
+    color: "#b4822e",
     description:
       "Electricity accounts for only 18% of final energy. The nuclear-versus-renewables debate most people have in mind is a conversation about one-fifth of the actual problem.",
     info: [
@@ -78,9 +93,15 @@ const regions: Region[] = [
   },
   {
     id: "bioenergy",
-    groupIds: ["form-bioenergy"],
+    groupIds: [
+      "form-bioenergy",
+      "links-bioenergy",
+      "carrier-label-bioenergy",
+      ...genIds("dot-bioenergy", 12),
+      ...genIds("text-bioenergy", 12),
+    ],
     name: "Bioenergy & Waste",
-    color: "#b4822e",
+    color: "#267c3e",
     description:
       "Biomass, biogas, and waste-to-energy. A small but growing share, used in both electricity generation and direct heating.",
     info: [
@@ -91,22 +112,34 @@ const regions: Region[] = [
   },
   {
     id: "heat",
-    groupIds: ["form-heat"],
+    groupIds: [
+      "form-heat",
+      "links-heat",
+      "carrier-label-heat",
+      ...genIds("dot-heat", 8),
+      ...genIds("text-heat", 8),
+    ],
     name: "Heat Sold",
-    color: "#1b3967",
+    color: "#4b6e70",
     description:
-      "District heating and heat sold directly to consumers. A very small share in the UK compared to Scandinavian countries.",
+      "District heating and heat sold directly to consumers. A relatively small share in the UK compared to Scandinavian countries.",
     info: [
-      { label: "Consumption", value: "14 TWh" },
-      { label: "Share", value: "0.9%" },
+      { label: "Consumption", value: "34 TWh" },
+      { label: "Share", value: "2.2%" },
       { label: "Main use", value: "District heating" },
     ],
   },
   {
     id: "solid-fuel",
-    groupIds: ["form-solid-fuel"],
+    groupIds: [
+      "form-solid-fuel",
+      "links-solid-fuel",
+      "carrier-label-solid-fuel",
+      ...genIds("dot-solid-fuel", 9),
+      ...genIds("text-solid-fuel", 9),
+    ],
     name: "Solid Fuel",
-    color: "#7d746a",
+    color: "#7d746b",
     description:
       "Coal and manufactured solid fuels. Once the dominant energy source, now reduced to a fraction of UK consumption.",
     info: [
