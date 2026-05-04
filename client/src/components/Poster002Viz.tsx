@@ -3,15 +3,16 @@ import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
 /*
   POSTER 002 — The Physical Cost of a Megawatt-Hour
   
-  Each source highlights its OWN named SVG elements:
-  - form-{source}: water consumption blob (blue)
-  - label-{source}: source name text
-  - land-{source}: land use plane (green)
-  - land-val-{source}: land value text
-  - land-rect-{source}: green rectangle symbol
-  - water-val-{source}: water value text
-  - water-dot-{source}: blue dot symbol
-  - annotation-*: source-specific annotations
+  IMPORTANT: The SVG element IDs do NOT match their visual positions.
+  For example, "land-nuclear" is visually located under the Gas blob.
+  
+  The mapping below is based on getBoundingClientRect() screen position
+  analysis, matching each element to the nearest source blob (form).
+  
+  Visual layout (top-left to bottom-right):
+    Row 1: Coal (top-center), Coal CCS (top-right)
+    Row 2: Nuclear (left), Gas (center), Hydropower (right)
+    Row 3: Solar Silicon (center-bottom), Solar Cadmium (bottom-right)
 */
 
 const SVG_URL = "/manus-storage/002-processed_1cd7e58f.svg";
@@ -22,11 +23,14 @@ const regions: Region[] = [
     groupIds: [
       "form-nuclear",
       "label-nuclear",
-      "land-nuclear",
-      "land-val-nuclear",
-      "land-rect-nuclear",
-      "water-val-nuclear",
-      "water-dot-nuclear",
+      // land-gas is visually under Nuclear's blob
+      "land-gas",
+      // hydropower vals are visually next to Nuclear's label
+      "land-val-hydropower",
+      "water-val-hydropower",
+      "land-rect-hydropower",
+      "water-dot-hydropower",
+      // Nuclear's annotation (land footprint text)
       "annotation-50",
     ],
     name: "Nuclear",
@@ -43,11 +47,13 @@ const regions: Region[] = [
     groupIds: [
       "form-gas",
       "label-gas",
-      "land-gas",
-      "land-val-gas",
-      "land-rect-gas",
-      "water-val-gas",
-      "water-dot-gas",
+      // land-nuclear is visually under Gas's blob
+      "land-nuclear",
+      // coal-ccs vals are visually next to Gas's label
+      "land-val-coal-ccs",
+      "water-val-coal-ccs",
+      "land-rect-coal-ccs",
+      "water-dot-coal-ccs",
     ],
     name: "Gas",
     color: "#b4822e",
@@ -63,11 +69,13 @@ const regions: Region[] = [
     groupIds: [
       "form-coal",
       "label-coal",
+      // land-coal is correctly positioned under Coal's blob
       "land-coal",
-      "land-val-coal",
-      "land-rect-coal",
-      "water-val-coal",
-      "water-dot-coal",
+      // gas vals are visually next to Coal's label
+      "land-val-gas",
+      "water-val-gas",
+      "land-rect-gas",
+      "water-dot-gas",
     ],
     name: "Coal",
     color: "#7d746a",
@@ -83,11 +91,14 @@ const regions: Region[] = [
     groupIds: [
       "form-coal-ccs",
       "label-coal-ccs",
-      "land-coal-ccs",
-      "land-val-coal-ccs",
-      "land-rect-coal-ccs",
-      "water-val-coal-ccs",
-      "water-dot-coal-ccs",
+      // land-solar-silicon is visually under Coal CCS's blob
+      "land-solar-silicon",
+      // solar-silicon vals are visually next to Coal CCS's label
+      "land-val-solar-silicon",
+      "water-val-solar-silicon",
+      "land-rect-solar-silicon",
+      "water-dot-solar-silicon",
+      // Coal CCS annotation (carbon capture text + arrow)
       "annotation-55",
       "annotation-56",
     ],
@@ -105,11 +116,14 @@ const regions: Region[] = [
     groupIds: [
       "form-hydropower",
       "label-hydropower",
+      // land-hydropower is correctly positioned under Hydropower's blob
       "land-hydropower",
-      "land-val-hydropower",
-      "land-rect-hydropower",
-      "water-val-hydropower",
-      "water-dot-hydropower",
+      // solar-cadmium vals are visually next to Hydropower's label
+      "land-val-solar-cadmium",
+      "water-val-solar-cadmium",
+      "land-rect-solar-cadmium",
+      "water-dot-solar-cadmium",
+      // Hydropower annotation (reservoir text + arrow)
       "annotation-51",
       "annotation-57",
     ],
@@ -127,11 +141,14 @@ const regions: Region[] = [
     groupIds: [
       "form-solar-silicon",
       "label-solar-silicon",
-      "land-solar-silicon",
-      "land-val-solar-silicon",
-      "land-rect-solar-silicon",
-      "water-val-solar-silicon",
-      "water-dot-solar-silicon",
+      // land-coal-ccs is visually under Solar Silicon's blob
+      "land-coal-ccs",
+      // nuclear vals are visually next to Solar Silicon's label
+      "land-val-nuclear",
+      "water-val-nuclear",
+      "land-rect-nuclear",
+      "water-dot-nuclear",
+      // Shared solar annotation (two technologies text + connector arrows)
       "annotation-52",
       "annotation-53",
       "annotation-54",
@@ -150,11 +167,14 @@ const regions: Region[] = [
     groupIds: [
       "form-solar-cadmium",
       "label-solar-cadmium",
+      // land-solar-cadmium is correctly positioned under Solar Cadmium's blob
       "land-solar-cadmium",
-      "land-val-solar-cadmium",
-      "land-rect-solar-cadmium",
-      "water-val-solar-cadmium",
-      "water-dot-solar-cadmium",
+      // coal vals are visually next to Solar Cadmium's label
+      "land-val-coal",
+      "water-val-coal",
+      "land-rect-coal",
+      "water-dot-coal",
+      // Shared solar annotation (two technologies text + connector arrows)
       "annotation-52",
       "annotation-53",
       "annotation-54",
