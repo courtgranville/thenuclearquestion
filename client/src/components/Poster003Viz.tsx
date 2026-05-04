@@ -64,8 +64,8 @@ const svgUrls: Record<string, Record<string, string>> = {
   },
   deaths: {
     s1: "/manus-storage/003-S1-deaths_7acb96e4.svg",
-    s2: "/manus-storage/003-S2-deaths_34eed08a.svg",
-    s3: "/manus-storage/003-S3-deaths_35faa00d.svg",
+    s2: "/manus-storage/003-S2-deaths_b32506cb.svg",
+    s3: "/manus-storage/003-S3-deaths_e4d7bcd5.svg",
   },
   dendrogram: {
     s1: "/manus-storage/003-S1-dendrogram_19832a4f.svg",
