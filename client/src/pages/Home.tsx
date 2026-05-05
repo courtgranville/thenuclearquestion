@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { motion, useInView } from "framer-motion";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
@@ -138,7 +138,9 @@ export default function Home() {
     setIntroComplete(true);
   }, []);
 
-
+  useEffect(() => {
+    document.title = "The Nuclear Question - A Data Visualisation Series";
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,7 +177,7 @@ export default function Home() {
                   How Can Design Be Used to Discuss the Feasibility of a
                   Nuclear-Powered Future?
                 </motion.h1>
-                <motion.h2
+                <motion.p
                   variants={fadeUp}
                   className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6"
                   style={{
@@ -189,7 +191,7 @@ export default function Home() {
                   desirability and feasibility in sequence, concluding by
                   addressing objections honestly rather than advocating for a
                   position.
-                </motion.h2>
+                </motion.p>
                 <motion.p
                   variants={fadeUp}
                   className="text-sm text-muted-foreground"
