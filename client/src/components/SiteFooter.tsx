@@ -2,7 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 /*
-  DESIGN: Editorial Archive — Light Scholarly Journal
+  DESIGN: Editorial Archive - Light Scholarly Journal
   Shared footer component with subtle fade-in on scroll.
 */
 
@@ -25,7 +25,7 @@ export default function SiteFooter() {
               className="text-xs text-muted-foreground"
               style={{ fontFamily: "'IBM Plex Mono', monospace" }}
             >
-              The Nuclear Question — Court Granville
+              The Nuclear Question - Court Granville
             </p>
             <p
               className="text-xs text-muted-foreground mt-1"

@@ -7,7 +7,7 @@ import {
 } from "@/lib/vizConfigs";
 
 /*
-  POSTER 006 — Interactive Visualisations (Stacked Layout)
+  POSTER 006 - Interactive Visualisations (Stacked Layout)
   
   Per wireframe, 4 sections stacked vertically:
   1. Waste Quantities (blob chart)
@@ -71,14 +71,14 @@ export default function Poster006Viz() {
       {/* 1. Waste Quantities */}
       <VizSection
         title="Waste Quantities"
-        description="The UK has produced approximately 4.45 million cubic metres of radioactive waste. The forms below are scaled proportionally to volume — yet the smallest contains almost all of the radioactivity."
+        description="The UK has produced approximately 4.45 million cubic metres of radioactive waste. The forms below are scaled proportionally to volume - yet the smallest contains almost all of the radioactivity."
         config={wasteQuantitiesConfig}
       />
 
       {/* 2. Where Does Waste Come From (Dendrogram / Locations) */}
       <VizSection
         title="Where Does Waste Come From?"
-        description="Where Britain's radioactive waste is stored. Circle sizes are proportional to volume — Sellafield holds over 72% of the total."
+        description="Where Britain's radioactive waste is stored. Circle sizes are proportional to volume - Sellafield holds over 72% of the total."
         config={wasteLocationsConfig}
         viewBoxOverride="200 120 1100 830"
       />
@@ -86,7 +86,7 @@ export default function Poster006Viz() {
       {/* 3. Radiation Doses */}
       <VizSection
         title="Radiation Doses"
-        description="Comparing common radiation doses from everyday activities and nuclear waste. Each burst is scaled to the dose — the largest is a CT scan at 10 mSv."
+        description="Comparing common radiation doses from everyday activities and nuclear waste. Each burst is scaled to the dose - the largest is a CT scan at 10 mSv."
         config={radiationDosesConfig}
         viewBoxOverride="350 300 750 650"
       />

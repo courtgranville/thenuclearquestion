@@ -7,7 +7,7 @@ import PageTransition from "@/components/PageTransition";
 import { ArrowLeft } from "lucide-react";
 
 /*
-  DESIGN: Editorial Archive — Light Scholarly Journal
+  DESIGN: Editorial Archive - Light Scholarly Journal
   Sources page: Full reference list for all six posters.
   Layout: Centred column (max-w-3xl) with left-aligned text, matching poster pages.
 */
@@ -81,7 +81,7 @@ export default function Sources() {
                 >
                   This page lists every dataset, study, and reference used across the six posters of{" "}
                   <em>The Nuclear Question</em>. The series argues that public reasoning about nuclear
-                  energy improves when people can see the working — so the working is here. Any number,
+                  energy improves when people can see the working - so the working is here. Any number,
                   any ranking, any statement of fact in the posters can be traced back to its origin in
                   the list below.
                 </motion.p>
@@ -94,8 +94,8 @@ export default function Sources() {
                     fontWeight: 300,
                   }}
                 >
-                  The sources are organised first by type — primary datasets, peer-reviewed studies,
-                  and theoretical references — and then poster by poster. Direct links and access dates
+                  The sources are organised first by type - primary datasets, peer-reviewed studies,
+                  and theoretical references - and then poster by poster. Direct links and access dates
                   are given where applicable. The series is built almost entirely on government data,
                   peer-reviewed assessments, and tracked open datasets; where any source is contested or
                   limited, the limitation is named.
@@ -194,7 +194,7 @@ export default function Sources() {
                     url="https://globalenergymonitor.org/projects/global-nuclear-power-tracker/"
                   />
                   <Citation
-                    text="Intergovernmental Panel on Climate Change (IPCC). (2014). Climate Change 2014: Mitigation of Climate Change. Working Group III contribution to the Fifth Assessment Report, Annex II — Metrics and Methodology. Cambridge University Press."
+                    text="Intergovernmental Panel on Climate Change (IPCC). (2014). Climate Change 2014: Mitigation of Climate Change. Working Group III contribution to the Fifth Assessment Report, Annex II - Metrics and Methodology. Cambridge University Press."
                     url="https://www.ipcc.ch/site/assets/uploads/2018/02/ipcc_wg3_ar5_annex-ii.pdf"
                   />
                   <Citation
@@ -254,7 +254,7 @@ export default function Sources() {
                     construction era, and the carbon intensity of the local grid that built it. The 5.6
                     vs 970 gCO₂/kWh ratio between nuclear and coal is a comparison of central
                     estimates; both numbers carry uncertainty bands the poster does not draw.
-                    Operational-only emissions — the figure most commonly cited in public — would
+                    Operational-only emissions - the figure most commonly cited in public - would
                     understate fossil fuels (which leak methane upstream) and misrepresent nuclear and
                     renewables (whose emissions are mostly in construction and materials, not running
                     the plant). The choice to use lifecycle figures is a methodological commitment, not
@@ -279,15 +279,15 @@ export default function Sources() {
                   </SourceGroup>
                   <Limitations>
                     Land and water figures are derived from typical-project profiles, not measurements
-                    at a single plant. Nuclear's water consumption depends heavily on cooling design —
+                    at a single plant. Nuclear's water consumption depends heavily on cooling design -
                     coastal plants using seawater lose almost nothing, while inland plants with cooling
                     towers lose far more; siting alone can swing the number by an order of magnitude.
                     Hydropower's land footprint is the surface area of its reservoir, which is a
-                    load-bearing comparison but an awkward one — a reservoir is also a water store, a
+                    load-bearing comparison but an awkward one - a reservoir is also a water store, a
                     flood control system, and (often) a recreational asset, not only a generation
                     footprint. Solar PV figures are for ground-mount installations; rooftop PV has
                     near-zero additional land use. Land <em>used</em> and land{" "}
-                    <em>unavailable for other uses</em> are not always the same thing — particularly
+                    <em>unavailable for other uses</em> are not always the same thing - particularly
                     for solar farms with grazing or pollinator co-location.
                   </Limitations>
                 </PosterSourceSection>
@@ -303,7 +303,7 @@ export default function Sources() {
                       text="Our World in Data (2024). Energy deaths."
                       url="https://ourworldindata.org/safest-sources-of-energy"
                     />
-                    <Citation text="Ember (2024). Yearly Electricity Data — UK. [See Primary datasets above.]" />
+                    <Citation text="Ember (2024). Yearly Electricity Data - UK. [See Primary datasets above.]" />
                   </SourceGroup>
                   <SourceGroup title="Underlying studies">
                     <Citation
@@ -317,8 +317,8 @@ export default function Sources() {
                   </SourceGroup>
                   <Limitations>
                     Death rates per terawatt-hour are modelled, not counted. Most of the deaths the
-                    poster attributes to fossil-fuel electricity — particularly air-pollution mortality
-                    — are statistical attributions made through epidemiological models, not individually
+                    poster attributes to fossil-fuel electricity - particularly air-pollution mortality
+                    - are statistical attributions made through epidemiological models, not individually
                     identifiable. The Chernobyl and Fukushima figures used in the nuclear estimate are
                     themselves contested: published estimates range from a few thousand to over a
                     hundred thousand depending on methodology, and the central value used here is a
@@ -341,17 +341,17 @@ export default function Sources() {
                     <Citation text="Department for Energy Security and Net Zero (2025). Digest of UK Energy Statistics (DUKES) 2025, Tables 1.1.1, 1.1.3, and 1.1.5. [See Primary datasets above.]" />
                   </SourceGroup>
                   <Limitations>
-                    This poster shows <em>final</em> energy — energy delivered to end users at the
-                    point of consumption — rather than <em>primary</em> energy, which would be
+                    This poster shows <em>final</em> energy - energy delivered to end users at the
+                    point of consumption - rather than <em>primary</em> energy, which would be
                     approximately 50% larger because it includes conversion losses at power stations.
                     The two are equally legitimate framings of "how much energy the UK uses," but they
                     answer different questions; the choice of final energy is what makes the 18%
-                    electricity figure visible. Non-energy use of petroleum (52.7 TWh — feedstock for
+                    electricity figure visible. Non-energy use of petroleum (52.7 TWh - feedstock for
                     petrochemicals, lubricants, bitumen, waxes) is shown as where UK petroleum{" "}
                     <em>physically goes</em>, not as combusted energy; this is flagged on the poster
                     itself but worth flagging here too. The figures are for 2024 as published in DUKES
                     2025; subsequent updates may revise them. The poster also excludes imported
-                    emissions and consumption-based footprints — the UK's energy use as measured here
+                    emissions and consumption-based footprints - the UK's energy use as measured here
                     does not include the energy embedded in the goods it imports, which adds significant
                     additional fossil-fuel demand to the country's true footprint.
                   </Limitations>
@@ -377,14 +377,14 @@ export default function Sources() {
                     The data records <em>what happened</em>, not <em>why</em>. A cancelled project in
                     this dataset looks the same whether the developer walked away, the government
                     killed it, the local council blocked it, or the programme simply lapsed and was
-                    quietly dropped from policy. The poster preserves that ambiguity — the reasons for
+                    quietly dropped from policy. The poster preserves that ambiguity - the reasons for
                     cancellation are too varied and too politically contested to encode on a single
                     chart, and many of them are not in the underlying data at all. "Announced" is also
                     a permissive category: it includes ministerial statements, white papers, formal
                     planning applications, and industry proposals, with no consistent threshold for
                     what counts. Capacity figures (MW) are nameplate values, not realised generation.
-                    Several of the reactors in the dataset went through multiple status changes —
-                    planned, then cancelled, then revived under a different consortium — and the poster
+                    Several of the reactors in the dataset went through multiple status changes -
+                    planned, then cancelled, then revived under a different consortium - and the poster
                     shows the most recent status, which is itself sometimes contested.
                   </Limitations>
                 </PosterSourceSection>
@@ -421,7 +421,7 @@ export default function Sources() {
                   </SourceGroup>
                   <Limitations>
                     Waste volumes are as reported in the NDA's 2022 inventory; the figures will shift
-                    in subsequent updates as decommissioning proceeds. Radiation doses are averages —
+                    in subsequent updates as decommissioning proceeds. Radiation doses are averages -
                     individual variation is significant, and the comparisons between everyday sources
                     and waste-package contact doses are illustrative. "Where it ends up" assumes the
                     planned Geological Disposal Facility will eventually be built; site selection is
@@ -459,8 +459,8 @@ export default function Sources() {
                     fontWeight: 300,
                   }}
                 >
-                  The framing of the series — designer as epistemic facilitator, working in the
-                  truth-teller tradition — is built on the following references.
+                  The framing of the series - designer as epistemic facilitator, working in the
+                  truth-teller tradition - is built on the following references.
                 </motion.p>
 
                 <motion.div variants={fadeUp} className="space-y-4">
@@ -529,7 +529,7 @@ export default function Sources() {
                   className="font-serif text-xl mb-4"
                   style={{ fontWeight: 600 }}
                 >
-                  What these sources can't tell us — the project level
+                  What these sources can't tell us - the project level
                 </motion.h2>
 
                 <motion.p
@@ -562,9 +562,9 @@ export default function Sources() {
                         fontWeight: 300,
                       }}
                     >
-                      Lifecycle assessments make methodological choices — what counts as a system
+                      Lifecycle assessments make methodological choices - what counts as a system
                       boundary, how to allocate emissions across co-products, whether to include
-                      construction emissions amortised over plant lifetime — that meaningfully change
+                      construction emissions amortised over plant lifetime - that meaningfully change
                       the numbers. The choices used here are defensible and conventional, but they are
                       choices. Different choices, made transparently, would produce different posters.
                     </p>
@@ -629,7 +629,7 @@ export default function Sources() {
                   }}
                 >
                   These limits are not reasons to dismiss the data. They are reasons to read it with
-                  the working visible — which is the purpose of this page.
+                  the working visible - which is the purpose of this page.
                 </motion.p>
               </motion.div>
             </div>

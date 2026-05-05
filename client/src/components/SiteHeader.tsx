@@ -3,7 +3,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 
 
 /*
-  DESIGN: Editorial Archive — Light Scholarly Journal
+  DESIGN: Editorial Archive - Light Scholarly Journal
   Header shrinks subtly on scroll (h-14 → h-12), increases backdrop blur.
   Active nav item has an animated underline indicator.
   "Series" link smooth-scrolls to #series when already on homepage.

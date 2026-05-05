@@ -8,7 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { useRef } from "react";
 
 /*
-  DESIGN: Editorial Archive — Light Scholarly Journal
+  DESIGN: Editorial Archive - Light Scholarly Journal
   About page with page transition and scroll progress.
 */
 
@@ -143,7 +143,7 @@ export default function About() {
                   The project presents three main arguments. First, the primary
                   constraint on nuclear energy's role in the UK's transition is no
                   longer technological, but communicative and economic. Second, the
-                  conversation itself has fallen apart up to this point — the
+                  conversation itself has fallen apart up to this point - the
                   industry's responses have typically been defensive, opposition to
                   nuclear power has relied on absolute arguments and fearmongering,
                   and both parties have failed to engage a public whose perception
@@ -163,8 +163,8 @@ export default function About() {
                   addressing objections to nuclear energy rather than advocating for
                   it. Using a data-based approach, it argues that when one observes
                   objective per-unit data on emissions, land use, water use and
-                  mortality rates — each source's process is excluded and only
-                  results are considered — nuclear and renewables outperform
+                  mortality rates - each source's process is excluded and only
+                  results are considered - nuclear and renewables outperform
                   alternatives on the metrics that matter most. Answering the
                   feasibility question requires discussing the scale of the UK's
                   energy transition and the country's historical pattern of
@@ -218,7 +218,7 @@ export default function About() {
                   Kahan's cultural cognition, Miranda Fricker's concept of
                   epistemic injustice, and Michel Foucault's parrhesia. By
                   analysing these, the project argues that the designer's role is
-                  to act as an "epistemic facilitator" — someone who creates
+                  to act as an "epistemic facilitator" - someone who creates
                   conditions for better public reasoning and understanding of
                   contested technologies. This role requires the designer to
                   carefully balance scientific evidence and emotional concerns,
@@ -272,7 +272,7 @@ export default function About() {
                     className="text-xs text-muted-foreground"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
-                    Bachelor in Design — Undergraduate Thesis
+                    Bachelor in Design - Undergraduate Thesis
                   </p>
                   <p
                     className="text-xs text-muted-foreground"

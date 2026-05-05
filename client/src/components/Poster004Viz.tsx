@@ -1,12 +1,12 @@
 import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
 
 /*
-  POSTER 004 — Most of Our Energy Isn't Electricity
+  POSTER 004 - Most of Our Energy Isn't Electricity
   
   UK final energy consumption by carrier: 1,542 TWh total.
   6 energy carriers shown as organic forms with colored circles and text labels.
   
-  NOTE: The SVG IDs are mislabeled — the ID names don't match the actual colors.
+  NOTE: The SVG IDs are mislabeled - the ID names don't match the actual colors.
   The mapping below is based on actual fill/stroke colors, not ID names.
   
   Interaction: Click legend buttons or tap forms to highlight one carrier.
@@ -31,7 +31,7 @@ const regions: Region[] = [
     name: "Petroleum",
     color: "#a61e23",
     description:
-      "The largest energy carrier in the UK, dominated by transport fuels. Petroleum accounts for nearly half of all final energy consumption — a sector that electrification has barely touched.",
+      "The largest energy carrier in the UK, dominated by transport fuels. Petroleum accounts for nearly half of all final energy consumption - a sector that electrification has barely touched.",
     info: [
       { label: "Consumption", value: "712 TWh" },
       { label: "Share", value: "46.2%" },

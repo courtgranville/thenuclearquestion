@@ -9,7 +9,7 @@ import type { Region } from "@/components/InteractiveSVG";
 */
 
 // ============================================================
-// POSTER 006 — Britain's Nuclear Waste
+// POSTER 006 - Britain's Nuclear Waste
 // ============================================================
 
 export const wasteQuantitiesConfig = {
@@ -175,7 +175,7 @@ export const radiationDosesConfig = {
       name: "CT scan",
       color: "#a51e23",
       description:
-        "A CT scan of the abdomen. One of the highest common medical exposures — yet routinely performed millions of times per year.",
+        "A CT scan of the abdomen. One of the highest common medical exposures - yet routinely performed millions of times per year.",
       info: [
         { label: "Dose", value: "10 mSv" },
         { label: "Equivalent to", value: "~4 years of background radiation" },
@@ -241,7 +241,7 @@ export const wasteLocationsConfig = {
       name: "AGR & PWR",
       color: "#7d746a",
       description:
-        "Advanced Gas-cooled Reactors and Pressurised Water Reactors — the UK's second and third generation of commercial nuclear power stations.",
+        "Advanced Gas-cooled Reactors and Pressurised Water Reactors - the UK's second and third generation of commercial nuclear power stations.",
       info: [
         { label: "Volume", value: "156,000 m\u00B3" },
         { label: "Share", value: "3.4%" },
@@ -331,7 +331,7 @@ export const wasteStorageConfig = {
       name: "Geological Disposal",
       color: "#a51e23",
       description:
-        "A deep geological disposal facility for intermediate and high-level waste. The UK has not yet selected a site — the process is ongoing with community consent required.",
+        "A deep geological disposal facility for intermediate and high-level waste. The UK has not yet selected a site - the process is ongoing with community consent required.",
       info: [
         { label: "Volume", value: "499,000 m\u00B3" },
         { label: "Status", value: "Site not yet selected" },
@@ -341,7 +341,7 @@ export const wasteStorageConfig = {
 };
 
 // ============================================================
-// POSTER 005 — Where Are All Britain's Reactors?
+// POSTER 005 - Where Are All Britain's Reactors?
 // ============================================================
 
 export const reactorMapConfig = {
@@ -391,7 +391,7 @@ export const reactorMapConfig = {
 };
 
 // ============================================================
-// POSTER 003 — The Lives We Could Save (3 scenarios)
+// POSTER 003 - The Lives We Could Save (3 scenarios)
 // ============================================================
 
 export const scenarioConfigs = {

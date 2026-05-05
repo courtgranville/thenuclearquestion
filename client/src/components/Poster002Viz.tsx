@@ -1,7 +1,7 @@
 import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
 
 /*
-  POSTER 002 — The Physical Cost of a Megawatt-Hour
+  POSTER 002 - The Physical Cost of a Megawatt-Hour
   
   IMPORTANT: The SVG element IDs do NOT match their visual positions.
   For example, "land-nuclear" is visually located under the Gas blob.
@@ -105,7 +105,7 @@ const regions: Region[] = [
     name: "Coal with CCS",
     color: "#7d746a",
     description:
-      "Carbon capture adds additional land and water requirements on top of conventional coal — the energy penalty increases both footprints.",
+      "Carbon capture adds additional land and water requirements on top of conventional coal - the energy penalty increases both footprints.",
     info: [
       { label: "Land use", value: "5.4 km²/TWh" },
       { label: "Water use", value: "3,200 ML/TWh" },

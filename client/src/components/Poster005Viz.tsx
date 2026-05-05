@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 /*
-  POSTER 005 — Interactive Reactor Map + Timeline Dendrogram
+  POSTER 005 - Interactive Reactor Map + Timeline Dendrogram
   
   Layout (per wireframe): Two separate stacked sections:
-  1. Map — UK reactor locations, filterable by status
-  2. Dendrogram — Timeline showing reactor lifespans, filterable by status
+  1. Map - UK reactor locations, filterable by status
+  2. Dendrogram - Timeline showing reactor lifespans, filterable by status
   
-  Map filtering: targets circle[fill="COLOR"] — must handle fill-opacity=".55" circles
+  Map filtering: targets circle[fill="COLOR"] - must handle fill-opacity=".55" circles
   in zoom insets as well as fill-opacity="1" circles on the main map.
   
   Dendrogram filtering: targets BOTH:
@@ -42,7 +42,7 @@ const mapCategories: ReactorCategory[] = [
     color: "#b4822e",
     count: 3,
     description:
-      "Approved or under construction — Hinkley Point C, Sizewell C, and others.",
+      "Approved or under construction - Hinkley Point C, Sizewell C, and others.",
   },
   {
     id: "paused",
@@ -64,7 +64,7 @@ const mapCategories: ReactorCategory[] = [
     name: "Cancelled",
     color: "#a61e23",
     count: 2,
-    description: "Formally cancelled — sites may have been repurposed.",
+    description: "Formally cancelled - sites may have been repurposed.",
   },
 ];
 
@@ -77,7 +77,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#b4822e",
     count: 2,
     description:
-      "Hinkley Point C1 and C2 — dashed bars projected to target completion.",
+      "Hinkley Point C1 and C2 - dashed bars projected to target completion.",
   },
   {
     id: "operating",
@@ -85,7 +85,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#237c3e",
     count: 9,
     description:
-      "Still running — bars start at construction and run to an open arrow (no end date).",
+      "Still running - bars start at construction and run to an open arrow (no end date).",
   },
   {
     id: "retired",
@@ -93,7 +93,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#7d746a",
     count: 36,
     description:
-      "Built, operated, shut down — bars span from construction start to shutdown year.",
+      "Built, operated, shut down - bars span from construction start to shutdown year.",
   },
   {
     id: "cancelled",
@@ -101,7 +101,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#a51e23",
     count: 25,
     description:
-      "Single dot at decision year — 14,141 MW announced and never built.",
+      "Single dot at decision year - 14,141 MW announced and never built.",
   },
 ];
 
@@ -243,7 +243,7 @@ function CategoryLegend({
               color: activeInfo.color,
             }}
           >
-            {activeInfo.name} — {activeInfo.count} site
+            {activeInfo.name} - {activeInfo.count} site
             {activeInfo.count !== 1 ? "s" : ""}
           </p>
           <p
@@ -384,7 +384,7 @@ function DendrogramSection() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Apply filtering via injected <style> — targets circles AND polylines
+  // Apply filtering via injected <style> - targets circles AND polylines
   useEffect(() => {
     if (!containerRef.current || !svgContent) return;
     const svg = containerRef.current.querySelector("svg");

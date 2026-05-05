@@ -16,7 +16,7 @@ import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 /*
-  DESIGN: Editorial Archive — Light Scholarly Journal
+  DESIGN: Editorial Archive - Light Scholarly Journal
   LAYOUT v2: Single-column full-bleed layout per user spec:
     1. Title section (section label, number, title, subtitle)
     2. Full-bleed paragraphs (description + keyInsight, no repetition)
@@ -66,7 +66,7 @@ export default function PosterPage() {
 
   const handleDownload = () => {
     toast.success("Download started", {
-      description: `${poster?.title} — Full-resolution PDF`,
+      description: `${poster?.title} - Full-resolution PDF`,
       duration: 3000,
     });
   };
@@ -176,7 +176,7 @@ export default function PosterPage() {
               </motion.p>
 
 
-              {/* Key insight — additional thesis context */}
+              {/* Key insight - additional thesis context */}
               <motion.p
                 variants={fadeUp}
                 className="text-sm leading-relaxed text-foreground/80 mb-6"
@@ -299,7 +299,7 @@ export default function PosterPage() {
             </div>
           </div>
 
-          {/* Poster image — full bleed */}
+          {/* Poster image - full bleed */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

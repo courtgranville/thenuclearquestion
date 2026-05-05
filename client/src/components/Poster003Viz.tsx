@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from "react";
 
 /*
-  POSTER 003 — Interactive Scenario Comparison
+  POSTER 003 - Interactive Scenario Comparison
   
   3 scenarios for UK energy mix and their death tolls.
   Split into 3 separate visualisation sections:
-    1. Dots — death/saved dots per scenario
-    2. Deaths — organic forms sized by source's share of deaths
-    3. Dendrograms — energy mix breakdown
+    1. Dots - death/saved dots per scenario
+    2. Deaths - organic forms sized by source's share of deaths
+    3. Dendrograms - energy mix breakdown
   
-  LABELS ARE PRESERVED — only paragraph annotations and dashed arrows removed.
+  LABELS ARE PRESERVED - only paragraph annotations and dashed arrows removed.
   
   CENTERING: Each SVG has its viewBox individually centered on its content bbox.
   The container uses a FIXED HEIGHT and lets the SVG center itself within it
@@ -33,7 +33,7 @@ const scenarios: ScenarioData[] = [
     deaths: 699,
     livesSaved: null,
     description:
-      "The UK's current energy mix produces an estimated 699 deaths per year from air pollution and accidents — almost two every day, mostly invisible because they happen in hospitals, not headlines.",
+      "The UK's current energy mix produces an estimated 699 deaths per year from air pollution and accidents - almost two every day, mostly invisible because they happen in hospitals, not headlines.",
   },
   {
     id: "s2",
@@ -42,7 +42,7 @@ const scenarios: ScenarioData[] = [
     deaths: 297,
     livesSaved: 401,
     description:
-      "A moderate expansion of nuclear power alongside renewables reduces estimated deaths to 297 per year — saving 401 lives annually compared to today's mix.",
+      "A moderate expansion of nuclear power alongside renewables reduces estimated deaths to 297 per year - saving 401 lives annually compared to today's mix.",
   },
   {
     id: "s3",
@@ -51,11 +51,11 @@ const scenarios: ScenarioData[] = [
     deaths: 9,
     livesSaved: 690,
     description:
-      "A full transition to nuclear and renewables reduces estimated deaths to just 9 per year — saving 690 lives annually. The red dots almost disappear.",
+      "A full transition to nuclear and renewables reduces estimated deaths to just 9 per year - saving 690 lives annually. The red dots almost disappear.",
   },
 ];
 
-// V18 SVG URLs — Individually centered, verified against PDF
+// V18 SVG URLs - Individually centered, verified against PDF
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
     s1: "/manus-storage/003-S1-dots_009b59b1.svg",
@@ -74,7 +74,7 @@ const svgUrls: Record<string, Record<string, string>> = {
   },
 };
 
-// Fixed heights per section (px) — gives each section appropriate visual weight
+// Fixed heights per section (px) - gives each section appropriate visual weight
 const sectionHeight: Record<string, number> = {
   dots: 420,
   deaths: 550,
@@ -96,7 +96,7 @@ const vizSections = [
   {
     id: "dendrogram",
     title: "Energy Mix Breakdown",
-    subtitle: "Each source's share of the electricity mix in TWh — nuclear highlighted in yellow",
+    subtitle: "Each source's share of the electricity mix in TWh - nuclear highlighted in yellow",
   },
 ];
 
@@ -333,7 +333,7 @@ export default function Poster003Viz() {
               </h4>
             </div>
 
-            {/* Annotation callout — applies to all scenarios */}
+            {/* Annotation callout - applies to all scenarios */}
             <div className="max-w-4xl mx-auto px-4 mb-6">
               <div className="flex items-start gap-3">
                 {section.id === "dots" && (
@@ -368,12 +368,12 @@ export default function Poster003Viz() {
               </div>
             </div>
 
-            {/* SVG — fixed height container, SVG centers itself */}
+            {/* SVG - fixed height container, SVG centers itself */}
             <div className="max-w-4xl mx-auto px-4">
               <InlineSvg
                 key={`${section.id}-${activeId}`}
                 src={svgUrl}
-                alt={`${section.title} — ${scenario.label}: ${scenario.subtitle}`}
+                alt={`${section.title} - ${scenario.label}: ${scenario.subtitle}`}
                 height={height}
               />
             </div>

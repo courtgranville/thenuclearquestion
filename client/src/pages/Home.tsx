@@ -10,7 +10,7 @@ import { posters } from "@/lib/posterData";
 import { ArrowRight } from "lucide-react";
 
 /*
-  DESIGN: Editorial Archive — Light Scholarly Journal
+  DESIGN: Editorial Archive - Light Scholarly Journal
   Landing: Entry animation → Strong thesis question → sequential poster cards.
   Each card animates in on scroll with enhanced hover states.
   Section colour indicators: blue dot for desirability, ochre for feasibility, red for objections.
@@ -202,7 +202,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Poster Series — anchor for "Series" nav link */}
+        {/* Poster Series - anchor for "Series" nav link */}
         <section id="series" className="pb-20 scroll-mt-16">
           <div className="container">
             {posters.map((poster, i) => (

@@ -1,7 +1,7 @@
 import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
 
 /*
-  POSTER 001 — The Emissions of Our Electricity Sources
+  POSTER 001 - The Emissions of Our Electricity Sources
   
   9 organic forms sized by lifecycle CO₂ emissions (gCO₂/kWh).
   Each source has: form (3D organic shape), label, value text, and dot.
@@ -19,7 +19,7 @@ const regions: Region[] = [
     name: "Nuclear",
     color: "#237c3e",
     description:
-      "The lowest lifecycle emissions of any electricity source. Most emissions come from construction and fuel processing — the plant itself produces no CO₂ during operation.",
+      "The lowest lifecycle emissions of any electricity source. Most emissions come from construction and fuel processing - the plant itself produces no CO₂ during operation.",
     info: [
       { label: "Emissions", value: "5.6 gCO₂/kWh" },
       { label: "Relative to coal", value: "173× smaller" },
@@ -87,7 +87,7 @@ const regions: Region[] = [
     name: "Solar PV (Si)",
     color: "#7d746a",
     description:
-      "Crystalline silicon panels — the most common type. Higher manufacturing energy than CdTe, but no toxic heavy metals.",
+      "Crystalline silicon panels - the most common type. Higher manufacturing energy than CdTe, but no toxic heavy metals.",
     info: [
       { label: "Emissions", value: "22 gCO₂/kWh" },
       { label: "Relative to coal", value: "44× smaller" },
@@ -145,7 +145,7 @@ const regions: Region[] = [
     name: "Coal",
     color: "#7d746a",
     description:
-      "The highest lifecycle emissions of any electricity source. Coal produces 173 times more CO₂ per kWh than nuclear — the ratio that defines the poster's visual scale.",
+      "The highest lifecycle emissions of any electricity source. Coal produces 173 times more CO₂ per kWh than nuclear - the ratio that defines the poster's visual scale.",
     info: [
       { label: "Emissions", value: "970 gCO₂/kWh" },
       { label: "Relative to nuclear", value: "173× larger" },

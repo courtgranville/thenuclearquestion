@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 
 /*
-  INTERACTIVE SVG COMPONENT — v8
+  INTERACTIVE SVG COMPONENT - v8
   
   Architecture:
   - Click/tap only (no hover) for mobile-first smoothness
@@ -10,7 +10,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
   - GPU-accelerated opacity transitions
   - XMLHttpRequest for reliable SVG fetching (bypasses debug-collector wrapper)
   - Generic: works with any SVG that has ID'd groups
-  - Full-bleed: no max-width constraint — parent controls width
+  - Full-bleed: no max-width constraint - parent controls width
   - Legend defaults to bottom position
   - viewBoxOverride is baked into the SVG HTML string before injection
     so it persists across React re-renders (dangerouslySetInnerHTML)
@@ -134,13 +134,13 @@ export default function InteractiveSVG({
 
     // Inject or merge style attribute
     if (html.match(/<svg[^>]*?style="[^"]*"/i)) {
-      // SVG already has a style attribute — append our styles
+      // SVG already has a style attribute - append our styles
       html = html.replace(
         /(<svg[^>]*?)style="([^"]*)"/i,
         `$1style="$2; ${svgStyles.join('; ')}"`
       );
     } else {
-      // No existing style — add one
+      // No existing style - add one
       html = html.replace(
         /(<svg[^>]*?)(>)/i,
         `$1 style="${svgStyles.join('; ')}"$2`
@@ -336,7 +336,7 @@ export default function InteractiveSVG({
 
   return (
     <div className={`w-full ${className}`}>
-      {/* Scoped dynamic CSS — lives in the HTML DOM, not inside the SVG */}
+      {/* Scoped dynamic CSS - lives in the HTML DOM, not inside the SVG */}
       <style dangerouslySetInnerHTML={{ __html: dynamicCSS }} />
 
       {/* Legend top (if specified) */}

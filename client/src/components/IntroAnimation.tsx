@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
   - 0.0s: overlay visible, body scroll locked
   - 0.4s: text fades in
   - 1.2s: underline draws
-  - 2.4s: begin exit — text moves up, overlay fades out
+  - 2.4s: begin exit - text moves up, overlay fades out
   - 3.2s: done, onComplete fires
 */
 

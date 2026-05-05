@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 /*
-  INTERACTIVE WASTE QUANTITIES VISUALISATION — v5
+  INTERACTIVE WASTE QUANTITIES VISUALISATION - v5
   
   Uses EVENT DELEGATION on the container div for robust interaction.
   Direct style.opacity manipulation for guaranteed SVG compatibility.
@@ -196,7 +196,7 @@ export default function WasteQuantitiesViz() {
       // Only clear if we're leaving the SVG area entirely
       const related = e.relatedTarget as Element | null;
       if (related && svgContainerRef.current?.contains(related)) {
-        // Still inside the container — check if the new target is a waste element
+        // Still inside the container - check if the new target is a waste element
         const wasteId = findWasteTypeFromElement(related);
         setActiveType(wasteId);
       } else {
@@ -213,7 +213,7 @@ export default function WasteQuantitiesViz() {
         e.stopPropagation();
         setSelectedType((prev) => (prev === wasteId ? null : wasteId));
       } else {
-        // Clicked on empty space — deselect
+        // Clicked on empty space - deselect
         setSelectedType(null);
       }
     },
