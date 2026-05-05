@@ -244,7 +244,7 @@ export default function Home() {
                     }}
                   />
                 </motion.div>
-                <motion.p
+                <motion.h2
                   variants={fadeUp}
                   className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mb-4"
                   style={{
@@ -258,7 +258,7 @@ export default function Home() {
                   desirability and feasibility in sequence, concluding by
                   addressing objections honestly rather than advocating for a
                   position.
-                </motion.p>
+                </motion.h2>
                 <motion.p
                   variants={fadeUp}
                   className="text-sm text-muted-foreground"

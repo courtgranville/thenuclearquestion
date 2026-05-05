@@ -9,7 +9,7 @@ import { useRef } from "react";
 
 /*
   DESIGN: Editorial Archive — Light Scholarly Journal
-  About page with page transition, scroll progress, and animated blockquote.
+  About page with page transition and scroll progress.
 */
 
 const fadeUp = {
@@ -25,27 +25,6 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
 
-function AnimatedBlockquote({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-40px" });
-
-  return (
-    <div ref={ref} className="relative mb-10">
-      <motion.div
-        className="absolute left-0 top-0 bottom-0 w-[2px] bg-primary"
-        initial={{ scaleY: 0 }}
-        animate={isInView ? { scaleY: 1 } : { scaleY: 0 }}
-        transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
-        style={{ originY: 0 }}
-      />
-      <blockquote className="pl-4 py-1">
-        <p className="font-serif text-base italic text-foreground/90 leading-relaxed">
-          {children}
-        </p>
-      </blockquote>
-    </div>
-  );
-}
 
 function SectionBlock({
   title,
