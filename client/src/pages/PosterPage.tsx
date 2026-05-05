@@ -104,10 +104,10 @@ export default function PosterPage() {
               initial="hidden"
               animate="visible"
               variants={stagger}
-              className="pb-8"
+              className="pb-8 text-center max-w-3xl mx-auto"
             >
               <motion.div variants={fadeUp}>
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center justify-center gap-3 mb-4">
                   <span
                     className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: sectionColour }}
@@ -157,7 +157,7 @@ export default function PosterPage() {
               initial="hidden"
               animate="visible"
               variants={stagger}
-              className="pb-10"
+              className="pb-10 text-center max-w-3xl mx-auto"
             >
               <motion.div variants={fadeUp}>
                 <hr className="border-border mb-8" />
@@ -166,7 +166,7 @@ export default function PosterPage() {
               {/* Poster's main description */}
               <motion.p
                 variants={fadeUp}
-                className="text-sm leading-relaxed text-foreground/80 mb-6 max-w-3xl"
+                className="text-sm leading-relaxed text-foreground/80 mb-6"
                 style={{
                   fontFamily: "'IBM Plex Sans', sans-serif",
                   fontWeight: 300,
@@ -179,7 +179,7 @@ export default function PosterPage() {
               {/* Key insight — additional thesis context */}
               <motion.p
                 variants={fadeUp}
-                className="text-sm leading-relaxed text-foreground/80 mb-6 max-w-3xl"
+                className="text-sm leading-relaxed text-foreground/80 mb-6"
                 style={{
                   fontFamily: "'IBM Plex Sans', sans-serif",
                   fontWeight: 300,
@@ -189,7 +189,7 @@ export default function PosterPage() {
               </motion.p>
 
               {/* Methodology note */}
-              <motion.div variants={fadeUp} className="max-w-3xl">
+              <motion.div variants={fadeUp}>
                 <p
                   className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
                   style={{ fontFamily: "'IBM Plex Mono', monospace" }}
