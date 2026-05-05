@@ -40,7 +40,7 @@ export default function Sources() {
                 <Link href="/">
                   <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                     <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
-                    <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                    <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
                       Back to series
                     </span>
                   </span>
@@ -75,7 +75,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80 mb-6"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -90,7 +90,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -125,7 +125,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80 mb-4"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -139,7 +139,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -171,7 +171,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80 mb-6"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -455,7 +455,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80 mb-6"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -536,7 +536,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80 mb-6"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -549,7 +549,7 @@ export default function Sources() {
                     <p
                       className="text-sm leading-relaxed text-foreground/80 mb-2"
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 500,
                       }}
                     >
@@ -558,7 +558,7 @@ export default function Sources() {
                     <p
                       className="text-sm leading-relaxed text-foreground/80"
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 300,
                       }}
                     >
@@ -574,7 +574,7 @@ export default function Sources() {
                     <p
                       className="text-sm leading-relaxed text-foreground/80 mb-2"
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 500,
                       }}
                     >
@@ -583,7 +583,7 @@ export default function Sources() {
                     <p
                       className="text-sm leading-relaxed text-foreground/80"
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 300,
                       }}
                     >
@@ -599,7 +599,7 @@ export default function Sources() {
                     <p
                       className="text-sm leading-relaxed text-foreground/80 mb-2"
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 500,
                       }}
                     >
@@ -608,7 +608,7 @@ export default function Sources() {
                     <p
                       className="text-sm leading-relaxed text-foreground/80"
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Montserrat', sans-serif",
                         fontWeight: 300,
                       }}
                     >
@@ -624,7 +624,7 @@ export default function Sources() {
                   variants={fadeUp}
                   className="text-sm leading-relaxed text-foreground/80 mt-6"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -649,7 +649,7 @@ function Citation({ text, url }: { text: string; url?: string }) {
     <p
       className="text-sm leading-relaxed text-foreground/80 pl-4 border-l-2 border-border"
       style={{
-        fontFamily: "'IBM Plex Sans', sans-serif",
+        fontFamily: "'Montserrat', sans-serif",
         fontWeight: 300,
       }}
     >
@@ -703,7 +703,7 @@ function Limitations({ children }: { children: React.ReactNode }) {
       <p
         className="text-sm leading-relaxed text-foreground/60"
         style={{
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: "'Montserrat', sans-serif",
           fontWeight: 300,
         }}
       >
@@ -743,7 +743,7 @@ function PosterSourceSection({
       <p
         className="text-sm italic text-muted-foreground mb-5"
         style={{
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: "'Montserrat', sans-serif",
           fontWeight: 300,
         }}
       >

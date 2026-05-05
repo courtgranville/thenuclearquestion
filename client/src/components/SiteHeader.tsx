@@ -94,7 +94,7 @@ function NavLink({
               ? "text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
-          style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
           {label}
         </span>

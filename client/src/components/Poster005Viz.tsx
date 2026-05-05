@@ -239,7 +239,7 @@ function CategoryLegend({
           <p
             className="text-sm font-medium mb-1"
             style={{
-              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontFamily: "'Montserrat', sans-serif",
               color: activeInfo.color,
             }}
           >
@@ -248,7 +248,7 @@ function CategoryLegend({
           </p>
           <p
             className="text-xs text-muted-foreground"
-            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+            style={{ fontFamily: "'Montserrat', sans-serif" }}
           >
             {activeInfo.description}
           </p>

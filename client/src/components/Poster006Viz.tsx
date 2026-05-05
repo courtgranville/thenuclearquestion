@@ -43,7 +43,7 @@ function VizSection({ title, description, config, maxHeight = "85vh", viewBoxOve
         </h3>
         <p
           className="text-sm text-muted-foreground leading-relaxed"
-          style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
           {description}
         </p>

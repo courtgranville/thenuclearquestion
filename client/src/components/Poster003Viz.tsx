@@ -231,7 +231,7 @@ function ScenarioButtons({
             </span>
             <span
               className="block text-sm font-medium"
-              style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               {s.subtitle}
             </span>
@@ -249,7 +249,7 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
     <div className="mt-4">
       <p
         className="text-sm text-muted-foreground leading-relaxed mb-3"
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+        style={{ fontFamily: "'Montserrat', sans-serif" }}
       >
         {scenario.description}
       </p>
@@ -339,7 +339,7 @@ export default function Poster003Viz() {
                 {section.id === "dots" && (
                   <p
                     className="text-sm text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
                   >
                     Each <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>red dot</span> represents
                     one estimated death per year from the UK's electricity generation.
@@ -350,7 +350,7 @@ export default function Poster003Viz() {
                 {section.id === "deaths" && (
                   <p
                     className="text-sm text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
                   >
                     Organic form area is proportional to <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>deaths</span> from
                     that source. Labels show each energy source and its estimated annual death toll.
@@ -359,7 +359,7 @@ export default function Poster003Viz() {
                 {section.id === "dendrogram" && (
                   <p
                     className="text-sm text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    style={{ fontFamily: "'Montserrat', sans-serif" }}
                   >
                     Circle area represents the percentage each source of electricity takes in an energy mix of ~284 TWh.{" "}
                     <span className="not-italic font-semibold" style={{ color: "#b4822e" }}>Nuclear</span> is highlighted in yellow.

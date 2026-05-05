@@ -93,7 +93,7 @@ function PosterCard({
                 <p
                   className="text-sm text-muted-foreground leading-relaxed mb-4"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >
@@ -101,7 +101,7 @@ function PosterCard({
                 </p>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors duration-300">
-                <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
                   View poster
                 </span>
                 <ArrowRight className="w-4 h-4 transform group-hover:translate-x-2 transition-transform duration-300 ease-out" />
@@ -179,7 +179,7 @@ export default function Home() {
                   variants={fadeUp}
                   className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6"
                   style={{
-                    fontFamily: "'IBM Plex Sans', sans-serif",
+                    fontFamily: "'Montserrat', sans-serif",
                     fontWeight: 300,
                   }}
                 >

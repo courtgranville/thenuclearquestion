@@ -53,7 +53,7 @@ function SectionBlock({
       <div
         className="space-y-4 text-sm leading-relaxed text-foreground/80"
         style={{
-          fontFamily: "'IBM Plex Sans', sans-serif",
+          fontFamily: "'Montserrat', sans-serif",
           fontWeight: 300,
         }}
       >
@@ -76,7 +76,7 @@ export default function About() {
               <Link href="/">
                 <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
-                  <span style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                  <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
                     Back to series
                   </span>
                 </span>
@@ -122,7 +122,7 @@ export default function About() {
                 variants={fadeUp}
                 className="space-y-5 text-sm leading-relaxed text-foreground/80 mb-10"
                 style={{
-                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 300,
                 }}
               >
@@ -158,7 +158,7 @@ export default function About() {
                 variants={fadeUp}
                 className="space-y-5 text-sm leading-relaxed text-foreground/80 mb-10"
                 style={{
-                  fontFamily: "'IBM Plex Sans', sans-serif",
+                  fontFamily: "'Montserrat', sans-serif",
                   fontWeight: 300,
                 }}
               >
