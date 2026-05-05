@@ -50,6 +50,11 @@ export default function SiteHeader() {
             label="Sources"
             active={location === "/sources"}
           />
+          <NavLink
+            href="/contact"
+            label="Contact"
+            active={location === "/contact"}
+          />
         </nav>
       </div>
     </motion.header>

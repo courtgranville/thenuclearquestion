@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import PosterPage from "./pages/PosterPage";
 import About from "./pages/About";
 import Sources from "./pages/Sources";
+import Contact from "./pages/Contact";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/poster/:id" component={PosterPage} />
       <Route path="/about" component={About} />
       <Route path="/sources" component={Sources} />
+      <Route path="/contact" component={Contact} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
