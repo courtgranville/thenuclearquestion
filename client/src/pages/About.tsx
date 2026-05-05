@@ -256,38 +256,7 @@ export default function About() {
                 </p>
               </SectionBlock>
 
-              <motion.div variants={fadeUp}>
-                <hr className="border-border mb-8" />
-              </motion.div>
 
-              <motion.div variants={fadeUp}>
-                <div className="flex flex-col gap-3">
-                  <p
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Court Granville
-                  </p>
-                  <p
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Bachelor in Design - Undergraduate Thesis
-                  </p>
-                  <p
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    Supervisor: Professor Kaleb Cardenas Zavala
-                  </p>
-                  <p
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    IE University, May 2026
-                  </p>
-                </div>
-              </motion.div>
             </motion.div>
           </div>
         </main>
