@@ -23,23 +23,20 @@ const regions: Region[] = [
     groupIds: [
       "form-nuclear",
       "label-nuclear",
-      // land-gas is visually under Nuclear's blob
       "land-gas",
-      // hydropower vals are visually next to Nuclear's label
       "land-val-hydropower",
       "water-val-hydropower",
       "land-rect-hydropower",
       "water-dot-hydropower",
-      // Nuclear's annotation (land footprint text)
       "annotation-50",
     ],
     name: "Nuclear",
     color: "#237c3e",
     description:
-      "Nuclear has the smallest land footprint of any major electricity source but relatively high water consumption due to cooling requirements.",
+      "The smallest physical footprint of any firm power source. Nuclear's land use is dominated by the exclusion zone, not the reactor itself; its water use is cooling water, most of which is returned to the source. The combination of minimal land and moderate water makes it the least physically intrusive firm generation technology.",
     info: [
-      { label: "Land use", value: "0.3 km²/TWh" },
-      { label: "Water use", value: "2,700 ML/TWh" },
+      { label: "Land use", value: "0.31 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "22 m\u00b3/MWh" },
     ],
   },
   {
@@ -47,9 +44,7 @@ const regions: Region[] = [
     groupIds: [
       "form-gas",
       "label-gas",
-      // land-nuclear is visually under Gas's blob
       "land-nuclear",
-      // coal-ccs vals are visually next to Gas's label
       "land-val-coal-ccs",
       "water-val-coal-ccs",
       "land-rect-coal-ccs",
@@ -58,10 +53,10 @@ const regions: Region[] = [
     name: "Gas",
     color: "#b4822e",
     description:
-      "Gas plants have a moderate land footprint and relatively low water consumption compared to thermal plants with cooling towers.",
+      "Gas plants are compact and fast to build, but their lifecycle land footprint includes upstream extraction infrastructure. Water consumption is lower than coal because combined-cycle plants are more thermally efficient - less waste heat to reject.",
     info: [
-      { label: "Land use", value: "1.3 km²/TWh" },
-      { label: "Water use", value: "580 ML/TWh" },
+      { label: "Land use", value: "2.35 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "12 m\u00b3/MWh" },
     ],
   },
   {
@@ -69,9 +64,7 @@ const regions: Region[] = [
     groupIds: [
       "form-coal",
       "label-coal",
-      // land-coal is correctly positioned under Coal's blob
       "land-coal",
-      // gas vals are visually next to Coal's label
       "land-val-gas",
       "water-val-gas",
       "land-rect-gas",
@@ -80,10 +73,10 @@ const regions: Region[] = [
     name: "Coal",
     color: "#7d746a",
     description:
-      "Coal requires significant land for mining and ash disposal, plus substantial water for cooling and coal washing.",
+      "Coal's land footprint includes open-cast mines, ash ponds, and rail corridors. Its water consumption is high because subcritical boilers reject large amounts of waste heat through evaporative cooling towers. Both measures are significantly worse than gas.",
     info: [
-      { label: "Land use", value: "2.4 km²/TWh" },
-      { label: "Water use", value: "2,200 ML/TWh" },
+      { label: "Land use", value: "14.88 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "120 m\u00b3/MWh" },
     ],
   },
   {
@@ -91,24 +84,21 @@ const regions: Region[] = [
     groupIds: [
       "form-coal-ccs",
       "label-coal-ccs",
-      // land-solar-silicon is visually under Coal CCS's blob
       "land-solar-silicon",
-      // solar-silicon vals are visually next to Coal CCS's label
       "land-val-solar-silicon",
       "water-val-solar-silicon",
       "land-rect-solar-silicon",
       "water-dot-solar-silicon",
-      // Coal CCS annotation (carbon capture text + arrow)
       "annotation-55",
       "annotation-56",
     ],
     name: "Coal with CCS",
     color: "#7d746a",
     description:
-      "Carbon capture adds additional land and water requirements on top of conventional coal - the energy penalty increases both footprints.",
+      "Carbon capture roughly doubles coal's water demand. Cleaning emissions has a physical cost of its own - the energy penalty of running the capture process means more fuel burned, more cooling water consumed, and more land disturbed per MWh delivered.",
     info: [
-      { label: "Land use", value: "5.4 km²/TWh" },
-      { label: "Water use", value: "3,200 ML/TWh" },
+      { label: "Land use", value: "21.06 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "224 m\u00b3/MWh" },
     ],
   },
   {
@@ -116,24 +106,21 @@ const regions: Region[] = [
     groupIds: [
       "form-hydropower",
       "label-hydropower",
-      // land-hydropower is correctly positioned under Hydropower's blob
       "land-hydropower",
-      // solar-cadmium vals are visually next to Hydropower's label
       "land-val-solar-cadmium",
       "water-val-solar-cadmium",
       "land-rect-solar-cadmium",
       "water-dot-solar-cadmium",
-      // Hydropower annotation (reservoir text + arrow)
       "annotation-51",
       "annotation-57",
     ],
     name: "Hydropower",
     color: "#4b6e70",
     description:
-      "Hydropower's enormous land footprint comes from reservoir surface area. Water consumption is low because the water passes through, but evaporation from reservoirs is significant.",
+      "The largest land footprint of any source on this poster - the area is the reservoir surface, not the powerhouse - but the lowest water consumption per MWh, because the water passes through. Hydropower wins on water and loses on land. No source wins on every measure.",
     info: [
-      { label: "Land use", value: "18 km²/TWh" },
-      { label: "Water use", value: "5,200 ML/TWh" },
+      { label: "Land use", value: "33.39 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "13 m\u00b3/MWh" },
     ],
   },
   {
@@ -141,14 +128,11 @@ const regions: Region[] = [
     groupIds: [
       "form-solar-silicon",
       "label-solar-silicon",
-      // land-coal-ccs is visually under Solar Silicon's blob
       "land-coal-ccs",
-      // nuclear vals are visually next to Solar Silicon's label
       "land-val-nuclear",
       "water-val-nuclear",
       "land-rect-nuclear",
       "water-dot-nuclear",
-      // Shared solar annotation (two technologies text + connector arrows)
       "annotation-52",
       "annotation-53",
       "annotation-54",
@@ -156,10 +140,10 @@ const regions: Region[] = [
     name: "Solar PV (Silicon)",
     color: "#1b3967",
     description:
-      "Silicon solar panels require significant land area due to low energy density, but have very low water consumption during operation.",
+      "Crystalline silicon panels. A significant land footprint per MWh because of low energy density per square metre, but very low water consumption - manufacturing dominates the figure.",
     info: [
-      { label: "Land use", value: "5.7 km²/TWh" },
-      { label: "Water use", value: "330 ML/TWh" },
+      { label: "Land use", value: "19.22 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "35 m\u00b3/MWh" },
     ],
   },
   {
@@ -167,14 +151,11 @@ const regions: Region[] = [
     groupIds: [
       "form-solar-cadmium",
       "label-solar-cadmium",
-      // land-solar-cadmium is correctly positioned under Solar Cadmium's blob
       "land-solar-cadmium",
-      // coal vals are visually next to Solar Cadmium's label
       "land-val-coal",
       "water-val-coal",
       "land-rect-coal",
       "water-dot-coal",
-      // Shared solar annotation (two technologies text + connector arrows)
       "annotation-52",
       "annotation-53",
       "annotation-54",
@@ -182,10 +163,10 @@ const regions: Region[] = [
     name: "Solar PV (CdTe)",
     color: "#1b3967",
     description:
-      "Cadmium telluride thin-film panels have a similar land footprint to silicon but slightly different manufacturing water requirements.",
+      "Cadmium telluride thin-film panels have a smaller land footprint than silicon and lower water consumption - materials choice can change the footprint as much as the technology does.",
     info: [
-      { label: "Land use", value: "4.5 km²/TWh" },
-      { label: "Water use", value: "270 ML/TWh" },
+      { label: "Land use", value: "12.65 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "8 m\u00b3/MWh" },
     ],
   },
 ];

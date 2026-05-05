@@ -34,7 +34,8 @@ const mapCategories: ReactorCategory[] = [
     name: "Operating",
     color: "#267c3e",
     count: 3,
-    description: "Currently generating electricity for the UK grid.",
+    description:
+      "The remaining UK reactors still generating electricity for the grid. Most are AGRs scheduled for retirement by 2030; only Sizewell B is expected to keep running into the 2030s.",
   },
   {
     id: "future",
@@ -42,14 +43,15 @@ const mapCategories: ReactorCategory[] = [
     color: "#b4822e",
     count: 3,
     description:
-      "Approved or under construction - Hinkley Point C, Sizewell C, and others.",
+      "Hinkley Point C (under construction since 2018) and Sizewell C (financed in 2025). The first new UK reactor to switch on in 35+ years is projected for the 2030s.",
   },
   {
     id: "paused",
     name: "Paused",
     color: "#1b3967",
     count: 1,
-    description: "Construction or planning halted but not formally cancelled.",
+    description:
+      "Construction or planning halted but not formally cancelled - sites that are technically still on the table but where no work is happening.",
   },
   {
     id: "past",
@@ -57,14 +59,15 @@ const mapCategories: ReactorCategory[] = [
     color: "#7d746b",
     count: 10,
     description:
-      "Shut down and in various stages of decommissioning or defuelling.",
+      "Sites where reactors have been permanently shut down and are at various stages of defuelling, dismantling, or long-term care and maintenance. Sellafield holds the largest concentration.",
   },
   {
     id: "abandoned",
     name: "Cancelled",
     color: "#a61e23",
     count: 2,
-    description: "Formally cancelled - sites may have been repurposed.",
+    description:
+      "Sites where projects were formally cancelled before completion. The data records the cancellation event, not the reason - abandonment, government withdrawal, and developer collapse all look the same here.",
   },
 ];
 
@@ -77,7 +80,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#b4822e",
     count: 2,
     description:
-      "Hinkley Point C1 and C2 - dashed bars projected to target completion.",
+      "Hinkley Point C1 and C2 - bars dashed because the line is projected to target completion, not yet realised.",
   },
   {
     id: "operating",
@@ -85,7 +88,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#237c3e",
     count: 9,
     description:
-      "Still running - bars start at construction and run to an open arrow (no end date).",
+      "Reactors still running. Bars start at construction and end with an open arrow - the closure year hasn't happened yet, though most are scheduled to retire by 2030.",
   },
   {
     id: "retired",
@@ -93,7 +96,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#7d746a",
     count: 36,
     description:
-      "Built, operated, shut down - bars span from construction start to shutdown year.",
+      "Reactors that operated and have since shut down. Bars span from construction start to shutdown year, showing both the build-out wave of the 1960s-80s and the absence of new starts since.",
   },
   {
     id: "cancelled",
@@ -101,7 +104,7 @@ const dendroCategories: ReactorCategory[] = [
     color: "#a51e23",
     count: 25,
     description:
-      "Single dot at decision year - 14,141 MW announced and never built.",
+      "Single dot at the cancellation year. 14,141 MW of capacity announced and never built - more than twice the capacity of Britain's entire operating fleet today.",
   },
 ];
 

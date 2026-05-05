@@ -21,7 +21,7 @@ export const wasteQuantitiesConfig = {
       name: "VLLW",
       color: "#7d746a",
       description:
-        "Includes rubble, soil, and other materials from decommissioned nuclear sites. Radioactivity is so low it poses negligible risk and can be disposed of in landfill-type facilities.",
+        "Very low level waste - rubble, soil, building materials lightly contaminated by decades of nuclear operation. The radioactivity is low enough that this material can be disposed of in landfill-type facilities under regulatory permits. The largest fraction by volume; a vanishingly small fraction by radioactivity.",
       info: [
         { label: "Volume", value: "2,610,000 m\u00B3" },
         { label: "% of Total", value: "58.6%" },
@@ -30,11 +30,11 @@ export const wasteQuantitiesConfig = {
     },
     {
       id: "llw",
-      groupIds: ["blob-ilw", "label-ilw", "data-ilw"],
+      groupIds: ["blob-llw", "label-llw", "data-llw"],
       name: "LLW",
       color: "#4b6e70",
       description:
-        "Protective clothing, tools, and filters from day-to-day operations. Contains small amounts of short-lived radioactivity. Compacted and stored in near-surface repositories.",
+        "Low level waste - protective clothing, tools, filters, and metal from day-to-day operations and decommissioning. Contains short-lived radioactivity. Compacted, grouted into containers, and stored in engineered vaults at the Low Level Waste Repository in Cumbria and at Dounreay.",
       info: [
         { label: "Volume", value: "1,340,000 m\u00B3" },
         { label: "% of Total", value: "30.2%" },
@@ -43,11 +43,11 @@ export const wasteQuantitiesConfig = {
     },
     {
       id: "ilw",
-      groupIds: ["blob-llw", "label-llw", "data-llw"],
+      groupIds: ["blob-ilw", "label-ilw", "data-ilw"],
       name: "ILW",
       color: "#1b3967",
       description:
-        "Reactor components, chemical sludges, and resins. Requires shielding during handling but not cooling. Typically encased in cement or bitumen and stored in engineered vaults.",
+        "Intermediate level waste - reactor components, chemical sludges, and resins from reprocessing. Requires shielding during handling but not active cooling. Typically encased in cement or bitumen and stored in engineered vaults pending the geological disposal facility.",
       info: [
         { label: "Volume", value: "496,000 m\u00B3" },
         { label: "% of Total", value: "11.1%" },
@@ -60,7 +60,7 @@ export const wasteQuantitiesConfig = {
       name: "HLW",
       color: "#a51e23",
       description:
-        "Spent fuel and reprocessing liquors. Extremely radioactive and heat-generating. Requires deep geological disposal. Despite containing almost all the radioactivity, it occupies less than 0.1% of total waste volume.",
+        "High level waste - spent fuel and reprocessing liquors. Extremely radioactive and heat-generating. Requires deep geological disposal. Despite holding 95.6% of all the radioactivity in the UK's inventory, it occupies less than a tenth of one per cent of the volume - a tiny amount of intensely problematic material.",
       info: [
         { label: "Volume", value: "1,470 m\u00B3" },
         { label: "% of Total", value: "<0.1%" },
@@ -229,7 +229,7 @@ export const wasteLocationsConfig = {
       name: "Others",
       color: "#7d746a",
       description:
-        "Medical, research, and fuel-cycle facilities that produce smaller quantities of radioactive waste.",
+        "Medical, research, and fuel-cycle facilities that produce smaller quantities of radioactive waste. Hospitals, universities, fuel fabrication sites, and the older defence research footprint outside the dedicated military category.",
       info: [
         { label: "Volume", value: "370,000 m\u00B3" },
         { label: "Share", value: "8.1%" },
@@ -277,7 +277,7 @@ export const wasteLocationsConfig = {
       name: "Hinkley Point C",
       color: "#7d746a",
       description:
-        "The UK's only reactor currently under construction. Will generate waste during its operational lifetime.",
+        "The UK's only reactor currently under construction. The volume here is forward-looking - waste it will generate over its operating lifetime once it switches on, not waste already produced.",
       info: [
         { label: "Volume", value: "9,970 m\u00B3" },
         { label: "Share", value: "0.2%" },

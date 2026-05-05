@@ -33,7 +33,7 @@ const scenarios: ScenarioData[] = [
     deaths: 699,
     livesSaved: null,
     description:
-      "The UK's current energy mix produces an estimated 699 deaths per year from air pollution and accidents - almost two every day, mostly invisible because they happen in hospitals, not headlines.",
+      "The UK grid kills an estimated 699 people every year - almost two every day, mostly invisible because they happen in hospitals, not headlines. Gas alone accounts for roughly a third of the toll. Most of these deaths are from sources nobody worries about.",
   },
   {
     id: "s2",
@@ -42,7 +42,7 @@ const scenarios: ScenarioData[] = [
     deaths: 297,
     livesSaved: 401,
     description:
-      "A moderate expansion of nuclear power alongside renewables reduces estimated deaths to 297 per year - saving 401 lives annually compared to today's mix.",
+      "Doubling nuclear's share of the grid - to roughly the level the UK had in the late 1990s - cuts annual deaths to 297 and saves 401 lives a year. The reduction comes mostly from displacing gas, which dominates the current toll.",
   },
   {
     id: "s3",
@@ -51,7 +51,7 @@ const scenarios: ScenarioData[] = [
     deaths: 9,
     livesSaved: 690,
     description:
-      "A full transition to nuclear and renewables reduces estimated deaths to just 9 per year - saving 690 lives annually. The red dots almost disappear.",
+      "Reaching France's nuclear share would reduce annual UK grid deaths to 9 and save 690 lives a year compared with today. The red dots almost disappear; nuclear-related deaths only rise from 1 to 6 even as nuclear's share moves from 14% to 70%.",
   },
 ];
 

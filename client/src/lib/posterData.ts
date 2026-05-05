@@ -46,7 +46,7 @@ export const posters: PosterData[] = [
     pullQuote:
       "The nuclear question is never a clean argument. To take part, one must be prepared to compromise \u2014 it\u2019s about deciding where the right compromises are.",
     methodology:
-      "Lifecycle land-use data from UNECE (2021) and water-consumption data from peer-reviewed lifecycle assessment literature. Both metrics normalised to per-MWh values for direct comparison.",
+      "Land and water values from UNECE (2021) Lifecycle Assessment of Electricity Generation Options, accessed via Our World in Data. Land use is measured in m\u00b2\u00b7year/MWh (a time-integrated footprint); water use is consumption in m\u00b3/MWh (water permanently lost, not water withdrawn).",
     imagePath: "/manus-storage/002-version2_b4d2d765.png",
     pdfPath: "/manus-storage/002-version2_14df9892.pdf",
   },
@@ -84,7 +84,7 @@ export const posters: PosterData[] = [
     pullQuote:
       "Decarbonising how we generate electricity only decarbonises the fraction of the system already running on it. Everything else still burns.",
     methodology:
-      "Final energy consumption data from the Digest of UK Energy Statistics (DUKES) 2025, Tables 1.1.1, 1.1.2 and 1.2.5. Final energy is energy delivered to end users, per DUKES convention.",
+      "Final energy consumption data from the Digest of UK Energy Statistics (DUKES) 2025, Tables 1.1.1, 1.1.3 and 1.1.5. Final energy is energy delivered to end users, per DUKES convention; primary energy would be approximately 50% larger because it includes conversion losses.",
     imagePath: "/manus-storage/004-version2_1f18c33d.png",
     pdfPath: "/manus-storage/004-version2_014ffb7f.pdf",
   },
