@@ -34,12 +34,7 @@ export default function SiteFooter() {
               Bachelor in Design Thesis, IE University, 2026
             </p>
           </div>
-          <p
-            className="text-xs text-muted-foreground"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            Supervisor: Professor Kaleb Cardenas Zavala
-          </p>
+
         </div>
       </div>
     </motion.footer>
