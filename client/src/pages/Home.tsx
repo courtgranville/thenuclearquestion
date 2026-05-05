@@ -6,7 +6,7 @@ import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
 import IntroAnimation from "@/components/IntroAnimation";
 import PageTransition from "@/components/PageTransition";
-import { posters, sectionDescriptions } from "@/lib/posterData";
+import { posters } from "@/lib/posterData";
 import { ArrowRight } from "lucide-react";
 
 /*
@@ -127,48 +127,7 @@ function PosterCard({
   );
 }
 
-function SectionHeader({
-  section,
-  label,
-}: {
-  section: string;
-  label: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-60px" });
-  const desc = sectionDescriptions[section];
-  const colour = SECTION_COLOURS[section] || "#1c3867";
 
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 16 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
-      transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className="mb-8 mt-14 first:mt-0"
-    >
-      <div className="mb-4">
-        <span
-          className="text-xs tracking-[0.25em] uppercase whitespace-nowrap"
-          style={{ fontFamily: "'IBM Plex Mono', monospace", color: colour }}
-        >
-          {label}
-        </span>
-      </div>
-      {desc && (
-        <p
-          className="text-sm text-muted-foreground leading-relaxed max-w-2xl"
-          style={{
-            fontFamily: "'IBM Plex Sans', sans-serif",
-            fontWeight: 300,
-          }}
-        >
-          {desc}
-        </p>
-      )}
-    </motion.div>
-  );
-}
 
 export default function Home() {
   const alreadySeen = hasSeenIntro();
@@ -179,11 +138,7 @@ export default function Home() {
     setIntroComplete(true);
   }, []);
 
-  const sections = [
-    { key: "desirability", label: "Part I — Desirability" },
-    { key: "feasibility", label: "Part II — Feasibility" },
-    { key: "objections", label: "Part III — Objections" },
-  ];
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -250,22 +205,9 @@ export default function Home() {
         {/* Poster Series — anchor for "Series" nav link */}
         <section id="series" className="pb-20 scroll-mt-16">
           <div className="container">
-            {sections.map((section) => {
-              const sectionPosters = posters.filter(
-                (p) => p.section === section.key
-              );
-              return (
-                <div key={section.key}>
-                  <SectionHeader
-                    section={section.key}
-                    label={section.label}
-                  />
-                  {sectionPosters.map((poster, i) => (
-                    <PosterCard key={poster.id} poster={poster} index={i} />
-                  ))}
-                </div>
-              );
-            })}
+            {posters.map((poster, i) => (
+              <PosterCard key={poster.id} poster={poster} index={i} />
+            ))}
           </div>
         </section>
 
