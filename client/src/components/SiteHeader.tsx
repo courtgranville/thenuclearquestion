@@ -59,6 +59,11 @@ export default function SiteHeader() {
             onClick={handleSeriesClick}
           />
           <NavLink
+            href="/sources"
+            label="Sources"
+            active={location === "/sources"}
+          />
+          <NavLink
             href="/about"
             label="About"
             active={location === "/about"}

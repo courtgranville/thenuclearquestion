@@ -136,3 +136,73 @@ export const sectionDescriptions: Record<string, string> = {
   objections:
     "Addressing objections honestly is essential to the truth-teller approach. This poster confronts nuclear waste directly \u2014 both the fear mitigation and the ways the UK is falling short.",
 };
+
+export interface PosterSource {
+  intro: string;
+  items: string[];
+  caveat: string;
+}
+
+export const posterSources: Record<string, PosterSource> = {
+  "001": {
+    intro:
+      "This poster uses median lifecycle emissions values harmonised to grams of CO\u2082-equivalent per kilowatt-hour, drawn from three sources:",
+    items: [
+      "Our World in Data (2024). Lifecycle emissions of electricity sources.",
+      "IPCC (2014). Climate Change 2014: Mitigation, Working Group III, Annex II.",
+      "UNECE (2021). Lifecycle Assessment of Electricity Generation Options.",
+    ],
+    caveat:
+      "Median values were used because real-project emissions vary by site, fuel grade, and construction era \u2014 ranges overlap at the edges, not the centre. Operational-only emissions, the figure most often cited in public, would understate fossil fuels (which leak methane upstream) and misrepresent nuclear and renewables (whose emissions are mostly held in construction and materials).",
+  },
+  "002": {
+    intro:
+      "This poster uses lifecycle land and water consumption figures from:",
+    items: [
+      "Our World in Data (2024). Land use per energy source.",
+      "UNECE (2021). Lifecycle Assessment of Electricity Generation Options.",
+    ],
+    caveat:
+      "Figures are derived from typical-project profiles, not measurements of any single plant. Nuclear\u2019s water number depends heavily on cooling design \u2014 coastal plants using seawater lose almost nothing, while inland plants with cooling towers lose the most; siting alone can swing the figure by an order of magnitude. Solar PV land use is for ground-mount; rooftop PV has near-zero additional land footprint.",
+  },
+  "003": {
+    intro: "This poster combines three sources:",
+    items: [
+      "Markandya & Wilkinson (2007). Electricity generation and health. The Lancet, 370(9591), 979\u2013990.",
+      "Sovacool et al. (2016). Balancing safety with sustainability: assessing the risk of accidents for modern low-carbon energy systems. Journal of Cleaner Production, 112.",
+      "Ember (2024). Yearly Electricity Data \u2014 UK electricity mix.",
+    ],
+    caveat:
+      "Death rates per terawatt-hour are modelled, not counted. Most of the deaths attributed to fossil-fuel electricity are statistical attributions made through epidemiological models, not individually identifiable cases. The two right-hand scenarios are counterfactuals, not predictions: they hold UK electricity demand constant and substitute the mix, but cannot capture the political and technical conditions required to reach those mixes in practice.",
+  },
+  "004": {
+    intro: "This poster uses UK government final-energy data:",
+    items: [
+      "Department for Energy Security and Net Zero (2025). Digest of UK Energy Statistics (DUKES) 2025, Tables 1.1.1, 1.1.3, and 1.1.5.",
+    ],
+    caveat:
+      "The poster shows final energy \u2014 energy delivered to end users \u2014 rather than primary energy, which would be approximately 50% larger because it includes conversion losses. Both are legitimate framings; the choice of final energy is what makes the 18% electricity figure visible. Non-energy use of petroleum (52.7 TWh \u2014 feedstock for petrochemicals, lubricants, bitumen, waxes) is shown as where UK petroleum physically goes, not as combusted energy.",
+  },
+  "005": {
+    intro:
+      "This poster compiles the UK reactor record from three sources:",
+    items: [
+      "Global Energy Monitor (2025). Global Nuclear Power Tracker.",
+      "Department for Energy Security and Net Zero (2024). Civil Nuclear: Roadmap to 2050.",
+      "World Nuclear Association (2025). Nuclear Power in the United Kingdom \u2014 country profile.",
+    ],
+    caveat:
+      "The data records what happened, not why. A cancelled project looks the same whether the developer walked away, the government killed it, or the programme quietly lapsed \u2014 those distinctions are political and economic, and they are not in the underlying dataset. \u201CAnnounced\u201D is permissive: it includes ministerial statements, white papers, and formal planning applications without a consistent threshold. Capacity figures are nameplate, not realised generation.",
+  },
+  "006": {
+    intro: "This poster combines four primary sources:",
+    items: [
+      "Nuclear Decommissioning Authority (2022). UK Radioactive Waste and Materials Inventory 2022.",
+      "UK Health Security Agency, Office for Nuclear Regulation, and IAEA Specific Safety Guide SSG-23 (radiation dose comparisons).",
+      "National Audit Office (2024). The Nuclear Decommissioning Authority\u2019s management of the Sellafield site.",
+      "House of Commons Public Accounts Committee (2025). Sellafield risk and decommissioning progress.",
+    ],
+    caveat:
+      "Waste volumes are as reported in the NDA\u2019s 2022 inventory; the figures will shift in subsequent updates as decommissioning proceeds. Radiation doses are averages \u2014 individual variation is significant, and the comparisons between everyday sources and waste-package contact doses are illustrative. \u201CWhere it ends up\u201D assumes the planned Geological Disposal Facility will eventually be built; site selection is not yet confirmed, and current projections place first waste emplacement between 2050 and 2060. The \u00A3136 billion Sellafield cleanup figure is the current undiscounted estimate, which has been revised upward several times.",
+  },
+};

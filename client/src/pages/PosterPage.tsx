@@ -10,7 +10,7 @@ import Poster003Viz from "@/components/Poster003Viz";
 import Poster004Viz from "@/components/Poster004Viz";
 import Poster005Viz from "@/components/Poster005Viz";
 import Poster006Viz from "@/components/Poster006Viz";
-import { posters } from "@/lib/posterData";
+import { posters, posterSources } from "@/lib/posterData";
 import { ArrowLeft, ArrowRight, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -312,6 +312,71 @@ export default function PosterPage() {
               className="w-full h-auto border border-border/60"
             />
           </motion.div>
+
+          {/* ── Sources block ── */}
+          {posterSources[poster.id] && (
+            <div className="container">
+              <div className="max-w-3xl mx-auto pb-10">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.4 }}
+                >
+                  <hr className="border-border mb-8" />
+                  <p
+                    className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  >
+                    Sources
+                  </p>
+                  <p
+                    className="text-sm leading-relaxed text-foreground/80 mb-4"
+                    style={{
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontWeight: 300,
+                    }}
+                  >
+                    {posterSources[poster.id].intro}
+                  </p>
+                  <ul className="space-y-2 mb-5 pl-4">
+                    {posterSources[poster.id].items.map((item, i) => (
+                      <li
+                        key={i}
+                        className="text-sm leading-relaxed text-foreground/80 border-l-2 border-border pl-3"
+                        style={{
+                          fontFamily: "'IBM Plex Sans', sans-serif",
+                          fontWeight: 300,
+                        }}
+                      >
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <p
+                    className="text-sm leading-relaxed text-foreground/60 mb-5"
+                    style={{
+                      fontFamily: "'IBM Plex Sans', sans-serif",
+                      fontWeight: 300,
+                    }}
+                  >
+                    {posterSources[poster.id].caveat}
+                  </p>
+                  <Link href="/sources">
+                    <span
+                      className="group inline-flex items-center gap-1.5 text-sm text-primary hover:text-foreground transition-colors duration-200"
+                      style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    >
+                      <span className="relative">
+                        Full sources & methodology
+                        <span className="absolute -bottom-0.5 left-0 w-0 h-px bg-foreground group-hover:w-full transition-all duration-300 ease-out" />
+                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform duration-200" />
+                    </span>
+                  </Link>
+                </motion.div>
+              </div>
+            </div>
+          )}
 
           {/* ── 7. Navigation ── */}
           <div className="container">
