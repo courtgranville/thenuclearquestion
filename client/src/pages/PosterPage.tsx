@@ -88,7 +88,7 @@ export default function PosterPage() {
         <main className="pt-14">
           <div className="container">
             {/* ── 0. Back link ── */}
-            <div className="pt-8 pb-4">
+            <div className="pt-8 pb-4 max-w-3xl mx-auto">
               <Link href="/">
                 <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
@@ -217,18 +217,20 @@ export default function PosterPage() {
             className="w-full px-2 sm:px-4 lg:px-6 pb-10"
           >
             <div className="container mb-4">
-              <p
-                className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-              >
-                Interactive Visualisation
-              </p>
-              <h3
-                className="font-serif text-2xl text-foreground"
-                style={{ fontWeight: 600 }}
-              >
-                Explore the Data
-              </h3>
+              <div className="max-w-3xl mx-auto">
+                <p
+                  className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                >
+                  Interactive Visualisation
+                </p>
+                <h3
+                  className="font-serif text-2xl text-foreground"
+                  style={{ fontWeight: 600 }}
+                >
+                  Explore the Data
+                </h3>
+              </div>
             </div>
 
             {/* The viz components now render SVG first, controls below */}
@@ -243,6 +245,7 @@ export default function PosterPage() {
           </motion.section>
 
           <div className="container">
+            <div className="max-w-3xl mx-auto">
             {/* ── 5. Download paragraph ── */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -251,7 +254,7 @@ export default function PosterPage() {
               className="py-8 border-t border-border"
             >
               <p
-                className="text-sm text-muted-foreground mb-3 max-w-2xl"
+                className="text-sm text-muted-foreground mb-3"
                 style={{
                   fontFamily: "'IBM Plex Sans', sans-serif",
                   fontWeight: 300,
@@ -293,6 +296,7 @@ export default function PosterPage() {
                 Poster Preview
               </p>
             </motion.div>
+            </div>
           </div>
 
           {/* Poster image — full bleed */}
@@ -311,7 +315,7 @@ export default function PosterPage() {
 
           {/* ── 7. Navigation ── */}
           <div className="container">
-            <nav className="border-t border-border py-6 mb-6">
+            <nav className="border-t border-border py-6 mb-6 max-w-3xl mx-auto">
               <div className="flex justify-between items-center">
                 {prevPoster ? (
                   <Link href={`/poster/${prevPoster.id}`}>
