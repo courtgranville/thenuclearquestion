@@ -147,24 +147,13 @@ function SectionHeader({
       transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="mb-8 mt-14 first:mt-0"
     >
-      <div className="flex items-center gap-4 mb-4">
+      <div className="mb-4">
         <span
           className="text-xs tracking-[0.25em] uppercase whitespace-nowrap"
           style={{ fontFamily: "'IBM Plex Mono', monospace", color: colour }}
         >
           {label}
         </span>
-        <motion.div
-          className="flex-1 h-px bg-border"
-          initial={{ scaleX: 0 }}
-          animate={isInView ? { scaleX: 1 } : { scaleX: 0 }}
-          transition={{
-            duration: 0.8,
-            delay: 0.2,
-            ease: [0.25, 0.46, 0.45, 0.94],
-          }}
-          style={{ originX: 0 }}
-        />
       </div>
       {desc && (
         <p
@@ -209,44 +198,31 @@ export default function Home() {
         {/* Hero */}
         <section className="pt-14">
           <div className="container">
-            <div className="min-h-[55vh] flex flex-col justify-center max-w-4xl py-16 lg:py-20">
+            <div className="min-h-[65vh] flex flex-col justify-center items-center text-center py-20 lg:py-28">
               <motion.div
                 initial="hidden"
                 animate={introComplete ? "visible" : "hidden"}
                 variants={stagger}
+                className="max-w-3xl mx-auto"
               >
                 <motion.p
                   variants={fadeUp}
-                  className="text-xs tracking-[0.25em] uppercase text-primary mb-6"
+                  className="text-xs tracking-[0.25em] uppercase text-primary mb-8"
                   style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                 >
                   A Data-Visualisation Series
                 </motion.p>
                 <motion.h1
                   variants={fadeUp}
-                  className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.15] mb-8"
+                  className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.15] mb-10"
                   style={{ fontWeight: 600 }}
                 >
                   How Can Design Be Used to Discuss the Feasibility of a
                   Nuclear-Powered Future?
                 </motion.h1>
-                <motion.div variants={fadeUp}>
-                  <motion.hr
-                    className="border-primary/30 mb-8 max-w-24"
-                    initial={{ width: 0 }}
-                    animate={
-                      introComplete ? { width: "6rem" } : { width: 0 }
-                    }
-                    transition={{
-                      duration: 0.8,
-                      delay: 0.6,
-                      ease: [0.25, 0.46, 0.45, 0.94],
-                    }}
-                  />
-                </motion.div>
                 <motion.h2
                   variants={fadeUp}
-                  className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mb-4"
+                  className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6"
                   style={{
                     fontFamily: "'IBM Plex Sans', sans-serif",
                     fontWeight: 300,
