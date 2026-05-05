@@ -23,7 +23,7 @@ export default function SiteHeader() {
 
   const headerHeight = useTransform(scrollY, [0, 100], [56, 48]);
   const backdropBlur = useTransform(scrollY, [0, 100], [8, 16]);
-  const titleSize = useTransform(scrollY, [0, 100], [18, 16]);
+  const titleSize = useTransform(scrollY, [0, 100], [22, 20]);
 
   // Close mobile menu on route change
   useEffect(() => {

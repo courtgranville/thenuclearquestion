@@ -108,14 +108,12 @@ export default function IntroAnimation({
                 padding: 0,
               }}
             >
-              <span style={{ color: "#7d736a" }}>the</span>
-              <span style={{ color: "#1c3867" }}>nuclear</span>
-              <span style={{ color: "#7d736a" }}>question</span>
+              The Nuclear Question
             </h1>
             <motion.div
               style={{
                 height: "1px",
-                backgroundColor: "#1c3867",
+                backgroundColor: "#0d1a1e",
                 marginTop: "1.25rem",
               }}
               initial={{ width: 0 }}
