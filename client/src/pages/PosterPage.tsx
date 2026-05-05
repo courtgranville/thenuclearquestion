@@ -196,10 +196,6 @@ export default function PosterPage() {
                 {poster.description}
               </motion.p>
 
-              {/* Pull quote */}
-              <motion.div variants={fadeUp} className="max-w-3xl">
-                <AnimatedBlockquote>{poster.pullQuote}</AnimatedBlockquote>
-              </motion.div>
 
               {/* Key insight — additional thesis context */}
               <motion.p

@@ -174,13 +174,6 @@ export default function About() {
                 </p>
               </motion.div>
 
-              <motion.div variants={fadeUp}>
-                <AnimatedBlockquote>
-                  I must continually ask myself: am I helping people see the
-                  truth, or am I becoming a more sophisticated propagandist for a
-                  position I already hold?
-                </AnimatedBlockquote>
-              </motion.div>
 
               <motion.div
                 variants={fadeUp}
