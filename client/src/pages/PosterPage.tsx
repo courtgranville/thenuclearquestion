@@ -104,10 +104,10 @@ export default function PosterPage() {
               initial="hidden"
               animate="visible"
               variants={stagger}
-              className="pb-8 text-center max-w-3xl mx-auto"
+              className="pb-8 text-left max-w-3xl mx-auto"
             >
               <motion.div variants={fadeUp}>
-                <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4">
                   <span
                     className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: sectionColour }}
@@ -157,7 +157,7 @@ export default function PosterPage() {
               initial="hidden"
               animate="visible"
               variants={stagger}
-              className="pb-10 text-center max-w-3xl mx-auto"
+              className="pb-10 text-left max-w-3xl mx-auto"
             >
               <motion.div variants={fadeUp}>
                 <hr className="border-border mb-8" />

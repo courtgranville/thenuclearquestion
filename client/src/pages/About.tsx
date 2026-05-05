@@ -84,7 +84,7 @@ export default function About() {
             </div>
 
             <motion.div
-              className="max-w-2xl mx-auto pb-24 text-center"
+              className="max-w-2xl mx-auto pb-24 text-left"
               initial="hidden"
               animate="visible"
               variants={stagger}
