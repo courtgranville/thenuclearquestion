@@ -1,6 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { useCallback } from "react";
+
 
 /*
   DESIGN: Editorial Archive — Light Scholarly Journal
@@ -17,18 +17,6 @@ export default function SiteHeader() {
   const backdropBlur = useTransform(scrollY, [0, 100], [8, 16]);
   const titleSize = useTransform(scrollY, [0, 100], [18, 16]);
 
-  const handleSeriesClick = useCallback(
-    (e: React.MouseEvent) => {
-      if (location === "/") {
-        e.preventDefault();
-        const el = document.getElementById("series");
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }
-    },
-    [location]
-  );
 
   return (
     <motion.header
@@ -53,20 +41,14 @@ export default function SiteHeader() {
 
         <nav className="flex items-center gap-6">
           <NavLink
-            href="/"
-            label="Series"
-            active={location === "/"}
-            onClick={handleSeriesClick}
+            href="/about"
+            label="About"
+            active={location === "/about"}
           />
           <NavLink
             href="/sources"
             label="Sources"
             active={location === "/sources"}
-          />
-          <NavLink
-            href="/about"
-            label="About"
-            active={location === "/about"}
           />
         </nav>
       </div>
