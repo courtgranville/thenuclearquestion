@@ -44,12 +44,11 @@ function SectionBlock({
       transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
       className="mb-10"
     >
-      <p
-        className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+      <h2
+        className="font-serif text-xl mb-4"
       >
         {title}
-      </p>
+      </h2>
       <div
         className="space-y-4 text-sm leading-relaxed text-foreground/80"
         style={{
@@ -77,7 +76,7 @@ export default function About() {
                 <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
                   <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
-                    Back to series
+                    Back to home
                   </span>
                 </span>
               </Link>
@@ -101,7 +100,6 @@ export default function About() {
               <motion.h1
                 variants={fadeUp}
                 className="font-serif text-3xl lg:text-4xl leading-tight mb-4"
-                style={{ fontWeight: 600 }}
               >
                 The Nuclear Question
               </motion.h1>
@@ -129,57 +127,56 @@ export default function About() {
                 <p>
                   This project investigates how design can facilitate public
                   discourse on the feasibility of a nuclear-powered future in the
-                  UK. It takes seriously the position — set out in the pathways of
+                  UK. It takes seriously the position set out in the pathways of
                   the Climate Change Committee and the National Energy System
-                  Operator — that nuclear energy is likely essential to the UK's
-                  timely decarbonisation.
+                  Operator that nuclear energy is likely essential to the UK's
+                  timely decarbonisation. It asserts that longstanding failures in
+                  communicating nuclear technology from industry and government,
+                  compounded by public fear, have hindered progress. Consequently,
+                  it operates within a newly emerging policy window and
+                  communications framework that are not yet equipped to seize this
+                  opportunity, and are further defined by an industry whose track
+                  record on delivery and waste has not yet earned the public trust
+                  that the policy window now requires.
                 </p>
                 <p>
-                  The thesis argues that longstanding failures in communicating
-                  nuclear technology, from both industry and government, compounded
-                  by public fear, have hindered progress. It operates within a
-                  newly emerging policy window and communications framework that
-                  are not yet equipped to seize this opportunity, further defined
-                  by an industry whose track record on delivery and waste has not
-                  yet earned the public trust that the policy moment now requires.
+                  The project presents three main arguments. First, the primary
+                  constraint on nuclear energy's role in the UK's transition is no
+                  longer technological, but communicative and economic. Second, the
+                  conversation itself has fallen apart up to this point — the
+                  industry's responses have typically been defensive, opposition to
+                  nuclear power has relied on absolute arguments and fearmongering,
+                  and both parties have failed to engage a public whose perception
+                  of risk is shaped more by emotion than by statistics. Third,
+                  there is an emerging role for design that sits between these two
+                  positions, one that neither industry nor activists are well placed
+                  to fill. This is not a role of advocacy or opposition, but of
+                  creating the conditions in which the public can reason
+                  independently through empathetic and deliberate design and
+                  argumentative principles. The project describes this as the
+                  epistemic facilitator, truth-teller and honest role.
                 </p>
                 <p>
-                  The designer's role here is that of an epistemic facilitator —
-                  someone who creates conditions for better public reasoning and
-                  understanding of contested technologies. This requires carefully
-                  balancing scientific evidence and emotional concerns, providing
-                  accessible information that encourages informed discussion rather
-                  than advocacy or propaganda.
-                </p>
-              </motion.div>
-
-
-              <motion.div
-                variants={fadeUp}
-                className="space-y-5 text-sm leading-relaxed text-foreground/80 mb-10"
-                style={{
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontWeight: 300,
-                }}
-              >
-                <p>
-                  The intervention comprises six data-visualisation posters based
-                  on peer-reviewed and government data. The series distinguishes
-                  between desirability and feasibility — recognising that public
-                  communication often conflates these concepts. The first three
-                  posters establish nuclear's performance on emissions, physical
-                  footprint, and mortality rates. The second half shifts to the UK
-                  specifically: the scale of the energy system, the country's
-                  historical failure to build announced reactors, and the contested
-                  question of nuclear waste.
+                  The design intervention comprises six data-visualisation posters
+                  based on peer-reviewed and government data. The series examines
+                  desirability and feasibility in sequence, concluding by
+                  addressing objections to nuclear energy rather than advocating for
+                  it. Using a data-based approach, it argues that when one observes
+                  objective per-unit data on emissions, land use, water use and
+                  mortality rates — each source's process is excluded and only
+                  results are considered — nuclear and renewables outperform
+                  alternatives on the metrics that matter most. Answering the
+                  feasibility question requires discussing the scale of the UK's
+                  energy transition and the country's historical pattern of
+                  announcing plans it fails to fulfil.
                 </p>
                 <p>
-                  The series does not aim to present a complete argument for or
-                  against nuclear power. Instead, it offers a practical example of
-                  how design can facilitate discussion about the feasibility of a
-                  nuclear-powered future in a way unavailable to either industry or
-                  activists, and provides a model that other designers might adapt
-                  for this or other contested technologies.
+                  This is not intended as an argument for or against nuclear
+                  energy. Instead, it offers a practical example of how design can
+                  facilitate discussion about the feasibility of a nuclear-powered
+                  future in a way unavailable to either industry or activists, and
+                  provides a model that other designers might adapt for this or
+                  other technologies.
                 </p>
               </motion.div>
 
@@ -187,43 +184,75 @@ export default function About() {
                 <hr className="border-border mb-8" />
               </motion.div>
 
-              <SectionBlock title="The Author's Position">
+              <SectionBlock title="My Position">
                 <p>
-                  My starting position is that nuclear is likely necessary for
-                  British decarbonisation, and that fossil fuels are not a viable
-                  long-term alternative to meet projected demand — but I do not
-                  believe nuclear is sufficient on its own, and my position is
-                  open to being wrong. Openness to challenge and reliance on a
-                  data-driven narrative strengthen the truth-teller framework and
-                  ensure transparency for readers.
+                  Positioning the designer as a truth-teller is not a comfortable
+                  role to take. It requires honest acknowledgement of where genuine
+                  scientific debate exists, empathy for public fears, and the
+                  willingness to push back against both industry narratives and
+                  environmental opposition when each oversimplifies the picture in
+                  service of a position.
+                </p>
+                <p>
+                  My starting view is that nuclear power is likely needed in
+                  Britain, though it cannot alone meet the 2050 climate goals. I do
+                  not believe nuclear alone is sufficient, and I am open to being
+                  wrong. Openness to challenge and reliance on a data-driven
+                  narrative strengthen the truth-teller framework and ensure
+                  transparency for readers. This is why the narrative is grounded in
+                  the data landscape, rather than framed by argument. If my own
+                  position were foregrounded, the work would shift toward advocacy,
+                  and research shows that advocacy on this subject is ineffective.
+                </p>
+                <p>
+                  I must continually ask myself: am I helping people see the truth,
+                  or am I becoming a more sophisticated propagandist for a position
+                  I already hold?
                 </p>
               </SectionBlock>
 
               <SectionBlock title="Theoretical Foundation">
                 <p>
-                  The project draws on Paul Slovic's psychometric paradigm
-                  (which explains why nuclear evokes strong emotional responses
-                  despite favourable statistics), Dan Kahan's cultural cognition
-                  (which demonstrates that presenting evidence for independent
-                  interpretation is more effective than stating conclusions),
-                  Miranda Fricker's concept of epistemic injustice (which shows
-                  why dismissing public concerns as irrational deepens the
-                  problem), and Michel Foucault's parrhesia (which frames the
-                  designer as a truth-teller who speaks honestly, even at
-                  personal risk).
+                  The following theoretical concepts form the foundation of this
+                  project's argument: Paul Slovic's psychometric paradigm, Dan
+                  Kahan's cultural cognition, Miranda Fricker's concept of
+                  epistemic injustice, and Michel Foucault's parrhesia. By
+                  analysing these, the project argues that the designer's role is
+                  to act as an "epistemic facilitator" — someone who creates
+                  conditions for better public reasoning and understanding of
+                  contested technologies. This role requires the designer to
+                  carefully balance scientific evidence and emotional concerns,
+                  providing accessible information that encourages informed
+                  discussion rather than advocacy or propaganda.
+                </p>
+                <p>
+                  Drawing on Foucault's concept of parrhesia, the truth-teller
+                  speaks honestly, even at personal risk. This honesty comes from
+                  genuine conviction, not persuasion. The designer here is a
+                  truth-teller who communicates about nuclear energy with honest
+                  acknowledgement of scientific disagreement, empathy for public
+                  fears, and a willingness to critique both industry narratives and
+                  environmentalist obstruction.
                 </p>
               </SectionBlock>
 
               <SectionBlock title="Visual Language">
                 <p>
-                  Inspired by the work of Federica Fragapane, Paolo Ciuccarelli,
-                  and Kate Crawford, the visual approach uses raw, reliable data
-                  as its core tenet. It favours an empathetic, relatable style
-                  where data is represented in organic forms that use
-                  proportionality to make data arguments more tangible for the
-                  viewer. The visualisation approach is grounded in
-                  Moholy-Nagy's idea that intellect and feeling should be
-                  balanced rather than separated.
+                  Inspired by the designs of Federica Fragapane, Paolo Ciuccarelli,
+                  and Kate Crawford, this approach uses raw, reliable data as its
+                  core tenet, without shying away from the academic and technical
+                  necessity of the arguments being made. It favours an empathetic,
+                  relatable style, where data is represented in organic forms that
+                  often use proportionality to make data arguments more emotional
+                  for the viewer. It enables relationships, such as the 173×
+                  difference between coal and nuclear emissions, to be seen and felt
+                  tangibly.
+                </p>
+                <p>
+                  The visualisation approach is grounded in Moholy-Nagy's idea that
+                  intellect and feeling should be balanced rather than separated,
+                  applied to data that the public is entitled to access but rarely
+                  encounters in a usable or tangible form.
                 </p>
               </SectionBlock>
 
