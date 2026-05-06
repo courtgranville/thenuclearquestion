@@ -15,7 +15,7 @@ import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
     Row 3: Solar Silicon (center-bottom), Solar Cadmium (bottom-right)
 */
 
-const SVG_URL = "/manus-storage/002-processed_1cd7e58f.svg";
+const SVG_URL = "/assets/002-processed_1cd7e58f.svg";
 
 const regions: Region[] = [
   {

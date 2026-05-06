@@ -16,8 +16,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
   - Also dims the filled polylines (#ece7df) in the same parent group
 */
 
-const MAP_URL = "/manus-storage/005-map_d6bf9e9f.svg";
-const DENDROGRAM_URL = "/manus-storage/005-dendrogram-clean_336edeac.svg";
+const MAP_URL = "/assets/005-map_d6bf9e9f.svg";
+const DENDROGRAM_URL = "/assets/005-dendrogram-clean_336edeac.svg";
 
 interface ReactorCategory {
   id: string;

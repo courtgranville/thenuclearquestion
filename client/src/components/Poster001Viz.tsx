@@ -10,7 +10,7 @@ import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
   Interaction: Click legend buttons or tap forms to highlight one source.
 */
 
-const SVG_URL = "/manus-storage/001-processed_da2eb390.svg";
+const SVG_URL = "/assets/001-processed_da2eb390.svg";
 
 const regions: Region[] = [
   {

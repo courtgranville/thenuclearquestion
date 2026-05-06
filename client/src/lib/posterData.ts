@@ -29,8 +29,8 @@ export const posters: PosterData[] = [
       "Public argument treats nuclear as a fossil-fuel cousin. By the only measure that compares plants on the same terms, it isn\u2019t.",
     methodology:
       "Median values from peer-reviewed lifecycle assessments compiled by Our World in Data, IPCC AR5, and UNECE. Real projects vary by site and fuel grade \u2014 ranges overlap at the edges, not the centre.",
-    imagePath: "/manus-storage/001-version2_643b19ce.png",
-    pdfPath: "/manus-storage/001-version2_a9296d6a.pdf",
+    imagePath: "/assets/001-version2_643b19ce.png",
+    pdfPath: "/assets/001-version2_a9296d6a.pdf",
   },
   {
     id: "002",
@@ -47,8 +47,8 @@ export const posters: PosterData[] = [
       "The nuclear question is never a clean argument. To take part, one must be prepared to compromise \u2014 it\u2019s about deciding where the right compromises are.",
     methodology:
       "Land and water values from UNECE (2021) Lifecycle Assessment of Electricity Generation Options, accessed via Our World in Data. Land use is measured in m\u00b2\u00b7year/MWh (a time-integrated footprint); water use is consumption in m\u00b3/MWh (water permanently lost, not water withdrawn).",
-    imagePath: "/manus-storage/002-version2_b4d2d765.png",
-    pdfPath: "/manus-storage/002-version2_14df9892.pdf",
+    imagePath: "/assets/002-version2_b4d2d765.png",
+    pdfPath: "/assets/002-version2_14df9892.pdf",
   },
   {
     id: "003",
@@ -66,8 +66,8 @@ export const posters: PosterData[] = [
       "Everyday fossil-fuel mortality is largely invisible compared with highly memorable nuclear accidents. The statistics tell a different story.",
     methodology:
       "Mortality rates from Markandya & Wilkinson (2007) and Sovacool et al. (2016), applied to UK electricity demand of 284 TWh. Scenarios hold demand constant to isolate the effect of changing the energy mix.",
-    imagePath: "/manus-storage/003-version2_4e239d18.png",
-    pdfPath: "/manus-storage/003-version2_b27a85d6.pdf",
+    imagePath: "/assets/003-version2_4e239d18.png",
+    pdfPath: "/assets/003-version2_b27a85d6.pdf",
   },
   {
     id: "004",
@@ -85,8 +85,8 @@ export const posters: PosterData[] = [
       "Decarbonising how we generate electricity only decarbonises the fraction of the system already running on it. Everything else still burns.",
     methodology:
       "Final energy consumption data from the Digest of UK Energy Statistics (DUKES) 2025, Tables 1.1.1, 1.1.3 and 1.1.5. Final energy is energy delivered to end users, per DUKES convention; primary energy would be approximately 50% larger because it includes conversion losses.",
-    imagePath: "/manus-storage/004-version2_1f18c33d.png",
-    pdfPath: "/manus-storage/004-version2_014ffb7f.pdf",
+    imagePath: "/assets/004-version2_1f18c33d.png",
+    pdfPath: "/assets/004-version2_014ffb7f.pdf",
   },
   {
     id: "005",
@@ -104,8 +104,8 @@ export const posters: PosterData[] = [
       "The country that built the world\u2019s first commercial nuclear reactor is now the most expensive place in the world to build one.",
     methodology:
       "Reactor data compiled from the Global Energy Monitor Nuclear Power Tracker (2025) and the World Nuclear Association country profile for the United Kingdom. The dataset records project outcomes, not reasons for cancellation.",
-    imagePath: "/manus-storage/005-preview-1_fea2ab19.png",
-    pdfPath: "/manus-storage/005-version2_ad4c9725.pdf",
+    imagePath: "/assets/005-preview-1_fea2ab19.png",
+    pdfPath: "/assets/005-version2_ad4c9725.pdf",
   },
   {
     id: "006",
@@ -123,8 +123,8 @@ export const posters: PosterData[] = [
       "Nuclear energy looks more defensible than most people expect. Waste is the question those findings don\u2019t answer. It is the objection that survives the others, and the hesitation isn\u2019t irrational.",
     methodology:
       "Waste volumes from the NDA\u2019s 2022 UK Radioactive Waste and Materials Inventory. Radiation doses from UK Health Security Agency and IAEA reference values. Sellafield cleanup cost and leak figures from the National Audit Office (2024) and Public Accounts Committee (2025).",
-    imagePath: "/manus-storage/006-version2_5c838076.png",
-    pdfPath: "/manus-storage/006-version2_3b036a7e.pdf",
+    imagePath: "/assets/006-version2_5c838076.png",
+    pdfPath: "/assets/006-version2_3b036a7e.pdf",
   },
 ];
 
