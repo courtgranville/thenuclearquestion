@@ -13,7 +13,7 @@ import type { Region } from "@/components/InteractiveSVG";
 // ============================================================
 
 export const wasteQuantitiesConfig = {
-  svgUrl: "/manus-storage/006-waste-quantities-v4_5eb3cae5.svg",
+  svgUrl: "/assets/006-waste-quantities-v4_5eb3cae5.svg",
   regions: [
     {
       id: "vllw",
@@ -71,7 +71,7 @@ export const wasteQuantitiesConfig = {
 };
 
 export const radiationDosesConfig = {
-  svgUrl: "/manus-storage/006-radiation-doses-processed_372c6bea.svg",
+  svgUrl: "/assets/006-radiation-doses-processed_372c6bea.svg",
   regions: [
     {
       id: "dose-reactor",
@@ -185,7 +185,7 @@ export const radiationDosesConfig = {
 };
 
 export const wasteLocationsConfig = {
-  svgUrl: "/manus-storage/006-waste-locations-processed_6ed9ecfd.svg",
+  svgUrl: "/assets/006-waste-locations-processed_6ed9ecfd.svg",
   regions: [
     {
       id: "loc-total",
@@ -287,7 +287,7 @@ export const wasteLocationsConfig = {
 };
 
 export const wasteStorageConfig = {
-  svgUrl: "/manus-storage/006-waste-storage-processed_b5825c08.svg",
+  svgUrl: "/assets/006-waste-storage-processed_b5825c08.svg",
   regions: [
     {
       id: "storage-landfill",

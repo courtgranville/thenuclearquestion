@@ -58,19 +58,19 @@ const scenarios: ScenarioData[] = [
 // V18 SVG URLs - Individually centered, verified against PDF
 const svgUrls: Record<string, Record<string, string>> = {
   dots: {
-    s1: "/manus-storage/003-S1-dots_009b59b1.svg",
-    s2: "/manus-storage/003-S2-dots_d36d69ea.svg",
-    s3: "/manus-storage/003-S3-dots_e49e227a.svg",
+    s1: "/assets/003-S1-dots_009b59b1.svg",
+    s2: "/assets/003-S2-dots_d36d69ea.svg",
+    s3: "/assets/003-S3-dots_e49e227a.svg",
   },
   deaths: {
-    s1: "/manus-storage/003-S1-deaths_7acb96e4.svg",
-    s2: "/manus-storage/003-S2-deaths_b32506cb.svg",
-    s3: "/manus-storage/003-S3-deaths_e4d7bcd5.svg",
+    s1: "/assets/003-S1-deaths_7acb96e4.svg",
+    s2: "/assets/003-S2-deaths_b32506cb.svg",
+    s3: "/assets/003-S3-deaths_e4d7bcd5.svg",
   },
   dendrogram: {
-    s1: "/manus-storage/003-S1-dendrogram_19832a4f.svg",
-    s2: "/manus-storage/003-S2-dendrogram_aeb36071.svg",
-    s3: "/manus-storage/003-S3-dendrogram_8d6b3808.svg",
+    s1: "/assets/003-S1-dendrogram_19832a4f.svg",
+    s2: "/assets/003-S2-dendrogram_aeb36071.svg",
+    s3: "/assets/003-S3-dendrogram_8d6b3808.svg",
   },
 };
 

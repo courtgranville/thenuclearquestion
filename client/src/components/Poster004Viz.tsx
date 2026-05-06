@@ -13,7 +13,7 @@ import InteractiveSVG, { type Region } from "@/components/InteractiveSVG";
   When a carrier is selected, ALL other carriers' elements (forms, dots, text) dim.
 */
 
-const SVG_URL = "/manus-storage/004-processed_a9547a07.svg";
+const SVG_URL = "/assets/004-processed_a9547a07.svg";
 
 const regions: Region[] = [
   {
