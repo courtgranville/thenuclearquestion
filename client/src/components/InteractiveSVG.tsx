@@ -248,7 +248,7 @@ export default function InteractiveSVG({
 
   if (loadError) {
     return (
-      <div className="w-full py-12 text-center text-muted-foreground text-sm">
+      <div className="w-full py-12 text-center text-muted-foreground text-base">
         Unable to load the interactive visualisation.
       </div>
     );
@@ -261,7 +261,7 @@ export default function InteractiveSVG({
           key={r.id}
           onClick={() => handleLegendClick(r.id)}
           className={`
-            px-3 py-1.5 rounded-sm text-xs tracking-wide uppercase
+            px-3 py-1.5 rounded-sm text-sm tracking-wide uppercase
             transition-all duration-200 border cursor-pointer
             active:scale-95
             ${
@@ -271,7 +271,7 @@ export default function InteractiveSVG({
             }
           `}
           style={{
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "'Playfair', Georgia, serif",
             color: r.color,
             backgroundColor:
               selected === r.id ? `${r.color}12` : "transparent",
@@ -313,12 +313,12 @@ export default function InteractiveSVG({
             {selectedRegion.info.map((item, i) => (
               <div key={i}>
                 <p
-                  className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   {item.label}
                 </p>
-                <p className="text-sm font-medium text-foreground">
+                <p className="text-base font-medium text-foreground">
                   {item.value}
                 </p>
               </div>
@@ -326,7 +326,7 @@ export default function InteractiveSVG({
           </div>
         )}
         {selectedRegion.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">
+          <p className="text-base text-muted-foreground leading-relaxed">
             {selectedRegion.description}
           </p>
         )}
@@ -384,8 +384,8 @@ export default function InteractiveSVG({
       {/* Hint */}
       {ready && (
         <p
-          className="text-center text-xs text-muted-foreground mt-3"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          className="text-center text-sm text-muted-foreground mt-3"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           {selected
             ? "Tap again or tap elsewhere to deselect"

@@ -207,7 +207,7 @@ function CategoryLegend({
               key={cat.id}
               onClick={() => onCategoryClick(cat.id)}
               className={`
-                inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-xs
+                inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-sm
                 transition-all duration-200 cursor-pointer
                 ${
                   isActive
@@ -218,7 +218,7 @@ function CategoryLegend({
                 }
               `}
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "'Playfair', Georgia, serif",
                 color: isActive ? cat.color : undefined,
               }}
             >
@@ -240,9 +240,9 @@ function CategoryLegend({
           style={{ borderLeftColor: activeInfo.color }}
         >
           <p
-            className="text-sm font-medium mb-1"
+            className="text-base font-medium mb-1"
             style={{
-              fontFamily: "'Montserrat', sans-serif",
+              fontFamily: "'Playfair', Georgia, serif",
               color: activeInfo.color,
             }}
           >
@@ -250,8 +250,8 @@ function CategoryLegend({
             {activeInfo.count !== 1 ? "s" : ""}
           </p>
           <p
-            className="text-xs text-muted-foreground"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
+            className="text-sm text-muted-foreground"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
             {activeInfo.description}
           </p>
@@ -260,16 +260,16 @@ function CategoryLegend({
 
       {!activeCategory && (
         <p
-          className="text-center text-xs text-muted-foreground"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          className="text-center text-sm text-muted-foreground"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           Tap a category to filter
         </p>
       )}
       {activeCategory && (
         <p
-          className="text-center text-xs text-muted-foreground"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          className="text-center text-sm text-muted-foreground"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           Tap again to deselect
         </p>
@@ -326,8 +326,8 @@ function MapSection() {
   return (
     <div className="w-full">
       <p
-        className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-3"
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Reactor Map
       </p>
@@ -341,8 +341,8 @@ function MapSection() {
             <div className="flex flex-col items-center gap-2">
               <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
               <span
-                className="text-xs text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                className="text-sm text-muted-foreground"
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 Loading...
               </span>
@@ -417,8 +417,8 @@ function DendrogramSection() {
   return (
     <div className="w-full">
       <p
-        className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-3"
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Status Dendrogram & Timeline
       </p>
@@ -432,8 +432,8 @@ function DendrogramSection() {
             <div className="flex flex-col items-center gap-2">
               <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
               <span
-                className="text-xs text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                className="text-sm text-muted-foreground"
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 Loading...
               </span>

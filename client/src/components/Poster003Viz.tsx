@@ -185,8 +185,8 @@ function InlineSvg({
           <div className="flex flex-col items-center gap-2">
             <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
             <span
-              className="text-xs text-muted-foreground"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              className="text-sm text-muted-foreground"
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Loading visualisation...
             </span>
@@ -225,13 +225,13 @@ function ScenarioButtons({
           >
             <span
               className="block text-[10px] tracking-[0.15em] uppercase mb-0.5"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               {s.label}
             </span>
             <span
-              className="block text-sm font-medium"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
+              className="block text-base font-medium"
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               {s.subtitle}
             </span>
@@ -248,8 +248,8 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
   return (
     <div className="mt-4">
       <p
-        className="text-sm text-muted-foreground leading-relaxed mb-3"
-        style={{ fontFamily: "'Montserrat', sans-serif" }}
+        className="text-base text-muted-foreground leading-relaxed mb-3"
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         {scenario.description}
       </p>
@@ -263,7 +263,7 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
           </span>
           <span
             className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
             Deaths / year
           </span>
@@ -278,7 +278,7 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
             </span>
             <span
               className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Lives saved / year
             </span>
@@ -320,8 +320,8 @@ export default function Poster003Viz() {
             {/* Section header */}
             <div className="max-w-4xl mx-auto px-4 mb-4">
               <p
-                className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-1"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-1"
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 {section.subtitle}
               </p>
@@ -338,8 +338,8 @@ export default function Poster003Viz() {
               <div className="flex items-start gap-3">
                 {section.id === "dots" && (
                   <p
-                    className="text-sm text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    className="text-base text-muted-foreground leading-relaxed italic"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     Each <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>red dot</span> represents
                     one estimated death per year from the UK's electricity generation.
@@ -349,8 +349,8 @@ export default function Poster003Viz() {
                 )}
                 {section.id === "deaths" && (
                   <p
-                    className="text-sm text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    className="text-base text-muted-foreground leading-relaxed italic"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     Organic form area is proportional to <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>deaths</span> from
                     that source. Labels show each energy source and its estimated annual death toll.
@@ -358,8 +358,8 @@ export default function Poster003Viz() {
                 )}
                 {section.id === "dendrogram" && (
                   <p
-                    className="text-sm text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'Montserrat', sans-serif" }}
+                    className="text-base text-muted-foreground leading-relaxed italic"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     Circle area represents the percentage each source of electricity takes in an energy mix of ~284 TWh.{" "}
                     <span className="not-italic font-semibold" style={{ color: "#b4822e" }}>Nuclear</span> is highlighted in yellow.
@@ -392,8 +392,8 @@ export default function Poster003Viz() {
 
       {/* Hint */}
       <p
-        className="text-center text-xs text-muted-foreground"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        className="text-center text-sm text-muted-foreground"
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Switch scenarios in each section to compare
       </p>

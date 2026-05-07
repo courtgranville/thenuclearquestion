@@ -85,14 +85,14 @@ export default function PosterPage() {
       <ScrollProgress />
 
       <PageTransition>
-        <main className="pt-14">
+        <main className="pt-[72px]">
           <div className="container">
             {/* ── 0. Back link ── */}
             <div className="pt-8 pb-4 max-w-3xl mx-auto">
               <Link href="/">
-                <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+                <span className="group inline-flex items-center gap-2 text-base text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
-                  <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <span style={{ fontFamily: "'Playfair', Georgia, serif" }}>
                     Back to series
                   </span>
                 </span>
@@ -113,23 +113,23 @@ export default function PosterPage() {
                     style={{ backgroundColor: sectionColour }}
                   />
                   <span
-                    className="text-xs tracking-[0.25em] uppercase"
+                    className="text-sm tracking-[0.25em] uppercase"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontFamily: "'Playfair', Georgia, serif",
                       color: sectionColour,
                     }}
                   >
                     {poster.sectionLabel}
                   </span>
                   <span
-                    className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    className="text-sm text-muted-foreground"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     /
                   </span>
                   <span
-                    className="text-xs tracking-[0.2em] uppercase text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    className="text-sm tracking-[0.2em] uppercase text-muted-foreground"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     {poster.number}
                   </span>
@@ -166,9 +166,9 @@ export default function PosterPage() {
               {/* Poster's main description */}
               <motion.p
                 variants={fadeUp}
-                className="text-sm leading-relaxed text-foreground/80 mb-6"
+                className="text-base leading-relaxed text-foreground/80 mb-6"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -179,9 +179,9 @@ export default function PosterPage() {
               {/* Key insight - additional thesis context */}
               <motion.p
                 variants={fadeUp}
-                className="text-sm leading-relaxed text-foreground/80 mb-6"
+                className="text-base leading-relaxed text-foreground/80 mb-6"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -191,15 +191,15 @@ export default function PosterPage() {
               {/* Methodology note */}
               <motion.div variants={fadeUp}>
                 <p
-                  className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Methodology
                 </p>
                 <p
-                  className="text-xs text-muted-foreground leading-relaxed"
+                  className="text-sm text-muted-foreground leading-relaxed"
                   style={{
-                    fontFamily: "'Montserrat', sans-serif",
+                    fontFamily: "'Playfair', Georgia, serif",
                     fontWeight: 300,
                   }}
                 >
@@ -219,8 +219,8 @@ export default function PosterPage() {
             <div className="container mb-4">
               <div className="max-w-3xl mx-auto">
                 <p
-                  className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Interactive Visualisation
                 </p>
@@ -254,9 +254,9 @@ export default function PosterPage() {
               className="py-8 border-t border-border"
             >
               <p
-                className="text-sm text-muted-foreground mb-3"
+                className="text-base text-muted-foreground mb-3"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -267,8 +267,8 @@ export default function PosterPage() {
                 href={poster.pdfPath}
                 download
                 onClick={handleDownload}
-                className="group inline-flex items-center gap-2 text-sm text-primary hover:text-foreground transition-colors duration-200"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
+                className="group inline-flex items-center gap-2 text-base text-primary hover:text-foreground transition-colors duration-200"
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 <Download className="w-4 h-4 transform group-hover:-translate-y-0.5 transition-transform duration-200" />
                 <span className="relative">
@@ -290,8 +290,8 @@ export default function PosterPage() {
               className="pb-10"
             >
               <p
-                className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-4"
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 Poster Preview
               </p>
@@ -324,15 +324,15 @@ export default function PosterPage() {
                 >
                   <hr className="border-border mb-8" />
                   <p
-                    className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-4"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     Sources
                   </p>
                   <p
-                    className="text-sm leading-relaxed text-foreground/80 mb-4"
+                    className="text-base leading-relaxed text-foreground/80 mb-4"
                     style={{
-                      fontFamily: "'Montserrat', sans-serif",
+                      fontFamily: "'Playfair', Georgia, serif",
                       fontWeight: 300,
                     }}
                   >
@@ -342,9 +342,9 @@ export default function PosterPage() {
                     {posterSources[poster.id].items.map((item, i) => (
                       <li
                         key={i}
-                        className="text-sm leading-relaxed text-foreground/80 border-l-2 border-border pl-3"
+                        className="text-base leading-relaxed text-foreground/80 border-l-2 border-border pl-3"
                         style={{
-                          fontFamily: "'Montserrat', sans-serif",
+                          fontFamily: "'Playfair', Georgia, serif",
                           fontWeight: 300,
                         }}
                       >
@@ -353,9 +353,9 @@ export default function PosterPage() {
                     ))}
                   </ul>
                   <p
-                    className="text-sm leading-relaxed text-foreground/60 mb-5"
+                    className="text-base leading-relaxed text-foreground/60 mb-5"
                     style={{
-                      fontFamily: "'Montserrat', sans-serif",
+                      fontFamily: "'Playfair', Georgia, serif",
                       fontWeight: 300,
                     }}
                   >
@@ -363,8 +363,8 @@ export default function PosterPage() {
                   </p>
                   <Link href="/sources">
                     <span
-                      className="group inline-flex items-center gap-1.5 text-sm text-primary hover:text-foreground transition-colors duration-200"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      className="group inline-flex items-center gap-1.5 text-base text-primary hover:text-foreground transition-colors duration-200"
+                      style={{ fontFamily: "'Playfair', Georgia, serif" }}
                     >
                       <span className="relative">
                         Full sources & methodology
@@ -388,14 +388,14 @@ export default function PosterPage() {
                       <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
                       <span className="flex flex-col">
                         <span
-                          className="text-xs tracking-[0.15em] uppercase"
-                          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          className="text-sm tracking-[0.15em] uppercase"
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {prevPoster.number}
                         </span>
                         <span
-                          className="text-sm hidden sm:block"
-                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          className="text-base hidden sm:block"
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {prevPoster.title}
                         </span>
@@ -410,14 +410,14 @@ export default function PosterPage() {
                     <span className="group flex items-center gap-3 text-right text-muted-foreground hover:text-foreground transition-colors duration-200">
                       <span className="flex flex-col">
                         <span
-                          className="text-xs tracking-[0.15em] uppercase"
-                          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          className="text-sm tracking-[0.15em] uppercase"
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {nextPoster.number}
                         </span>
                         <span
-                          className="text-sm hidden sm:block"
-                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          className="text-base hidden sm:block"
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {nextPoster.title}
                         </span>

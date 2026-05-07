@@ -31,13 +31,13 @@ export default function Contact() {
       <ScrollProgress />
 
       <PageTransition>
-        <main className="pt-14">
+        <main className="pt-[72px]">
           <div className="container">
             <div className="pt-8 pb-4">
               <Link href="/">
-                <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+                <span className="group inline-flex items-center gap-2 text-base text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
-                  <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <span style={{ fontFamily: "'Playfair', Georgia, serif" }}>
                     Back to home
                   </span>
                 </span>
@@ -52,8 +52,8 @@ export default function Contact() {
             >
               <motion.div variants={fadeUp}>
                 <span
-                  className="text-xs tracking-[0.25em] uppercase text-primary mb-6 block"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  className="text-sm tracking-[0.25em] uppercase text-primary mb-6 block"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Contact
                 </span>
@@ -72,9 +72,9 @@ export default function Contact() {
 
               <motion.p
                 variants={fadeUp}
-                className="text-sm leading-relaxed text-foreground/80 mb-8"
+                className="text-base leading-relaxed text-foreground/80 mb-8"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -87,8 +87,8 @@ export default function Contact() {
               <motion.div variants={fadeUp}>
                 <a
                   href="mailto:court@courtgranville.com"
-                  className="text-sm text-primary hover:text-foreground transition-colors duration-200"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  className="text-base text-primary hover:text-foreground transition-colors duration-200"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   court@courtgranville.com
                 </a>
