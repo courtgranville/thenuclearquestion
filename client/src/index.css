@@ -254,6 +254,29 @@
   pointer-events: auto;
 }
 
+/* Fission hint annotation — text-only, appears on U-238 selection */
+.fission-hint {
+  position: absolute;
+  left: max(16px, calc(50vw - 500px));
+  top: 42%;
+  transform: translateY(-50%);
+  z-index: 5;
+  pointer-events: none;
+}
+.fission-hint-text {
+  font-family: 'Playfair', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--foreground);
+  text-align: left;
+  max-width: 16ch;
+}
+@media (max-width: 900px) {
+  .fission-hint { display: none; }
+}
+
 .hero-eyebrow {
   font-family: 'Playfair', 'Playfair Display', serif;
   font-weight: 400;

@@ -1,7 +1,7 @@
 // client/src/pages/Home.tsx
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
 import IntroAnimation from '@/components/IntroAnimation';
@@ -50,6 +50,20 @@ export default function Home() {
     localStorage.setItem(ISOTOPE_KEY, String(isotope));
   }, [isotope]);
 
+  // Fission hint: visible for 10s after switching to U-238.
+  const [hintVisible, setHintVisible] = useState(false);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    if (isotope === 1) {
+      setHintVisible(true);
+      hintTimer.current = setTimeout(() => setHintVisible(false), 10_000);
+    } else {
+      setHintVisible(false);
+    }
+    return () => { if (hintTimer.current) clearTimeout(hintTimer.current); };
+  }, [isotope]);
+
   const onIntroComplete = () => {
     sessionStorage.setItem(INTRO_KEY, '1');
     setIntroComplete(true);
@@ -73,6 +87,22 @@ export default function Home() {
                 <div className="tweaks-anchor">
                   <IsotopeToggle value={isotope} onChange={setIsotope} />
                 </div>
+
+                <AnimatePresence>
+                  {hintVisible && (
+                    <motion.div
+                      className="fission-hint"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const }}
+                    >
+                      <span className="fission-hint-text">
+                        Shake your mouse<br />to split the atom
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </NucleusHero>
 
               <motion.div
