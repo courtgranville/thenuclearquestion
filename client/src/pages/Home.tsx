@@ -114,7 +114,7 @@ export default function Home() {
                           strokeLinecap="round"
                         />
                         <polygon
-                          points="192,64 184,68 186,72"
+                          points="194,68 185,63 185,73"
                           fill="var(--foreground)"
                         />
                       </svg>
