@@ -257,8 +257,8 @@
 /* Fission hint annotation — poster-style dashed line + text */
 .fission-hint {
   position: absolute;
-  left: max(16px, calc(50vw - 540px));
-  top: 50%;
+  left: max(16px, calc(50vw - 500px));
+  top: 42%;
   transform: translateY(-50%);
   z-index: 5;
   pointer-events: none;
