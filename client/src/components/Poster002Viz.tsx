@@ -35,8 +35,8 @@ const regions: Region[] = [
     description:
       "The smallest physical footprint of any firm power source. Nuclear's land use is dominated by the exclusion zone, not the reactor itself; its water use is cooling water, most of which is returned to the source. The combination of minimal land and moderate water makes it the least physically intrusive firm generation technology.",
     info: [
-      { label: "Land use", value: "0.31 m\u00b2\u00b7year/MWh" },
-      { label: "Water use", value: "22 m\u00b3/MWh" },
+      { label: "Land use", value: "0.33 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "132 m\u00b3/MWh" },
     ],
   },
   {
@@ -55,8 +55,8 @@ const regions: Region[] = [
     description:
       "Gas plants are compact and fast to build, but their lifecycle land footprint includes upstream extraction infrastructure. Water consumption is lower than coal because combined-cycle plants are more thermally efficient - less waste heat to reject.",
     info: [
-      { label: "Land use", value: "2.35 m\u00b2\u00b7year/MWh" },
-      { label: "Water use", value: "12 m\u00b3/MWh" },
+      { label: "Land use", value: "1.04 m\u00b2\u00b7year/MWh" },
+      { label: "Water use", value: "45 m\u00b3/MWh" },
     ],
   },
   {
@@ -98,7 +98,7 @@ const regions: Region[] = [
       "Carbon capture roughly doubles coal's water demand. Cleaning emissions has a physical cost of its own - the energy penalty of running the capture process means more fuel burned, more cooling water consumed, and more land disturbed per MWh delivered.",
     info: [
       { label: "Land use", value: "21.06 m\u00b2\u00b7year/MWh" },
-      { label: "Water use", value: "224 m\u00b3/MWh" },
+      { label: "Water use", value: "214 m\u00b3/MWh" },
     ],
   },
   {
