@@ -50,7 +50,7 @@ function SectionBlock({
         {title}
       </h2>
       <div
-        className="space-y-4 text-sm leading-relaxed text-foreground/80"
+        className="space-y-4 text-base leading-relaxed text-foreground/80"
         style={{
           fontFamily: "'Playfair', Georgia, serif",
           fontWeight: 300,
@@ -73,7 +73,7 @@ export default function About() {
           <div className="container">
             <div className="pt-8 pb-4">
               <Link href="/">
-                <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
+                <span className="group inline-flex items-center gap-2 text-base text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
                   <span style={{ fontFamily: "'Playfair', Georgia, serif" }}>
                     Back to home
@@ -90,7 +90,7 @@ export default function About() {
             >
               <motion.div variants={fadeUp}>
                 <span
-                  className="text-xs tracking-[0.25em] uppercase text-primary mb-6 block"
+                  className="text-sm tracking-[0.25em] uppercase text-primary mb-6 block"
                   style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   About This Project
@@ -118,7 +118,7 @@ export default function About() {
 
               <motion.div
                 variants={fadeUp}
-                className="space-y-5 text-sm leading-relaxed text-foreground/80 mb-10"
+                className="space-y-5 text-base leading-relaxed text-foreground/80 mb-10"
                 style={{
                   fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,

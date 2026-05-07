@@ -86,8 +86,7 @@ export default function Home() {
                 </motion.div>
 
                 <motion.h1 className="hero-title" variants={fadeUp}>
-                  How Can Design Be Used to Discuss the Feasibility of a{' '}
-                  <em>Nuclear-Powered</em> Future?
+                  How Can Design Be Used to Discuss the Feasibility of a Nuclear-Powered Future?
                 </motion.h1>
 
                 <motion.div className="hero-body" variants={fadeUp}>
