@@ -244,6 +244,30 @@ export default function Poster001CanvasViz() {
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selected;
 
+  // ─── Dev-only FPS counter ────────────────────────────────────────
+  const [fps, setFps] = useState(0);
+  useEffect(() => {
+    if (import.meta.env.PROD) return;
+    let frames = 0;
+    let lastReport = performance.now();
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      frames++;
+      const now = performance.now();
+      if (now - lastReport >= 500) {
+        setFps(Math.round((frames * 1000) / (now - lastReport)));
+        frames = 0;
+        lastReport = now;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Fetch and prepare the SVG overlay once.
   useEffect(() => {
     let cancelled = false;
@@ -329,6 +353,11 @@ export default function Poster001CanvasViz() {
       const w2 = TUNING.flowW2;
       const a2w = TUNING.flowAmp2Weight;
 
+      // Number of alpha buckets — 8 is enough that the per-line
+      // alpha gradient still reads as smooth, but few enough that
+      // we make 8 stroke calls per form instead of ~270.
+      const NUM_BUCKETS = 8;
+
       for (const form of FORMS) {
         const isSelected = sel === form.id;
         const isDimmed = sel !== null && !isSelected;
@@ -342,63 +371,80 @@ export default function Poster001CanvasViz() {
         const flowAmp = form.motion.flowAmp;
         const N = form.lines.length;
 
-        // Pre-compute time-dependent phase offsets once per form per frame.
         const t1off = w1 * t;
         const t1offY = w1 * t * 1.3;
         const t2off = w2 * t * 1.7;
         const t2offY = w2 * t * 0.7;
 
-        for (let li = 0; li < N; li++) {
-          const line = form.lines[li];
-
-          // Line-level alpha: outline brightest, interior fades.
-          ctx.globalAlpha = baseAlpha * (0.5 + 0.5 * (1 - line.depth));
-
-          if (line.path !== null) {
-            // Outline line: stroke pre-built path. No per-point work.
-            ctx.stroke(line.path);
-            continue;
-          }
-
-          // Interior line: per-point flow displacement.
-          const pts = line.pts;
-          const n = line.n;
-          if (n < 2) continue;
-
-          const a = flowAmp * line.dw;
+        // Walk lines in NUM_BUCKETS passes, drawing all lines in each
+        // alpha bucket as a single path (one beginPath → many
+        // moveTo+lineTo → one stroke).
+        for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
+          const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
+          ctx.globalAlpha = baseAlpha * (0.5 + 0.5 * (1 - bucketDepthMid));
 
           ctx.beginPath();
-          // First point.
-          {
-            const x = pts[0];
-            const y = pts[1];
-            const ax1 = k1 * x + t1off;
-            const ay1 = k1 * y + t1offY;
-            const ax2 = k2 * x + t2off;
-            const ay2 = k2 * y + t2offY;
-            const dx =
-              Math.sin(ax1) * Math.cos(ay1) +
-              a2w * Math.sin(ax2) * Math.cos(ay2);
-            const dy =
-              -Math.cos(ax1) * Math.sin(ay1) -
-              a2w * Math.cos(ax2) * Math.sin(ay2);
-            ctx.moveTo(x + a * dx, y + a * dy);
+
+          for (let li = 0; li < N; li++) {
+            const line = form.lines[li];
+            const lineBucket = Math.min(
+              NUM_BUCKETS - 1,
+              Math.floor(line.depth * NUM_BUCKETS),
+            );
+            if (lineBucket !== bucket) continue;
+
+            // OUTLINE LINE: push raw points into the current path
+            // (no displacement for outlines).
+            if (line.path !== null) {
+              const pts = line.pts;
+              const n = line.n;
+              if (n < 2) continue;
+              ctx.moveTo(pts[0], pts[1]);
+              for (let kk = 1; kk < n; kk++) {
+                ctx.lineTo(pts[kk * 2], pts[kk * 2 + 1]);
+              }
+              continue;
+            }
+
+            // INTERIOR LINE: per-point flow displacement.
+            const pts = line.pts;
+            const n = line.n;
+            if (n < 2) continue;
+
+            const a = flowAmp * line.dw;
+
+            {
+              const x = pts[0];
+              const y = pts[1];
+              const ax1 = k1 * x + t1off;
+              const ay1 = k1 * y + t1offY;
+              const ax2 = k2 * x + t2off;
+              const ay2 = k2 * y + t2offY;
+              const dx =
+                Math.sin(ax1) * Math.cos(ay1) +
+                a2w * Math.sin(ax2) * Math.cos(ay2);
+              const dy =
+                -Math.cos(ax1) * Math.sin(ay1) -
+                a2w * Math.cos(ax2) * Math.sin(ay2);
+              ctx.moveTo(x + a * dx, y + a * dy);
+            }
+            for (let kk = 1; kk < n; kk++) {
+              const x = pts[kk * 2];
+              const y = pts[kk * 2 + 1];
+              const ax1 = k1 * x + t1off;
+              const ay1 = k1 * y + t1offY;
+              const ax2 = k2 * x + t2off;
+              const ay2 = k2 * y + t2offY;
+              const dx =
+                Math.sin(ax1) * Math.cos(ay1) +
+                a2w * Math.sin(ax2) * Math.cos(ay2);
+              const dy =
+                -Math.cos(ax1) * Math.sin(ay1) -
+                a2w * Math.cos(ax2) * Math.sin(ay2);
+              ctx.lineTo(x + a * dx, y + a * dy);
+            }
           }
-          for (let k = 1; k < n; k++) {
-            const x = pts[k * 2];
-            const y = pts[k * 2 + 1];
-            const ax1 = k1 * x + t1off;
-            const ay1 = k1 * y + t1offY;
-            const ax2 = k2 * x + t2off;
-            const ay2 = k2 * y + t2offY;
-            const dx =
-              Math.sin(ax1) * Math.cos(ay1) +
-              a2w * Math.sin(ax2) * Math.cos(ay2);
-            const dy =
-              -Math.cos(ax1) * Math.sin(ay1) -
-              a2w * Math.cos(ax2) * Math.sin(ay2);
-            ctx.lineTo(x + a * dx, y + a * dy);
-          }
+
           ctx.stroke();
         }
       }
@@ -421,7 +467,26 @@ export default function Poster001CanvasViz() {
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full relative">
+      {!import.meta.env.PROD && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 10,
+            fontFamily: 'ui-monospace, monospace',
+            fontSize: 11,
+            padding: '2px 6px',
+            background: 'rgba(13,26,30,0.85)',
+            color: '#ece7df',
+            borderRadius: 3,
+            pointerEvents: 'none',
+          }}
+        >
+          {fps} fps
+        </div>
+      )}
       <div
         ref={containerRef}
         className="relative w-full"
