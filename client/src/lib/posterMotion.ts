@@ -2,22 +2,24 @@ export const TUNING = {
   // Per-form flow amplitude (px). Outermost line gets zero, innermost
   // line gets the full amount. Quadratically depth-weighted.
   flowAmpMin:     4,         // nuclear — visible drift, still quiet
-  flowAmpMax:     38,        // coal — vigorous interior deformation
+  flowAmpMax:     30,        // coal — vigorous interior, kept under
+                             // the gradient threshold that produces
+                             // visible kinks in sparse polyline
+                             // segments (gradient ≈ amp × k).
 
   // Spatial scale of the medium-scale flow layer (1/SVG units).
-  // 0.022 means wavelength ≈ 285 SVG units, ~4 eddies across coal.
-  // This is the layer that drives actual deformation: different
-  // points on a single line see different field directions, so
-  // lines stretch and compress.
-  flowK1:         0.022,
+  // 0.012 means wavelength ≈ 520 SVG units, ~2 eddies across coal.
+  // Trade-off: larger eddies (lower k) read as more rigid translation;
+  // smaller eddies (higher k) read as deformation but produce angular
+  // facets when amp × k exceeds the polyline's segment density.
+  flowK1:         0.012,
   // Temporal evolution rate of the medium-scale layer (rad/sec).
-  flowW1:         0.55,
+  flowW1:         0.50,
 
   // Smaller-scale layer for fine turbulence on top.
-  // 0.062 = wavelength ≈ 100 SVG units (~10 eddies across coal).
-  flowK2:         0.062,
-  flowW2:         1.10,
-  flowAmp2Weight: 0.42,
+  flowK2:         0.030,
+  flowW2:         0.95,
+  flowAmp2Weight: 0.38,
 
   // Outline stability threshold.
   outlineDepthThreshold: 0.06,
