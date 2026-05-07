@@ -1,30 +1,23 @@
-import { Link } from "wouter";
-import { motion, useInView } from "framer-motion";
-import { useRef, useState, useCallback, useEffect } from "react";
-import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
-import ScrollProgress from "@/components/ScrollProgress";
-import IntroAnimation from "@/components/IntroAnimation";
-import PageTransition from "@/components/PageTransition";
-import { posters } from "@/lib/posterData";
-import { ArrowRight } from "lucide-react";
+// client/src/pages/Home.tsx
+import { useEffect, useState } from 'react';
+import { Link } from 'wouter';
+import { motion } from 'framer-motion';
+import SiteHeader from '@/components/SiteHeader';
+import SiteFooter from '@/components/SiteFooter';
+import IntroAnimation from '@/components/IntroAnimation';
+import ScrollProgress from '@/components/ScrollProgress';
+import PageTransition from '@/components/PageTransition';
+import { NucleusHero } from '@/components/NucleusHero';
+import { IsotopeToggle } from '@/components/IsotopeToggle';
+import { posters } from '@/lib/posterData';
+import nucleusPaths from '@/assets/nucleus-paths.json';
 
-/*
-  DESIGN: Editorial Archive - Light Scholarly Journal
-  Landing: Entry animation → Strong thesis question → sequential poster cards.
-  Each card animates in on scroll with enhanced hover states.
-  Section colour indicators: blue dot for desirability, ochre for feasibility, red for objections.
-*/
-
-const SECTION_COLOURS: Record<string, string> = {
-  desirability: "#1c3867",
-  feasibility: "#b5822e",
-  objections: "#a51e22",
-};
+const ISOTOPE_KEY = 'tnq.isotope';
+const INTRO_KEY = 'intro-seen';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: {
+  hidden: { opacity: 0, y: 16 },
+  show: {
     opacity: 1,
     y: 0,
     transition: { duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const },
@@ -32,189 +25,115 @@ const fadeUp = {
 };
 
 const stagger = {
-  visible: { transition: { staggerChildren: 0.12 } },
+  hidden: {},
+  show: { transition: { staggerChildren: 0.12 } },
 };
 
-function hasSeenIntro(): boolean {
-  try {
-    return sessionStorage.getItem("intro-seen") === "true";
-  } catch {
-    return false;
-  }
-}
-
-function PosterCard({
-  poster,
-  index,
-}: {
-  poster: (typeof posters)[0];
-  index: number;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-  const sectionColour = SECTION_COLOURS[poster.section] || "#1c3867";
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
-      transition={{
-        duration: 0.6,
-        ease: [0.25, 0.46, 0.45, 0.94],
-        delay: index * 0.05,
-      }}
-    >
-      <Link href={`/poster/${poster.id}`}>
-        <article className="group relative border-t border-border pt-6 pb-8 cursor-pointer transition-all duration-300 hover:border-primary/40">
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
-            {/* Text column */}
-            <div className="lg:w-2/5 flex flex-col justify-between">
-              <div>
-                {/* Number with section colour indicator */}
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: sectionColour }}
-                  />
-                  <span
-                    className="text-xs tracking-[0.2em] uppercase text-muted-foreground block"
-                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                  >
-                    {poster.number}
-                  </span>
-                </div>
-                <h3
-                  className="font-serif text-2xl lg:text-3xl text-foreground mt-3 mb-3 group-hover:text-primary transition-colors duration-300"
-                  style={{ fontWeight: 600 }}
-                >
-                  {poster.title}
-                </h3>
-                <p
-                  className="text-sm text-muted-foreground leading-relaxed mb-4"
-                  style={{
-                    fontFamily: "'Playfair', Georgia, serif",
-                    fontWeight: 300,
-                  }}
-                >
-                  {poster.subtitle}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors duration-300">
-                <span style={{ fontFamily: "'Playfair', Georgia, serif" }}>
-                  View poster
-                </span>
-                <ArrowRight className="w-4 h-4 transform group-hover:translate-x-2 transition-transform duration-300 ease-out" />
-              </div>
-            </div>
-
-            {/* Image column */}
-            <div className="lg:w-3/5 overflow-hidden rounded-sm">
-              <div className="relative aspect-[4/3] overflow-hidden bg-card rounded-sm">
-                <img
-                  src={poster.imagePath}
-                  alt={poster.title}
-                  className="w-full h-full object-cover object-top opacity-90 group-hover:opacity-100 transition-all duration-500 group-hover:scale-[1.02]"
-                  loading={index < 2 ? "eager" : "lazy"}
-                />
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/[0.02] transition-colors duration-500 rounded-sm" />
-              </div>
-            </div>
-          </div>
-        </article>
-      </Link>
-    </motion.div>
-  );
-}
-
-
-
 export default function Home() {
-  const alreadySeen = hasSeenIntro();
-  const [introComplete, setIntroComplete] = useState(alreadySeen);
-
-  const handleIntroComplete = useCallback(() => {
-    sessionStorage.setItem("intro-seen", "true");
-    setIntroComplete(true);
-  }, []);
-
   useEffect(() => {
-    document.title = "The Nuclear Question - A Data Visualisation Series";
+    document.title = 'The Nuclear Question — A Data Visualisation Series';
   }, []);
+
+  // Intro splash: only show on first visit per session (matches existing pattern).
+  const [introComplete, setIntroComplete] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return sessionStorage.getItem(INTRO_KEY) === '1';
+  });
+
+  // Isotope state, persisted to localStorage.
+  const [isotope, setIsotope] = useState<0 | 1>(0);
+  useEffect(() => {
+    const saved = localStorage.getItem(ISOTOPE_KEY);
+    if (saved === '0' || saved === '1') setIsotope(Number(saved) as 0 | 1);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem(ISOTOPE_KEY, String(isotope));
+  }, [isotope]);
+
+  const onIntroComplete = () => {
+    sessionStorage.setItem(INTRO_KEY, '1');
+    setIntroComplete(true);
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      {!introComplete && (
-        <IntroAnimation onComplete={handleIntroComplete} />
-      )}
+    <>
+      {!introComplete && <IntroAnimation onComplete={onIntroComplete} />}
 
-      <SiteHeader />
       <ScrollProgress />
+      <SiteHeader />
 
       <PageTransition>
-        {/* Hero */}
-        <section className="pt-14">
-          <div className="container">
-            <div className="min-h-[65vh] flex flex-col justify-center items-center text-center py-20 lg:py-28">
-              <motion.div
-                initial="hidden"
-                animate={introComplete ? "visible" : "hidden"}
-                variants={stagger}
-                className="max-w-3xl mx-auto"
+        <main>
+          <section className="hero" id="hero">
+            <div className="hero-stack">
+              <NucleusHero
+                paths={nucleusPaths as string[]}
+                isotope={isotope}
               >
-                <motion.p
-                  variants={fadeUp}
-                  className="text-xs tracking-[0.25em] uppercase text-primary mb-8"
-                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                >
+                <div className="tweaks-anchor">
+                  <IsotopeToggle value={isotope} onChange={setIsotope} />
+                </div>
+              </NucleusHero>
+
+              <motion.div
+                variants={stagger}
+                initial="hidden"
+                animate={introComplete ? 'show' : 'hidden'}
+                className="hero-stack-text"
+              >
+                <motion.div className="hero-eyebrow" variants={fadeUp}>
                   A Data-Visualisation Series
-                </motion.p>
-                <motion.h1
-                  variants={fadeUp}
-                  className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.15] mb-10"
-                  style={{ fontWeight: 600 }}
-                >
-                  How Can Design Be Used to Discuss the Feasibility of a
-                  Nuclear-Powered Future?
+                </motion.div>
+
+                <motion.h1 className="hero-title" variants={fadeUp}>
+                  How Can Design Be Used to Discuss the Feasibility of a{' '}
+                  <em>Nuclear-Powered</em> Future?
                 </motion.h1>
-                <motion.p
-                  variants={fadeUp}
-                  className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6"
-                  style={{
-                    fontFamily: "'Playfair', Georgia, serif",
-                    fontWeight: 300,
-                  }}
-                >
-                  Six data-visualisation posters drawing on peer-reviewed and
-                  government data, presenting the nuclear question in a visual
-                  language accessible to the public. The series examines
-                  desirability and feasibility in sequence, concluding by
-                  addressing objections honestly rather than advocating for a
-                  position.
-                </motion.p>
-                <motion.p
-                  variants={fadeUp}
-                  className="text-sm text-muted-foreground"
-                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                >
-                  Court Granville, 2026
-                </motion.p>
+
+                <motion.div className="hero-body" variants={fadeUp}>
+                  <p>
+                    Six data-visualisation posters drawing on peer-reviewed and
+                    government data, presenting the nuclear question in a visual
+                    language accessible to the public. The series examines
+                    desirability and feasibility in turn, concluding by honestly
+                    addressing objections rather than advocating for a position.
+                  </p>
+                </motion.div>
+
+                <motion.div className="hero-sig" variants={fadeUp}>
+                  Court Granville<span className="sep">·</span>2026
+                </motion.div>
               </motion.div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Poster Series - anchor for "Series" nav link */}
-        <section id="series" className="pb-20 scroll-mt-16">
-          <div className="container">
-            {posters.map((poster, i) => (
-              <PosterCard key={poster.id} poster={poster} index={i} />
-            ))}
-          </div>
-        </section>
-
-        <SiteFooter />
+          <section className="ribbon-section" id="posters">
+            <div className="poster-stack">
+              {posters.map((p, i) => {
+                // First four posters are landscape, last two are portrait.
+                const orient = i < 4 ? 'landscape' : 'portrait';
+                return (
+                  <Link key={p.id} href={`/poster/${p.id}`}>
+                    <article className={`poster ${orient}`}>
+                      <img
+                        src={p.imagePath}
+                        alt={p.title}
+                        loading={i === 0 ? 'eager' : 'lazy'}
+                      />
+                      <div className="caption">
+                        <div className="num">Poster {p.number}</div>
+                        <div className="ttl">{p.title}</div>
+                      </div>
+                    </article>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        </main>
       </PageTransition>
-    </div>
+
+      <SiteFooter />
+    </>
   );
 }

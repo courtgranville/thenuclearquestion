@@ -199,4 +199,270 @@
     margin-left: -50vw;
     margin-right: -50vw;
   }
+
+/* ── HERO ──────────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  min-height: 100dvh;
+  padding: 84px 40px 56px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.hero-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 24px;
+  gap: 0;
+}
+
+.hero-stack-text {
+  display: contents;
+}
+
+.hero-icon {
+  position: relative;
+  width: 100vw;
+  height: min(78vw, 880px);
+  margin-bottom: 24px;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  background: var(--card);
+}
+.hero-icon canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Tweaks anchor — sits inside the full-bleed icon container */
+.tweaks-anchor {
+  position: absolute;
+  right: max(24px, calc(50vw - 440px));
+  bottom: 8px;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Playfair', 'Playfair Display', serif;
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  margin-bottom: 28px;
+}
+.hero-eyebrow::before,
+.hero-eyebrow::after {
+  content: "";
+  display: block;
+  width: 34px;
+  height: .5px;
+  background: var(--border);
+}
+
+.hero-title {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-weight: 500;
+  font-size: clamp(30px, 3.6vw, 56px);
+  line-height: 1.12;
+  letter-spacing: -.012em;
+  text-wrap: balance;
+  max-width: 22ch;
+  color: var(--foreground);
+}
+.hero-title em { font-style: italic; font-weight: 500; }
+
+.hero-body {
+  margin: 28px 0 0;
+  max-width: 54ch;
+  font-family: 'Playfair', serif;
+  font-weight: 300;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--foreground);
+}
+.hero-body p { margin: 0; }
+
+.hero-sig {
+  margin-top: 48px;
+  font-family: 'Playfair Display', serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 15px;
+  letter-spacing: .04em;
+  color: var(--muted-foreground);
+}
+.hero-sig .sep { margin: 0 .6em; opacity: .6; font-style: normal; }
+
+/* ── ISOTOPE TWEAK PILL ───────────────────────────────────────────────── */
+.iso-tweaks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  font-family: 'Playfair', serif;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted-foreground);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  user-select: none;
+}
+.iso-tweaks .lab { color: var(--muted-foreground); }
+.iso-switch {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  border: .5px solid var(--foreground);
+  background: var(--card);
+  font-family: 'Playfair', serif;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: .16em;
+}
+.iso-switch .thumb {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 50%;
+  background: var(--foreground);
+  transition: transform .28s cubic-bezier(.6, 0, .2, 1);
+  pointer-events: none;
+}
+.iso-switch[data-on="1"] .thumb { transform: translateX(100%); }
+.iso-switch button {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 62px;
+  background: none;
+  border: none;
+  padding: 0 12px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: color .28s;
+}
+.iso-switch[data-on="0"] button[data-v="0"],
+.iso-switch[data-on="1"] button[data-v="1"] {
+  color: var(--card);
+}
+
+/* ── POSTER STACK ─────────────────────────────────────────────────────── */
+.ribbon-section {
+  position: relative;
+  padding: 120px 0 140px;
+  background: var(--background);
+}
+.poster-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 96px;
+}
+.poster {
+  position: relative;
+  background: #fff;
+  box-shadow:
+    0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 30px 60px -30px color-mix(in oklab, var(--foreground) 18%, transparent);
+  overflow: hidden;
+  cursor: pointer;
+}
+.poster.landscape {
+  width: min(72vw, 1100px);
+  aspect-ratio: 9934 / 7016;
+}
+.poster.portrait {
+  width: min(50.85vw, 777px);
+  aspect-ratio: 7016 / 9934;
+}
+@media (max-width: 900px) {
+  .poster.landscape { width: 88vw; }
+  .poster.portrait  { width: 62vw; }
+  .poster-stack { gap: 64px; }
+  .ribbon-section { padding: 80px 0 100px; }
+}
+.poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: filter .5s ease;
+}
+.poster:hover img { filter: blur(36px); }
+
+.poster .caption {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 40px;
+  opacity: 0;
+  transition: opacity .45s ease, background-color .45s ease;
+  pointer-events: none;
+  text-align: center;
+  color: var(--foreground);
+}
+.poster:hover .caption {
+  opacity: 1;
+  background: transparent;
+  pointer-events: auto;
+}
+.poster .num {
+  font-family: 'Playfair Display', serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 18px;
+  letter-spacing: .04em;
+  color: var(--foreground);
+}
+.poster .ttl {
+  font-family: 'Playfair Display', serif;
+  font-weight: 500;
+  font-size: clamp(28px, 3vw, 46px);
+  line-height: 1.1;
+  color: var(--foreground);
+  max-width: 22ch;
+  text-wrap: balance;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: .12em;
+  text-decoration-thickness: 1.5px;
+  transition: color .2s ease, text-decoration-color .2s ease;
+}
+.poster .ttl:hover {
+  color: #217b3d;
+  text-decoration-color: #217b3d;
+}
+
+/* ── REDUCED-MOTION ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .poster img { transition: none; }
+  .poster .caption { transition: opacity .15s linear; }
+  .iso-switch .thumb { transition: none; }
+  .iso-switch button { transition: none; }
+}
 }
