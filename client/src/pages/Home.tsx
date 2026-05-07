@@ -102,21 +102,21 @@ export default function Home() {
                       </span>
                       <svg
                         className="fission-hint-line"
-                        viewBox="0 0 140 80"
+                        viewBox="0 0 160 100"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                       >
                         <path
-                          d="M2 78 C 18 62, 38 38, 60 28 C 82 18, 110 10, 136 4"
+                          d="M148 4 C 130 14, 100 32, 72 48 C 44 64, 24 78, 10 92"
                           stroke="var(--foreground)"
-                          strokeWidth="1"
-                          strokeDasharray="8 5"
+                          strokeWidth="0.75"
+                          strokeDasharray="7 5"
                           strokeLinecap="round"
                         />
                         <path
-                          d="M132 0 L138 4 L130 8"
+                          d="M16 86 L8 94 L18 94"
                           stroke="var(--foreground)"
-                          strokeWidth="1"
+                          strokeWidth="0.75"
                           fill="none"
                           strokeLinecap="round"
                           strokeLinejoin="round"
