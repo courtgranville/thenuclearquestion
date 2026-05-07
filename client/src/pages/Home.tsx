@@ -102,19 +102,19 @@ export default function Home() {
                       </span>
                       <svg
                         className="fission-hint-line"
-                        viewBox="0 0 200 80"
+                        viewBox="0 0 220 80"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                       >
                         <path
-                          d="M12 4 C 24 18, 48 40, 80 52 C 112 64, 152 70, 188 68"
+                          d="M75 2 C 80 16, 95 36, 120 48 C 145 60, 175 68, 200 66"
                           stroke="var(--foreground)"
                           strokeWidth="0.75"
                           strokeDasharray="7 5"
                           strokeLinecap="round"
                         />
                         <polygon
-                          points="194,68 185,63 185,73"
+                          points="213,66 201,60 201,72"
                           fill="var(--foreground)"
                         />
                       </svg>
