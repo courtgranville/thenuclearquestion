@@ -1,26 +1,25 @@
 export const TUNING = {
   // Per-form flow amplitude (px). Outermost line gets zero, innermost
   // line gets the full amount. Quadratically depth-weighted.
-  flowAmpMin:     3,         // nuclear — barely visible drift
-  flowAmpMax:     28,        // coal — vigorous interior swirl
+  flowAmpMin:     4,         // nuclear — visible drift, still quiet
+  flowAmpMax:     38,        // coal — vigorous interior deformation
 
-  // Spatial scale of the large-scale flow layer (1/SVG units).
-  // ~0.006 means one wavelength ≈ 1000 SVG units, roughly the size
-  // of the largest form. Larger = smaller eddies.
-  flowK1:         0.006,
-  // Temporal evolution rate of the large-scale layer (rad/sec).
-  // Lower = slower drift.
-  flowW1:         0.45,
+  // Spatial scale of the medium-scale flow layer (1/SVG units).
+  // 0.022 means wavelength ≈ 285 SVG units, ~4 eddies across coal.
+  // This is the layer that drives actual deformation: different
+  // points on a single line see different field directions, so
+  // lines stretch and compress.
+  flowK1:         0.022,
+  // Temporal evolution rate of the medium-scale layer (rad/sec).
+  flowW1:         0.55,
 
-  // Smaller-scale layer for local turbulence. Higher k = finer detail,
-  // higher w = faster shimmer. Amplitude weight relative to large
-  // layer.
-  flowK2:         0.020,
-  flowW2:         0.85,
-  flowAmp2Weight: 0.35,
+  // Smaller-scale layer for fine turbulence on top.
+  // 0.062 = wavelength ≈ 100 SVG units (~10 eddies across coal).
+  flowK2:         0.062,
+  flowW2:         1.10,
+  flowAmp2Weight: 0.42,
 
-  // Outline stability threshold. Lines with depth < this get zero
-  // displacement and use pre-built Path2D for speed.
+  // Outline stability threshold.
   outlineDepthThreshold: 0.06,
 } as const;
 

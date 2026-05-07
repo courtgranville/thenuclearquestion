@@ -279,7 +279,7 @@ export default function Poster001CanvasViz() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
     let cssW = 0;
     let cssH = 0;
 
@@ -334,10 +334,11 @@ export default function Poster001CanvasViz() {
         const isDimmed = sel !== null && !isSelected;
         const baseAlpha = isDimmed ? 0.08 : 1;
 
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 2;
         ctx.strokeStyle = '#0d1a1e';
-        ctx.lineWidth = 0.5;
+        ctx.lineWidth = 0.65;
 
         const flowAmp = form.motion.flowAmp;
         const N = form.lines.length;
