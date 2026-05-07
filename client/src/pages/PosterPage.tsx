@@ -92,7 +92,7 @@ export default function PosterPage() {
               <Link href="/">
                 <span className="group inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200">
                   <ArrowLeft className="w-4 h-4 transform group-hover:-translate-x-1 transition-transform duration-200" />
-                  <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                  <span style={{ fontFamily: "'Playfair', Georgia, serif" }}>
                     Back to series
                   </span>
                 </span>
@@ -115,7 +115,7 @@ export default function PosterPage() {
                   <span
                     className="text-xs tracking-[0.25em] uppercase"
                     style={{
-                      fontFamily: "'IBM Plex Mono', monospace",
+                      fontFamily: "'Playfair', Georgia, serif",
                       color: sectionColour,
                     }}
                   >
@@ -123,13 +123,13 @@ export default function PosterPage() {
                   </span>
                   <span
                     className="text-xs text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     /
                   </span>
                   <span
                     className="text-xs tracking-[0.2em] uppercase text-muted-foreground"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     {poster.number}
                   </span>
@@ -168,7 +168,7 @@ export default function PosterPage() {
                 variants={fadeUp}
                 className="text-sm leading-relaxed text-foreground/80 mb-6"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -181,7 +181,7 @@ export default function PosterPage() {
                 variants={fadeUp}
                 className="text-sm leading-relaxed text-foreground/80 mb-6"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -192,14 +192,14 @@ export default function PosterPage() {
               <motion.div variants={fadeUp}>
                 <p
                   className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Methodology
                 </p>
                 <p
                   className="text-xs text-muted-foreground leading-relaxed"
                   style={{
-                    fontFamily: "'Montserrat', sans-serif",
+                    fontFamily: "'Playfair', Georgia, serif",
                     fontWeight: 300,
                   }}
                 >
@@ -220,7 +220,7 @@ export default function PosterPage() {
               <div className="max-w-3xl mx-auto">
                 <p
                   className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-2"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Interactive Visualisation
                 </p>
@@ -256,7 +256,7 @@ export default function PosterPage() {
               <p
                 className="text-sm text-muted-foreground mb-3"
                 style={{
-                  fontFamily: "'Montserrat', sans-serif",
+                  fontFamily: "'Playfair', Georgia, serif",
                   fontWeight: 300,
                 }}
               >
@@ -268,7 +268,7 @@ export default function PosterPage() {
                 download
                 onClick={handleDownload}
                 className="group inline-flex items-center gap-2 text-sm text-primary hover:text-foreground transition-colors duration-200"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 <Download className="w-4 h-4 transform group-hover:-translate-y-0.5 transition-transform duration-200" />
                 <span className="relative">
@@ -291,7 +291,7 @@ export default function PosterPage() {
             >
               <p
                 className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 Poster Preview
               </p>
@@ -325,14 +325,14 @@ export default function PosterPage() {
                   <hr className="border-border mb-8" />
                   <p
                     className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-4"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     Sources
                   </p>
                   <p
                     className="text-sm leading-relaxed text-foreground/80 mb-4"
                     style={{
-                      fontFamily: "'Montserrat', sans-serif",
+                      fontFamily: "'Playfair', Georgia, serif",
                       fontWeight: 300,
                     }}
                   >
@@ -344,7 +344,7 @@ export default function PosterPage() {
                         key={i}
                         className="text-sm leading-relaxed text-foreground/80 border-l-2 border-border pl-3"
                         style={{
-                          fontFamily: "'Montserrat', sans-serif",
+                          fontFamily: "'Playfair', Georgia, serif",
                           fontWeight: 300,
                         }}
                       >
@@ -355,7 +355,7 @@ export default function PosterPage() {
                   <p
                     className="text-sm leading-relaxed text-foreground/60 mb-5"
                     style={{
-                      fontFamily: "'Montserrat', sans-serif",
+                      fontFamily: "'Playfair', Georgia, serif",
                       fontWeight: 300,
                     }}
                   >
@@ -364,7 +364,7 @@ export default function PosterPage() {
                   <Link href="/sources">
                     <span
                       className="group inline-flex items-center gap-1.5 text-sm text-primary hover:text-foreground transition-colors duration-200"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      style={{ fontFamily: "'Playfair', Georgia, serif" }}
                     >
                       <span className="relative">
                         Full sources & methodology
@@ -389,13 +389,13 @@ export default function PosterPage() {
                       <span className="flex flex-col">
                         <span
                           className="text-xs tracking-[0.15em] uppercase"
-                          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {prevPoster.number}
                         </span>
                         <span
                           className="text-sm hidden sm:block"
-                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {prevPoster.title}
                         </span>
@@ -411,13 +411,13 @@ export default function PosterPage() {
                       <span className="flex flex-col">
                         <span
                           className="text-xs tracking-[0.15em] uppercase"
-                          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {nextPoster.number}
                         </span>
                         <span
                           className="text-sm hidden sm:block"
-                          style={{ fontFamily: "'Montserrat', sans-serif" }}
+                          style={{ fontFamily: "'Playfair', Georgia, serif" }}
                         >
                           {nextPoster.title}
                         </span>

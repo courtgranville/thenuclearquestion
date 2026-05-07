@@ -79,7 +79,7 @@ function PosterCard({
                   />
                   <span
                     className="text-xs tracking-[0.2em] uppercase text-muted-foreground block"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
                   >
                     {poster.number}
                   </span>
@@ -93,7 +93,7 @@ function PosterCard({
                 <p
                   className="text-sm text-muted-foreground leading-relaxed mb-4"
                   style={{
-                    fontFamily: "'Montserrat', sans-serif",
+                    fontFamily: "'Playfair', Georgia, serif",
                     fontWeight: 300,
                   }}
                 >
@@ -101,7 +101,7 @@ function PosterCard({
                 </p>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground group-hover:text-primary transition-colors duration-300">
-                <span style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                <span style={{ fontFamily: "'Playfair', Georgia, serif" }}>
                   View poster
                 </span>
                 <ArrowRight className="w-4 h-4 transform group-hover:translate-x-2 transition-transform duration-300 ease-out" />
@@ -165,7 +165,7 @@ export default function Home() {
                 <motion.p
                   variants={fadeUp}
                   className="text-xs tracking-[0.25em] uppercase text-primary mb-8"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   A Data-Visualisation Series
                 </motion.p>
@@ -181,7 +181,7 @@ export default function Home() {
                   variants={fadeUp}
                   className="text-base lg:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-6"
                   style={{
-                    fontFamily: "'Montserrat', sans-serif",
+                    fontFamily: "'Playfair', Georgia, serif",
                     fontWeight: 300,
                   }}
                 >
@@ -195,7 +195,7 @@ export default function Home() {
                 <motion.p
                   variants={fadeUp}
                   className="text-sm text-muted-foreground"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Court Granville, 2026
                 </motion.p>

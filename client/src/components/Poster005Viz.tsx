@@ -218,7 +218,7 @@ function CategoryLegend({
                 }
               `}
               style={{
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "'Playfair', Georgia, serif",
                 color: isActive ? cat.color : undefined,
               }}
             >
@@ -242,7 +242,7 @@ function CategoryLegend({
           <p
             className="text-sm font-medium mb-1"
             style={{
-              fontFamily: "'Montserrat', sans-serif",
+              fontFamily: "'Playfair', Georgia, serif",
               color: activeInfo.color,
             }}
           >
@@ -251,7 +251,7 @@ function CategoryLegend({
           </p>
           <p
             className="text-xs text-muted-foreground"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
             {activeInfo.description}
           </p>
@@ -261,7 +261,7 @@ function CategoryLegend({
       {!activeCategory && (
         <p
           className="text-center text-xs text-muted-foreground"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           Tap a category to filter
         </p>
@@ -269,7 +269,7 @@ function CategoryLegend({
       {activeCategory && (
         <p
           className="text-center text-xs text-muted-foreground"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           Tap again to deselect
         </p>
@@ -327,7 +327,7 @@ function MapSection() {
     <div className="w-full">
       <p
         className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Reactor Map
       </p>
@@ -342,7 +342,7 @@ function MapSection() {
               <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
               <span
                 className="text-xs text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 Loading...
               </span>
@@ -418,7 +418,7 @@ function DendrogramSection() {
     <div className="w-full">
       <p
         className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-3"
-        style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Status Dendrogram & Timeline
       </p>
@@ -433,7 +433,7 @@ function DendrogramSection() {
               <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
               <span
                 className="text-xs text-muted-foreground"
-                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 Loading...
               </span>

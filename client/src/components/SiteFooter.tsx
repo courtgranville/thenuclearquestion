@@ -23,13 +23,13 @@ export default function SiteFooter() {
           <div>
             <p
               className="text-xs text-muted-foreground"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               The Nuclear Question - Court Granville
             </p>
             <p
               className="text-xs text-muted-foreground mt-1"
-              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Bachelor in Design Thesis, IE University, 2026
             </p>

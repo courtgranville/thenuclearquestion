@@ -271,7 +271,7 @@ export default function InteractiveSVG({
             }
           `}
           style={{
-            fontFamily: "'IBM Plex Mono', monospace",
+            fontFamily: "'Playfair', Georgia, serif",
             color: r.color,
             backgroundColor:
               selected === r.id ? `${r.color}12` : "transparent",
@@ -314,7 +314,7 @@ export default function InteractiveSVG({
               <div key={i}>
                 <p
                   className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
-                  style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   {item.label}
                 </p>
@@ -385,7 +385,7 @@ export default function InteractiveSVG({
       {ready && (
         <p
           className="text-center text-xs text-muted-foreground mt-3"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           {selected
             ? "Tap again or tap elsewhere to deselect"

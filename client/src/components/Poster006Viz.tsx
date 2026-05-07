@@ -31,7 +31,7 @@ function VizSection({ title, description, config, maxHeight = "85vh", viewBoxOve
       <div className="max-w-4xl mx-auto px-4 mb-4">
         <p
           className="text-xs tracking-[0.15em] uppercase text-muted-foreground mb-1.5"
-          style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           Interactive Visualisation
         </p>
@@ -43,7 +43,7 @@ function VizSection({ title, description, config, maxHeight = "85vh", viewBoxOve
         </h3>
         <p
           className="text-sm text-muted-foreground leading-relaxed"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           {description}
         </p>

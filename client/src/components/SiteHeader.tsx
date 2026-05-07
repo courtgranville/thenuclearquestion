@@ -128,7 +128,7 @@ export default function SiteHeader() {
                           ? "text-foreground"
                           : "text-muted-foreground"
                       }`}
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      style={{ fontFamily: "'Playfair', Georgia, serif" }}
                     >
                       {item.label}
                     </span>
@@ -163,7 +163,7 @@ function NavLink({
               ? "text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           {label}
         </span>
