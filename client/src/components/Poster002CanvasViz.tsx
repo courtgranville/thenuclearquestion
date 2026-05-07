@@ -273,15 +273,25 @@ export default function Poster002CanvasViz() {
     cursorAmpMax: TUNING_LIQUID.cursorAmpMax,
     cursorFalloffPad: TUNING_LIQUID.cursorFalloffPad,
     cursorSigmaMul: TUNING_LIQUID.cursorSigmaMul,
-    growthDur: 2.5,
-    holdDur: 3.5,
-    fadeDur: 1.5,
+    // Land cycle
+    landGrowthDur: 2.8,
+    landHoldDur: 5.5,
+    landFadeDur: 1.5,
+    landGapDur: 0.5,
     fadeInPerLine: 0.25,
-    waterDropDur: 2.5,
-    waterHoldDur: 3.5,
+    // Water cycle — six phases
+    waterFallDur: 1.2,
+    waterImpactDur: 0.4,
+    waterExpandDur: 1.2,
+    waterHoldDur: 5.5,
     waterFadeDur: 1.5,
     waterGapDur: 0.5,
     waterDropHeightMul: 0.6,
+    dropletScale: 0.15,
+    expandOvershootPeak: 1.05,
+    squashXPeak: 1.35,
+    squashYPeak: 0.65,
+    squashSubDur: 0.15,
   });
 
   // Dev FPS counter
@@ -452,21 +462,20 @@ export default function Poster002CanvasViz() {
           if (curMode === 'water' || isDimmed) {
             alpha = landBaseAlpha;
           } else {
-            // Wave-of-appearance: growth → hold → fade → gap
-            const GAP_DUR = 0.5;
-            const CYCLE_LEN = tune.growthDur + tune.holdDur + tune.fadeDur + GAP_DUR;
-            const appearTime = ll.distNorm * tune.growthDur;
-            const localT = ((t % CYCLE_LEN) + CYCLE_LEN) % CYCLE_LEN;
+            // Wave-of-appearance: growth → hold → fade → gap (synced cycle)
+            const LAND_CYCLE = tune.landGrowthDur + tune.landHoldDur + tune.landFadeDur + tune.landGapDur;
+            const appearTime = ll.distNorm * tune.landGrowthDur;
+            const localT = ((t % LAND_CYCLE) + LAND_CYCLE) % LAND_CYCLE;
             let opacity: number;
             if (localT < appearTime) {
               opacity = 0;
-            } else if (localT < tune.growthDur + tune.holdDur) {
+            } else if (localT < tune.landGrowthDur + tune.landHoldDur) {
               const sinceAppear = localT - appearTime;
               opacity = sinceAppear < tune.fadeInPerLine
                 ? sinceAppear / tune.fadeInPerLine
                 : 1.0;
-            } else if (localT < tune.growthDur + tune.holdDur + tune.fadeDur) {
-              opacity = 1 - (localT - tune.growthDur - tune.holdDur) / tune.fadeDur;
+            } else if (localT < tune.landGrowthDur + tune.landHoldDur + tune.landFadeDur) {
+              opacity = 1 - (localT - tune.landGrowthDur - tune.landHoldDur) / tune.landFadeDur;
             } else {
               opacity = 0;
             }
@@ -495,38 +504,76 @@ export default function Poster002CanvasViz() {
         const isDimmed = sel !== null && !isSelected;
         const isLandMode = curMode === 'land';
 
-        // ── Water drop-in cycle (synced with land's CYCLE_LEN) ──
-        const WATER_CYCLE = tune.waterDropDur + tune.waterHoldDur + tune.waterFadeDur + tune.waterGapDur;
+        // ── Water six-phase cycle: fall → impact → expand → hold → fade → gap ──
+        const WATER_CYCLE = tune.waterFallDur + tune.waterImpactDur + tune.waterExpandDur
+          + tune.waterHoldDur + tune.waterFadeDur + tune.waterGapDur;
         const wLocalT = ((t % WATER_CYCLE) + WATER_CYCLE) % WATER_CYCLE;
 
         let waterScale: number;
         let waterYOffset: number;
         let waterOpacity: number;
-        let cursorStrength: number;
+        let squashX = 1;
+        let squashY = 1;
+        let cursorStrength = 0;
 
-        if (wLocalT < tune.waterDropDur) {
-          const p = wLocalT / tune.waterDropDur;
-          const eased = 1 - Math.pow(1 - p, 3);
-          waterScale = eased;
+        const wt1 = tune.waterFallDur;
+        const wt2 = wt1 + tune.waterImpactDur;
+        const wt3 = wt2 + tune.waterExpandDur;
+        const wt4 = wt3 + tune.waterHoldDur;
+        const wt5 = wt4 + tune.waterFadeDur;
+
+        if (wLocalT < wt1) {
+          // FALL: small droplet, accelerating downward (ease-in quadratic = gravity)
+          const p = wLocalT / tune.waterFallDur;
+          const eased = p * p;
+          waterScale = tune.dropletScale;
           waterYOffset = -form.formBboxHeight * tune.waterDropHeightMul * (1 - eased);
-          waterOpacity = Math.min(1, p * 2);
-          cursorStrength = 0;
-        } else if (wLocalT < tune.waterDropDur + tune.waterHoldDur) {
+          waterOpacity = Math.min(1, wLocalT / 0.2);
+        } else if (wLocalT < wt2) {
+          // IMPACT: squash-stretch at rest position
+          const p = (wLocalT - wt1) / tune.waterImpactDur;
+          const subPoint = tune.squashSubDur / tune.waterImpactDur;
+          waterScale = tune.dropletScale;
+          waterYOffset = 0;
+          waterOpacity = 1;
+          if (p < subPoint) {
+            const sp = p / subPoint;
+            squashX = 1 + (tune.squashXPeak - 1) * sp;
+            squashY = 1 + (tune.squashYPeak - 1) * sp;
+          } else {
+            const sp = (p - subPoint) / (1 - subPoint);
+            const eased = 1 - Math.pow(1 - sp, 2);
+            squashX = tune.squashXPeak + (1 - tune.squashXPeak) * eased;
+            squashY = tune.squashYPeak + (1 - tune.squashYPeak) * eased;
+          }
+        } else if (wLocalT < wt3) {
+          // EXPAND: grow from droplet to full with elastic overshoot
+          const p = (wLocalT - wt2) / tune.waterExpandDur;
+          if (p < 0.8) {
+            waterScale = tune.dropletScale + (tune.expandOvershootPeak - tune.dropletScale) * (p / 0.8);
+          } else {
+            waterScale = tune.expandOvershootPeak + (1 - tune.expandOvershootPeak) * ((p - 0.8) / 0.2);
+          }
+          waterYOffset = 0;
+          waterOpacity = 1;
+        } else if (wLocalT < wt4) {
+          // HOLD: stable, interactive
           waterScale = 1;
           waterYOffset = 0;
           waterOpacity = 1;
           cursorStrength = 1;
-        } else if (wLocalT < tune.waterDropDur + tune.waterHoldDur + tune.waterFadeDur) {
-          const p = (wLocalT - tune.waterDropDur - tune.waterHoldDur) / tune.waterFadeDur;
+        } else if (wLocalT < wt5) {
+          // FADE
+          const p = (wLocalT - wt4) / tune.waterFadeDur;
           waterScale = 1;
           waterYOffset = 0;
           waterOpacity = 1 - p;
           cursorStrength = waterOpacity;
         } else {
+          // GAP
           waterScale = 0;
           waterYOffset = 0;
           waterOpacity = 0;
-          cursorStrength = 0;
         }
 
         // Final opacity: cycle × mode × selection
@@ -567,10 +614,10 @@ export default function Poster002CanvasViz() {
         const cy = form.formCentroid[1];
         const sigmaInv2 = 1 / (2 * sigma * sigma);
 
-        // Apply drop transform around form centroid
+        // Apply drop transform around form centroid (with squash-stretch)
         ctx.save();
         ctx.translate(cx, cy + waterYOffset);
-        ctx.scale(waterScale, waterScale);
+        ctx.scale(waterScale * squashX, waterScale * squashY);
         ctx.translate(-cx, -cy);
 
         // Bucket-batched strokes
@@ -708,15 +755,22 @@ export default function Poster002CanvasViz() {
             ['cursorAmpMax', 0, 100],
             ['cursorFalloffPad', 0, 0.5],
             ['cursorSigmaMul', 0.3, 3],
-            ['growthDur', 0.5, 6],
-            ['holdDur', 0.5, 8],
-            ['fadeDur', 0.5, 3],
+            ['landGrowthDur', 0.5, 6],
+            ['landHoldDur', 2, 10],
+            ['landFadeDur', 0.5, 3],
+            ['landGapDur', 0, 2],
             ['fadeInPerLine', 0, 1],
-            ['waterDropDur', 0.5, 5],
-            ['waterHoldDur', 1, 8],
+            ['waterFallDur', 0.5, 3],
+            ['waterImpactDur', 0.1, 1],
+            ['waterExpandDur', 0.5, 3],
+            ['waterHoldDur', 2, 10],
             ['waterFadeDur', 0.5, 3],
             ['waterGapDur', 0, 2],
-            ['waterDropHeightMul', 0.1, 1.5],
+            ['waterDropHeightMul', 0.2, 1.5],
+            ['dropletScale', 0.05, 0.4],
+            ['expandOvershootPeak', 1.0, 1.2],
+            ['squashXPeak', 1.0, 1.6],
+            ['squashYPeak', 0.4, 1.0],
           ] as [keyof typeof tuningRef.current, number, number][]).map(
             ([key, min, max]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
