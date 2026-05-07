@@ -1,19 +1,19 @@
 export const TUNING = {
   // Drift amplitude (px in canvas space)
-  driftAmpMin:     2,    // nuclear
-  driftAmpMax:     12,   // coal
+  driftAmpMin:     1.5,   // nuclear — barely perceptible
+  driftAmpMax:     10,    // coal — visible wander
   // Drift period (seconds)
-  driftPeriodMin:  4,    // coal — faster
-  driftPeriodMax:  11,   // nuclear — slower
+  driftPeriodMin:  5,     // coal — faster
+  driftPeriodMax:  14,    // nuclear — slow, glacial
   // Breathing scale wobble (fraction)
-  breathMagMin:    0.005,  // nuclear: 0.5%
-  breathMagMax:    0.04,   // coal: 4%
+  breathMagMin:    0.003,   // nuclear: 0.3%
+  breathMagMax:    0.025,   // coal: 2.5%
   // Breathing period (seconds)
-  breathPeriodMin: 3,    // coal
-  breathPeriodMax: 9,    // nuclear
+  breathPeriodMin: 4,     // coal
+  breathPeriodMax: 11,    // nuclear
   // Per-line jitter (px)
-  jitterAmpMin:    0.05, // nuclear
-  jitterAmpMax:    0.30, // coal
+  jitterAmpMin:    0.03,  // nuclear
+  jitterAmpMax:    0.20,  // coal
 } as const;
 
 // Log scale 5.6 → 970 maps to 0 → 1
@@ -56,7 +56,11 @@ export function applyMotion(
   const wBreath = (Math.PI * 2) / m.breathPeriod;
   return {
     offsetX: m.driftAmp * Math.sin(time * wDrift + m.phaseDrift),
-    offsetY: m.driftAmp * 0.7 * Math.cos(time * wDrift * 0.83 + m.phaseDrift),
-    scale:   1 + m.breathMag * Math.sin(time * wBreath + m.phaseBreath),
+    offsetY: m.driftAmp * 0.6 * Math.cos(time * wDrift * 0.73 + m.phaseDrift),
+    // Two-frequency breathing — less periodic, more "drifting" feel
+    scale: 1 + m.breathMag * (
+      0.7 * Math.sin(time * wBreath + m.phaseBreath) +
+      0.3 * Math.sin(time * wBreath * 1.7 + m.phaseBreath * 1.3)
+    ),
   };
 }
