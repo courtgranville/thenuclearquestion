@@ -21,9 +21,9 @@ export default function SiteHeader() {
   const { scrollY } = useScroll();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const headerHeight = useTransform(scrollY, [0, 100], [56, 48]);
+  const headerHeight = useTransform(scrollY, [0, 100], [72, 60]);
   const backdropBlur = useTransform(scrollY, [0, 100], [8, 16]);
-  const titleSize = useTransform(scrollY, [0, 100], [22, 20]);
+  const titleSize = useTransform(scrollY, [0, 100], [28, 24]);
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -123,7 +123,7 @@ export default function SiteHeader() {
                 {navItems.map((item) => (
                   <Link key={item.href} href={item.href}>
                     <span
-                      className={`block py-3 text-sm tracking-wide transition-colors duration-200 ${
+                      className={`block py-3 text-base tracking-wide transition-colors duration-200 ${
                         location === item.href
                           ? "text-foreground"
                           : "text-muted-foreground"
@@ -158,7 +158,7 @@ function NavLink({
     <Link href={href} onClick={onClick}>
       <span className="relative group">
         <span
-          className={`text-sm tracking-wide transition-colors duration-200 ${
+          className={`text-base tracking-wide transition-colors duration-200 ${
             active
               ? "text-foreground"
               : "text-muted-foreground hover:text-foreground"

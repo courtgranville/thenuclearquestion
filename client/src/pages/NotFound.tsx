@@ -9,7 +9,7 @@ export default function NotFound() {
       <SiteHeader />
 
       <PageTransition>
-        <main className="pt-14">
+        <main className="pt-[72px]">
           <div className="container">
             <div className="min-h-[70vh] flex flex-col justify-center max-w-xl">
               <span

@@ -204,7 +204,7 @@
 .hero {
   position: relative;
   min-height: 100dvh;
-  padding: 84px 40px 56px;
+  padding: 100px 40px 56px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -233,7 +233,7 @@
   margin-bottom: 24px;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  background: var(--card);
+  background: transparent;
 }
 .hero-icon canvas {
   position: absolute;
@@ -253,9 +253,6 @@
 }
 
 .hero-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 14px;
   font-family: 'Playfair', 'Playfair Display', serif;
   font-weight: 400;
   font-size: 11px;
@@ -263,14 +260,6 @@
   text-transform: uppercase;
   color: var(--muted-foreground);
   margin-bottom: 28px;
-}
-.hero-eyebrow::before,
-.hero-eyebrow::after {
-  content: "";
-  display: block;
-  width: 34px;
-  height: .5px;
-  background: var(--border);
 }
 
 .hero-title {
@@ -350,16 +339,17 @@
   position: relative;
   z-index: 1;
   flex: 1;
-  min-width: 62px;
+  min-width: 78px;
   background: none;
   border: none;
-  padding: 0 12px;
+  padding: 0 14px;
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
   color: var(--foreground);
   cursor: pointer;
   transition: color .28s;
+  white-space: nowrap;
 }
 .iso-switch[data-on="0"] button[data-v="0"],
 .iso-switch[data-on="1"] button[data-v="1"] {

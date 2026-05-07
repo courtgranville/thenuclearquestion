@@ -85,7 +85,7 @@ export default function PosterPage() {
       <ScrollProgress />
 
       <PageTransition>
-        <main className="pt-14">
+        <main className="pt-[72px]">
           <div className="container">
             {/* ── 0. Back link ── */}
             <div className="pt-8 pb-4 max-w-3xl mx-auto">

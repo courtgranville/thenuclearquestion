@@ -69,7 +69,7 @@ export default function About() {
       <ScrollProgress />
 
       <PageTransition>
-        <main className="pt-14">
+        <main className="pt-[72px]">
           <div className="container">
             <div className="pt-8 pb-4">
               <Link href="/">

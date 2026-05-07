@@ -32,7 +32,7 @@ export default function Sources() {
       <ScrollProgress />
 
       <PageTransition>
-        <main className="pt-14">
+        <main className="pt-[72px]">
           <div className="container">
             <div className="max-w-3xl mx-auto">
               {/* Back link */}
