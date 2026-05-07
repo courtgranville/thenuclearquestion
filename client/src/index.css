@@ -254,6 +254,36 @@
   pointer-events: auto;
 }
 
+/* Fission hint annotation — poster-style dashed line + text */
+.fission-hint {
+  position: absolute;
+  left: max(24px, calc(50vw - 440px));
+  bottom: 48px;
+  z-index: 5;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.fission-hint-text {
+  font-family: 'Playfair', serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--foreground);
+  max-width: 18ch;
+}
+.fission-hint-line {
+  width: 140px;
+  height: 80px;
+  margin-top: 4px;
+  margin-left: 12px;
+}
+@media (max-width: 900px) {
+  .fission-hint { display: none; }
+}
+
 .hero-eyebrow {
   font-family: 'Playfair', 'Playfair Display', serif;
   font-weight: 400;
