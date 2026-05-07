@@ -489,8 +489,15 @@ export default function Poster001CanvasViz() {
       )}
       <div
         ref={containerRef}
-        className="relative w-full"
-        style={{ aspectRatio: `${SVG_VIEW_W} / ${SVG_VIEW_H}` }}
+        className="relative w-full mx-auto"
+        style={{
+          aspectRatio: `${SVG_VIEW_W} / ${SVG_VIEW_H}`,
+          // Cap the stage so the legend buttons + info panel stay
+          // visible alongside the canvas on desktop. Capping max-width
+          // (rather than max-height) keeps the aspect ratio intact.
+          // 65vh height ceiling → max-width = 65vh × (W/H).
+          maxWidth: `calc(65vh * ${SVG_VIEW_W} / ${SVG_VIEW_H})`,
+        }}
       >
         <canvas
           ref={canvasRef}
