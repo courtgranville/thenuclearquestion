@@ -5,6 +5,7 @@ import {
   depthWeightLiquid,
 } from '@/lib/posterMotionLiquid';
 import formsData from '@/assets/poster-002-forms.json';
+import { Pause, Play } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -136,6 +137,7 @@ interface PreparedForm {
   landCentroid: [number, number];
   formBboxMaxDim: number;
   formBboxHeight: number;
+  formBboxMaxY: number;
 }
 
 function buildPath2D(pts: Float32Array, n: number): Path2D {
@@ -210,6 +212,7 @@ const FORMS: PreparedForm[] = Object.entries(
     landCentroid: data.land_centroid,
     formBboxMaxDim,
     formBboxHeight,
+    formBboxMaxY: fb.maxY,
   };
 });
 
@@ -255,11 +258,27 @@ export default function Poster002CanvasViz() {
   const [overlayError, setOverlayError] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('combined');
+  const [paused, setPaused] = useState(false);
 
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selected;
   const modeRef = useRef<Mode>('combined');
   modeRef.current = mode;
+  const pausedRef = useRef(false);
+  pausedRef.current = paused;
+
+  // Mode transition fade
+  const modeTransitionT = useRef(1); // start at 1 (no transition on mount)
+  const prevModeRef = useRef(mode);
+  useEffect(() => {
+    if (mode !== prevModeRef.current) {
+      modeTransitionT.current = 0;
+      prevModeRef.current = mode;
+    }
+  }, [mode]);
+
+  // Cycle time accumulator ref (so pause snap effect can write to it)
+  const cycleTRef = useRef(0);
 
   // Cursor tracking — tx/ty are raw target, x/y are smoothed (eased per frame)
   const cursorRef = useRef({ x: -9999, y: -9999, tx: -9999, ty: -9999, speed: 0, smoothSpeed: 0 });
@@ -273,26 +292,43 @@ export default function Poster002CanvasViz() {
     cursorAmpMax: TUNING_LIQUID.cursorAmpMax,
     cursorFalloffPad: TUNING_LIQUID.cursorFalloffPad,
     cursorSigmaMul: TUNING_LIQUID.cursorSigmaMul,
-    // Land cycle
-    landGrowthDur: 2.8,
-    landHoldDur: 5.5,
-    landFadeDur: 1.5,
+    // Land cycle (15s total)
+    landGrowthDur: 4.3,
+    landHoldDur: 9.2,
+    landFadeDur: 1.0,
     landGapDur: 0.5,
     fadeInPerLine: 0.25,
-    // Water cycle — six phases
-    waterFallDur: 1.2,
-    waterImpactDur: 0.4,
-    waterExpandDur: 1.2,
-    waterHoldDur: 5.5,
-    waterFadeDur: 1.5,
+    // Water cycle — six phases (15s total)
+    waterFallDur: 2.0,
+    waterImpactDur: 0.8,
+    waterExpandDur: 1.5,
+    waterHoldDur: 9.2,
+    waterFadeDur: 1.0,
     waterGapDur: 0.5,
     waterDropHeightMul: 0.6,
     dropletScale: 0.15,
     expandOvershootPeak: 1.05,
-    squashXPeak: 1.35,
-    squashYPeak: 0.65,
-    squashSubDur: 0.15,
+    // Impact tuning
+    impactSquashX: 1.40,
+    impactSquashY: 0.55,
+    impactReboundX: 0.82,
+    impactReboundY: 1.18,
+    impactReboundLift: 0.08,
+    impactSquashFrac: 0.25,
+    impactReboundFrac: 0.35,
   });
+
+  // Snap to HOLD mid-point when pausing
+  const HOLD_SNAP_T_COMPUTE = () => {
+    const t = tuningRef.current;
+    return t.waterFallDur + t.waterImpactDur + t.waterExpandDur + t.waterHoldDur / 2;
+  };
+
+  useEffect(() => {
+    if (paused) {
+      cycleTRef.current = HOLD_SNAP_T_COMPUTE();
+    }
+  }, [paused]);
 
   // Dev FPS counter
   const [fps, setFps] = useState(0);
@@ -398,13 +434,26 @@ export default function Poster002CanvasViz() {
     const ro = new ResizeObserver(resize);
     ro.observe(container);
 
-    const t0 = performance.now();
+    let cycleT = 0;
+    let lastFrameNow = performance.now();
+    cycleTRef.current = 0;
     let rafId = 0;
 
     const NUM_BUCKETS = 8;
 
     const frame = (now: number) => {
-      const t = (now - t0) / 1000;
+      const dt = Math.min(0.05, (now - lastFrameNow) / 1000);
+      lastFrameNow = now;
+
+      if (!pausedRef.current) {
+        cycleT += dt;
+      }
+      cycleTRef.current = cycleT;
+      // Allow pause snap effect to write back
+      cycleT = cycleTRef.current;
+
+      // Advance mode transition
+      modeTransitionT.current = Math.min(1, modeTransitionT.current + dt);
 
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -416,278 +465,308 @@ export default function Poster002CanvasViz() {
       const ptr = cursorRef.current;
       const tune = tuningRef.current;
 
-      // Smooth cursor position per frame (NucleusHero pattern)
+      // Smooth cursor position per frame (NucleusHero pattern) — uses real dt
       if (ptr.tx > -9000) {
         if (ptr.x < -9000) { ptr.x = ptr.tx; ptr.y = ptr.ty; }
         const prevX = ptr.x;
         const prevY = ptr.y;
         ptr.x += (ptr.tx - ptr.x) * 0.10;
         ptr.y += (ptr.ty - ptr.y) * 0.10;
-        const dt = 1 / 60; // approximate
-        ptr.speed = Math.hypot((ptr.x - prevX) / dt, (ptr.y - prevY) / dt);
+        const cursorDt = dt > 0 ? dt : 1 / 60;
+        ptr.speed = Math.hypot((ptr.x - prevX) / cursorDt, (ptr.y - prevY) / cursorDt);
         ptr.smoothSpeed += (ptr.speed - ptr.smoothSpeed) * 0.18;
       }
 
+      // Flow field time offsets use cycleT (accumulated time), not wall clock
       const k1 = tune.flowK1;
       const w1 = tune.flowW1;
-      const t1off = w1 * t;
-      const t1offY = w1 * t * 1.3;
+      const t1off = w1 * cycleT;
+      const t1offY = w1 * cycleT * 1.3;
+
+      // Mode transition multiplier for re-introduced metric
+      const modeT = modeTransitionT.current;
+      const modeFade = Math.min(1, modeT / 0.3);
 
       // ── DRAW LAND SURFACES ──
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.lineWidth = 0.5;
+      if (curMode !== 'water') {
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 0.5;
 
-      for (const form of FORMS) {
-        const isSelected = sel === form.id;
-        const isDimmed = sel !== null && !isSelected;
+        for (const form of FORMS) {
+          const isSelected = sel === form.id;
+          const isDimmed = sel !== null && !isSelected;
 
-        let landBaseAlpha: number;
-        if (curMode === 'water') {
-          landBaseAlpha = 0.10;
-        } else if (isDimmed) {
-          landBaseAlpha = 0.10;
-        } else {
-          landBaseAlpha = 1;
-        }
-
-        ctx.strokeStyle = '#217b3d';
-
-        for (const ll of form.landLines) {
-          const pts = ll.pts;
-          const n = ll.n;
-          if (n < 2) continue;
-
-          let alpha: number;
-          if (curMode === 'water' || isDimmed) {
-            alpha = landBaseAlpha;
+          let landBaseAlpha: number;
+          if (isDimmed) {
+            landBaseAlpha = 0.10;
           } else {
-            // Wave-of-appearance: growth → hold → fade → gap (synced cycle)
-            const LAND_CYCLE = tune.landGrowthDur + tune.landHoldDur + tune.landFadeDur + tune.landGapDur;
-            const appearTime = ll.distNorm * tune.landGrowthDur;
-            const localT = ((t % LAND_CYCLE) + LAND_CYCLE) % LAND_CYCLE;
-            let opacity: number;
-            if (localT < appearTime) {
-              opacity = 0;
-            } else if (localT < tune.landGrowthDur + tune.landHoldDur) {
-              const sinceAppear = localT - appearTime;
-              opacity = sinceAppear < tune.fadeInPerLine
-                ? sinceAppear / tune.fadeInPerLine
-                : 1.0;
-            } else if (localT < tune.landGrowthDur + tune.landHoldDur + tune.landFadeDur) {
-              opacity = 1 - (localT - tune.landGrowthDur - tune.landHoldDur) / tune.landFadeDur;
-            } else {
-              opacity = 0;
-            }
-            alpha = landBaseAlpha * opacity;
+            landBaseAlpha = 1;
           }
-          ctx.globalAlpha = alpha;
 
-          ctx.beginPath();
-          ctx.moveTo(pts[0], pts[1]);
-          for (let k = 1; k < n; k++) {
-            ctx.lineTo(pts[k * 2], pts[k * 2 + 1]);
+          // Apply mode transition fade when land is being re-introduced
+          if (curMode === 'combined' && prevModeRef.current === 'water') {
+            landBaseAlpha *= modeFade;
           }
-          ctx.stroke();
+
+          ctx.strokeStyle = '#217b3d';
+
+          for (const ll of form.landLines) {
+            const pts = ll.pts;
+            const n = ll.n;
+            if (n < 2) continue;
+
+            let alpha: number;
+            if (isDimmed) {
+              alpha = landBaseAlpha;
+            } else {
+              // Wave-of-appearance: growth → hold → fade → gap (synced cycle)
+              const LAND_CYCLE = tune.landGrowthDur + tune.landHoldDur + tune.landFadeDur + tune.landGapDur;
+              const appearTime = ll.distNorm * tune.landGrowthDur;
+              const localT = ((cycleT % LAND_CYCLE) + LAND_CYCLE) % LAND_CYCLE;
+              let opacity: number;
+              if (localT < appearTime) {
+                opacity = 0;
+              } else if (localT < tune.landGrowthDur + tune.landHoldDur) {
+                const sinceAppear = localT - appearTime;
+                opacity = sinceAppear < tune.fadeInPerLine
+                  ? sinceAppear / tune.fadeInPerLine
+                  : 1.0;
+              } else if (localT < tune.landGrowthDur + tune.landHoldDur + tune.landFadeDur) {
+                opacity = 1 - (localT - tune.landGrowthDur - tune.landHoldDur) / tune.landFadeDur;
+              } else {
+                opacity = 0;
+              }
+              alpha = landBaseAlpha * opacity;
+            }
+            ctx.globalAlpha = alpha;
+
+            ctx.beginPath();
+            ctx.moveTo(pts[0], pts[1]);
+            for (let k = 1; k < n; k++) {
+              ctx.lineTo(pts[k * 2], pts[k * 2 + 1]);
+            }
+            ctx.stroke();
+          }
         }
       }
 
       // ── DRAW WATER BLOBS ──
-      ctx.strokeStyle = '#1c3867';
-      ctx.lineWidth = 0.65;
-      ctx.lineCap = 'butt';
-      ctx.lineJoin = 'miter';
-      ctx.miterLimit = 2;
+      if (curMode !== 'land') {
+        ctx.strokeStyle = '#1c3867';
+        ctx.lineWidth = 0.65;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
+        ctx.miterLimit = 2;
 
-      for (const form of FORMS) {
-        const isSelected = sel === form.id;
-        const isDimmed = sel !== null && !isSelected;
-        const isLandMode = curMode === 'land';
+        for (const form of FORMS) {
+          const isSelected = sel === form.id;
+          const isDimmed = sel !== null && !isSelected;
 
-        // ── Water six-phase cycle: fall → impact → expand → hold → fade → gap ──
-        const WATER_CYCLE = tune.waterFallDur + tune.waterImpactDur + tune.waterExpandDur
-          + tune.waterHoldDur + tune.waterFadeDur + tune.waterGapDur;
-        const wLocalT = ((t % WATER_CYCLE) + WATER_CYCLE) % WATER_CYCLE;
+          // ── Water six-phase cycle: fall → impact → expand → hold → fade → gap ──
+          const WATER_CYCLE = tune.waterFallDur + tune.waterImpactDur + tune.waterExpandDur
+            + tune.waterHoldDur + tune.waterFadeDur + tune.waterGapDur;
+          const wLocalT = ((cycleT % WATER_CYCLE) + WATER_CYCLE) % WATER_CYCLE;
 
-        let waterScale: number;
-        let waterYOffset: number;
-        let waterOpacity: number;
-        let squashX = 1;
-        let squashY = 1;
-        let cursorStrength = 0;
+          let waterScale: number;
+          let waterYOffset = 0;
+          let waterOpacity: number;
+          let squashX = 1;
+          let squashY = 1;
+          let cursorStrength = 0;
 
-        const wt1 = tune.waterFallDur;
-        const wt2 = wt1 + tune.waterImpactDur;
-        const wt3 = wt2 + tune.waterExpandDur;
-        const wt4 = wt3 + tune.waterHoldDur;
-        const wt5 = wt4 + tune.waterFadeDur;
+          const wt1 = tune.waterFallDur;
+          const wt2 = wt1 + tune.waterImpactDur;
+          const wt3 = wt2 + tune.waterExpandDur;
+          const wt4 = wt3 + tune.waterHoldDur;
+          const wt5 = wt4 + tune.waterFadeDur;
 
-        if (wLocalT < wt1) {
-          // FALL: small droplet, accelerating downward (ease-in quadratic = gravity)
-          const p = wLocalT / tune.waterFallDur;
-          const eased = p * p;
-          waterScale = tune.dropletScale;
-          waterYOffset = -form.formBboxHeight * tune.waterDropHeightMul * (1 - eased);
-          waterOpacity = Math.min(1, wLocalT / 0.2);
-        } else if (wLocalT < wt2) {
-          // IMPACT: squash-stretch at rest position
-          const p = (wLocalT - wt1) / tune.waterImpactDur;
-          const subPoint = tune.squashSubDur / tune.waterImpactDur;
-          waterScale = tune.dropletScale;
-          waterYOffset = 0;
-          waterOpacity = 1;
-          if (p < subPoint) {
-            const sp = p / subPoint;
-            squashX = 1 + (tune.squashXPeak - 1) * sp;
-            squashY = 1 + (tune.squashYPeak - 1) * sp;
+          const SQUASH_FRAC = tune.impactSquashFrac;
+          const REBOUND_FRAC = tune.impactReboundFrac;
+          const bboxHeight = form.formBboxHeight;
+
+          if (wLocalT < wt1) {
+            // FALL: small droplet, accelerating downward (ease-in quadratic = gravity)
+            const p = wLocalT / tune.waterFallDur;
+            const eased = p * p;
+            waterScale = tune.dropletScale;
+            waterYOffset = -bboxHeight * tune.waterDropHeightMul * (1 - eased);
+            waterOpacity = Math.min(1, wLocalT / 0.2);
+          } else if (wLocalT < wt2) {
+            // IMPACT: three-phase squash → rebound with lift → settle
+            const p = (wLocalT - wt1) / tune.waterImpactDur;
+            waterScale = tune.dropletScale;
+            waterOpacity = 1;
+
+            if (p < SQUASH_FRAC) {
+              // Squash: (1,1) → (squashX, squashY) with ease-out
+              const sp = p / SQUASH_FRAC;
+              const easeOut = 1 - Math.pow(1 - sp, 2);
+              squashX = 1 + (tune.impactSquashX - 1) * easeOut;
+              squashY = 1 + (tune.impactSquashY - 1) * easeOut;
+              waterYOffset = 0;
+            } else if (p < SQUASH_FRAC + REBOUND_FRAC) {
+              // Rebound: (squashX, squashY) → (reboundX, reboundY) linear, with brief lift
+              const sp = (p - SQUASH_FRAC) / REBOUND_FRAC;
+              squashX = tune.impactSquashX + (tune.impactReboundX - tune.impactSquashX) * sp;
+              squashY = tune.impactSquashY + (tune.impactReboundY - tune.impactSquashY) * sp;
+              waterYOffset = -bboxHeight * tune.impactReboundLift * Math.sin(Math.PI * sp);
+            } else {
+              // Settle: (reboundX, reboundY) → (1, 1) ease-out cubic
+              const settleFrac = 1 - SQUASH_FRAC - REBOUND_FRAC;
+              const sp = (p - SQUASH_FRAC - REBOUND_FRAC) / settleFrac;
+              const easeOut = 1 - Math.pow(1 - sp, 3);
+              squashX = tune.impactReboundX + (1 - tune.impactReboundX) * easeOut;
+              squashY = tune.impactReboundY + (1 - tune.impactReboundY) * easeOut;
+              waterYOffset = 0;
+            }
+          } else if (wLocalT < wt3) {
+            // EXPAND: grow from droplet to full with elastic overshoot
+            const p = (wLocalT - wt2) / tune.waterExpandDur;
+            if (p < 0.8) {
+              waterScale = tune.dropletScale + (tune.expandOvershootPeak - tune.dropletScale) * (p / 0.8);
+            } else {
+              waterScale = tune.expandOvershootPeak + (1 - tune.expandOvershootPeak) * ((p - 0.8) / 0.2);
+            }
+            waterYOffset = 0;
+            waterOpacity = 1;
+          } else if (wLocalT < wt4) {
+            // HOLD: stable, interactive
+            waterScale = 1;
+            waterYOffset = 0;
+            waterOpacity = 1;
+            cursorStrength = 1;
+          } else if (wLocalT < wt5) {
+            // FADE
+            const p = (wLocalT - wt4) / tune.waterFadeDur;
+            waterScale = 1;
+            waterYOffset = 0;
+            waterOpacity = 1 - p;
+            cursorStrength = waterOpacity;
           } else {
-            const sp = (p - subPoint) / (1 - subPoint);
-            const eased = 1 - Math.pow(1 - sp, 2);
-            squashX = tune.squashXPeak + (1 - tune.squashXPeak) * eased;
-            squashY = tune.squashYPeak + (1 - tune.squashYPeak) * eased;
+            // GAP
+            waterScale = 0;
+            waterYOffset = 0;
+            waterOpacity = 0;
           }
-        } else if (wLocalT < wt3) {
-          // EXPAND: grow from droplet to full with elastic overshoot
-          const p = (wLocalT - wt2) / tune.waterExpandDur;
-          if (p < 0.8) {
-            waterScale = tune.dropletScale + (tune.expandOvershootPeak - tune.dropletScale) * (p / 0.8);
-          } else {
-            waterScale = tune.expandOvershootPeak + (1 - tune.expandOvershootPeak) * ((p - 0.8) / 0.2);
+
+          // Final opacity: cycle × selection × mode transition
+          let modeAlpha = 1;
+          if (curMode === 'combined' && prevModeRef.current === 'land') {
+            modeAlpha = modeFade;
           }
-          waterYOffset = 0;
-          waterOpacity = 1;
-        } else if (wLocalT < wt4) {
-          // HOLD: stable, interactive
-          waterScale = 1;
-          waterYOffset = 0;
-          waterOpacity = 1;
-          cursorStrength = 1;
-        } else if (wLocalT < wt5) {
-          // FADE
-          const p = (wLocalT - wt4) / tune.waterFadeDur;
-          waterScale = 1;
-          waterYOffset = 0;
-          waterOpacity = 1 - p;
-          cursorStrength = waterOpacity;
-        } else {
-          // GAP
-          waterScale = 0;
-          waterYOffset = 0;
-          waterOpacity = 0;
-        }
+          const selAlpha = isDimmed ? 0.10 : 1;
+          const waterBaseAlpha = waterOpacity * modeAlpha * selAlpha;
 
-        // Final opacity: cycle × mode × selection
-        const modeAlpha = isLandMode ? 0.04 : 1;
-        const selAlpha = isDimmed ? 0.10 : 1;
-        const waterBaseAlpha = waterOpacity * modeAlpha * selAlpha;
+          if (waterBaseAlpha < 0.001 || waterScale < 0.001) continue; // skip invisible forms
 
-        if (waterBaseAlpha < 0.001 || waterScale < 0.001) continue; // skip invisible forms
-
-        // Per-form cursor bulge parameters (form-local coords)
-        let cursorActive = false;
-        let cuxLocal = 0;
-        let cuyLocal = 0;
-        let cursorBulgeAmp = 0;
-        let sigma = 1;
-        if (!isLandMode && cursorStrength > 0 && ptr.x > -9000) {
-          const halfMaxDim = form.formBboxMaxDim / 2;
-          const reach = halfMaxDim * (1 + tune.cursorFalloffPad);
-          cuxLocal = ptr.x - form.formCentroid[0];
-          cuyLocal = ptr.y - form.formCentroid[1];
-          const cursorDist = Math.hypot(cuxLocal, cuyLocal);
-          if (cursorDist < reach) {
-            const falloff = 1 - cursorDist / reach;
-            const normSpeed = Math.min(
-              1,
-              Math.max(0, (ptr.smoothSpeed / 1000 - TUNING_LIQUID.cursorSpeedFloor) /
-                (TUNING_LIQUID.cursorSpeedSat - TUNING_LIQUID.cursorSpeedFloor)),
-            );
-            cursorBulgeAmp = tune.cursorAmpMax * falloff * normSpeed * cursorStrength;
-            sigma = halfMaxDim * tune.cursorSigmaMul;
-            cursorActive = cursorBulgeAmp > 0.01;
+          // Per-form cursor bulge parameters (form-local coords)
+          let cursorActive = false;
+          let cuxLocal = 0;
+          let cuyLocal = 0;
+          let cursorBulgeAmp = 0;
+          let sigma = 1;
+          if (cursorStrength > 0 && ptr.x > -9000) {
+            const halfMaxDim = form.formBboxMaxDim / 2;
+            const reach = halfMaxDim * (1 + tune.cursorFalloffPad);
+            cuxLocal = ptr.x - form.formCentroid[0];
+            cuyLocal = ptr.y - form.formCentroid[1];
+            const cursorDist = Math.hypot(cuxLocal, cuyLocal);
+            if (cursorDist < reach) {
+              const falloff = 1 - cursorDist / reach;
+              const normSpeed = Math.min(
+                1,
+                Math.max(0, (ptr.smoothSpeed / 1000 - TUNING_LIQUID.cursorSpeedFloor) /
+                  (TUNING_LIQUID.cursorSpeedSat - TUNING_LIQUID.cursorSpeedFloor)),
+              );
+              cursorBulgeAmp = tune.cursorAmpMax * falloff * normSpeed * cursorStrength;
+              sigma = halfMaxDim * tune.cursorSigmaMul;
+              cursorActive = cursorBulgeAmp > 0.01;
+            }
           }
-        }
 
-        const flowAmp = (isLandMode || waterScale < 0.5) ? 0 : tune.flowAmp;
-        const N = form.waterLines.length;
-        const cx = form.formCentroid[0];
-        const cy = form.formCentroid[1];
-        const sigmaInv2 = 1 / (2 * sigma * sigma);
+          const flowAmp = waterScale < 0.5 ? 0 : tune.flowAmp;
+          const N = form.waterLines.length;
+          const cx = form.formCentroid[0];
+          const anchorX = form.formCentroid[0];
+          const anchorY = form.formBboxMaxY;
+          const sigmaInv2 = 1 / (2 * sigma * sigma);
 
-        // Apply drop transform around form centroid (with squash-stretch)
-        ctx.save();
-        ctx.translate(cx, cy + waterYOffset);
-        ctx.scale(waterScale * squashX, waterScale * squashY);
-        ctx.translate(-cx, -cy);
+          // Apply drop transform anchored at bottom of form bbox (with squash-stretch)
+          ctx.save();
+          ctx.translate(anchorX, anchorY + waterYOffset);
+          ctx.scale(waterScale * squashX, waterScale * squashY);
+          ctx.translate(-anchorX, -anchorY);
 
-        // Bucket-batched strokes
-        for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
-          const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
-          ctx.globalAlpha = waterBaseAlpha * (0.5 + 0.5 * (1 - bucketDepthMid));
+          // Bucket-batched strokes
+          for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
+            const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
+            ctx.globalAlpha = waterBaseAlpha * (0.5 + 0.5 * (1 - bucketDepthMid));
 
-          ctx.beginPath();
+            ctx.beginPath();
 
-          for (let li = 0; li < N; li++) {
-            const line = form.waterLines[li];
-            const lineBucket = Math.min(
-              NUM_BUCKETS - 1,
-              Math.floor(line.depth * NUM_BUCKETS),
-            );
-            if (lineBucket !== bucket) continue;
+            for (let li = 0; li < N; li++) {
+              const line = form.waterLines[li];
+              const lineBucket = Math.min(
+                NUM_BUCKETS - 1,
+                Math.floor(line.depth * NUM_BUCKETS),
+              );
+              if (lineBucket !== bucket) continue;
 
-            // Outline — static
-            if (line.path !== null || isLandMode) {
+              // Outline — static
+              if (line.path !== null) {
+                const pts = line.pts;
+                const n = line.n;
+                if (n < 2) continue;
+                ctx.moveTo(pts[0], pts[1]);
+                for (let kk = 1; kk < n; kk++) {
+                  ctx.lineTo(pts[kk * 2], pts[kk * 2 + 1]);
+                }
+                continue;
+              }
+
+              // Interior — flow field + per-point cursor bulge
               const pts = line.pts;
               const n = line.n;
               if (n < 2) continue;
-              ctx.moveTo(pts[0], pts[1]);
-              for (let kk = 1; kk < n; kk++) {
-                ctx.lineTo(pts[kk * 2], pts[kk * 2 + 1]);
-              }
-              continue;
-            }
+              const a = flowAmp * line.dw;
+              const ca = cursorActive ? cursorBulgeAmp * line.dw : 0;
 
-            // Interior — flow field + per-point cursor bulge
-            const pts = line.pts;
-            const n = line.n;
-            if (n < 2) continue;
-            const a = flowAmp * line.dw;
-            const ca = cursorActive ? cursorBulgeAmp * line.dw : 0;
+              for (let kk = 0; kk < n; kk++) {
+                const x = pts[kk * 2];
+                const y = pts[kk * 2 + 1];
 
-            for (let kk = 0; kk < n; kk++) {
-              const x = pts[kk * 2];
-              const y = pts[kk * 2 + 1];
+                // Flow field displacement
+                const ax1 = k1 * x + t1off;
+                const ay1 = k1 * y + t1offY;
+                let dx = a * Math.sin(ax1) * Math.cos(ay1);
+                let dy = a * (-Math.cos(ax1) * Math.sin(ay1));
 
-              // Flow field displacement
-              const ax1 = k1 * x + t1off;
-              const ay1 = k1 * y + t1offY;
-              let dx = a * Math.sin(ax1) * Math.cos(ay1);
-              let dy = a * (-Math.cos(ax1) * Math.sin(ay1));
+                // Per-point cursor bulge (form-local Gaussian push)
+                if (ca > 0) {
+                  const plx = (x - cx) - cuxLocal;
+                  const ply = (y - form.formCentroid[1]) - cuyLocal;
+                  const distSq = plx * plx + ply * ply;
+                  const g = Math.exp(-distSq * sigmaInv2);
+                  const distLen = Math.sqrt(distSq) + 1e-3;
+                  const push = g * ca;
+                  dx += (plx / distLen) * push;
+                  dy += (ply / distLen) * push;
+                }
 
-              // Per-point cursor bulge (form-local Gaussian push)
-              if (ca > 0) {
-                const plx = (x - cx) - cuxLocal;
-                const ply = (y - cy) - cuyLocal;
-                const distSq = plx * plx + ply * ply;
-                const g = Math.exp(-distSq * sigmaInv2);
-                const distLen = Math.sqrt(distSq) + 1e-3;
-                const push = g * ca;
-                dx += (plx / distLen) * push;
-                dy += (ply / distLen) * push;
-              }
-
-              if (kk === 0) {
-                ctx.moveTo(x + dx, y + dy);
-              } else {
-                ctx.lineTo(x + dx, y + dy);
+                if (kk === 0) {
+                  ctx.moveTo(x + dx, y + dy);
+                } else {
+                  ctx.lineTo(x + dx, y + dy);
+                }
               }
             }
+
+            ctx.stroke();
           }
 
-          ctx.stroke();
+          ctx.restore(); // end drop transform
         }
-
-        ctx.restore(); // end drop transform
       }
 
       rafId = requestAnimationFrame(frame);
@@ -704,12 +783,12 @@ export default function Poster002CanvasViz() {
   const overlayStyle = useMemo(() => {
     const base: Record<string, string> = {};
     if (mode === 'land') {
-      base['--water-val-opacity'] = '0.04';
-      base['--annotation-opacity'] = '0.10';
+      base['--water-val-opacity'] = '0';
+      base['--annotation-opacity'] = '0';
       base['--land-val-opacity'] = '1';
     } else if (mode === 'water') {
-      base['--land-val-opacity'] = '0.20';
-      base['--annotation-opacity'] = '0.10';
+      base['--land-val-opacity'] = '0';
+      base['--annotation-opacity'] = '0';
       base['--water-val-opacity'] = '1';
     } else {
       base['--water-val-opacity'] = '1';
@@ -755,22 +834,27 @@ export default function Poster002CanvasViz() {
             ['cursorAmpMax', 0, 100],
             ['cursorFalloffPad', 0, 0.5],
             ['cursorSigmaMul', 0.3, 3],
-            ['landGrowthDur', 0.5, 6],
-            ['landHoldDur', 2, 10],
+            ['landGrowthDur', 0.5, 8],
+            ['landHoldDur', 2, 12],
             ['landFadeDur', 0.5, 3],
             ['landGapDur', 0, 2],
             ['fadeInPerLine', 0, 1],
-            ['waterFallDur', 0.5, 3],
-            ['waterImpactDur', 0.1, 1],
-            ['waterExpandDur', 0.5, 3],
-            ['waterHoldDur', 2, 10],
+            ['waterFallDur', 0.5, 4],
+            ['waterImpactDur', 0.1, 2],
+            ['waterExpandDur', 0.5, 4],
+            ['waterHoldDur', 2, 12],
             ['waterFadeDur', 0.5, 3],
             ['waterGapDur', 0, 2],
             ['waterDropHeightMul', 0.2, 1.5],
             ['dropletScale', 0.05, 0.4],
             ['expandOvershootPeak', 1.0, 1.2],
-            ['squashXPeak', 1.0, 1.6],
-            ['squashYPeak', 0.4, 1.0],
+            ['impactSquashX', 1.0, 1.8],
+            ['impactSquashY', 0.3, 1.0],
+            ['impactReboundX', 0.5, 1.0],
+            ['impactReboundY', 1.0, 1.5],
+            ['impactReboundLift', 0, 0.2],
+            ['impactSquashFrac', 0.1, 0.5],
+            ['impactReboundFrac', 0.1, 0.6],
           ] as [keyof typeof tuningRef.current, number, number][]).map(
             ([key, min, max]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -842,8 +926,8 @@ export default function Poster002CanvasViz() {
         ))}
       </div>
 
-      {/* Source legend */}
-      <div className="mt-3 flex flex-wrap gap-2 justify-center">
+      {/* Source legend + pause/play */}
+      <div className="mt-3 flex flex-wrap gap-2 justify-center items-center">
         {REGIONS.map((r) => (
           <button
             key={r.id}
@@ -873,6 +957,13 @@ export default function Poster002CanvasViz() {
             {r.name}
           </button>
         ))}
+        <button
+          onClick={() => setPaused((p) => !p)}
+          className="px-2 py-1.5 rounded-sm border border-border/50 hover:border-foreground/50 transition-all duration-200 cursor-pointer flex items-center justify-center"
+          aria-label={paused ? 'Resume animation' : 'Pause animation'}
+        >
+          {paused ? <Play size={14} /> : <Pause size={14} />}
+        </button>
       </div>
 
       {/* Info panel */}
@@ -918,9 +1009,11 @@ export default function Poster002CanvasViz() {
         className="text-center text-sm text-muted-foreground mt-3"
         style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
-        {selected
-          ? 'Tap the same legend button or another to deselect'
-          : 'Tap a legend button to highlight a source'}
+        {paused
+          ? 'Animation paused \u2014 click \u25b6 to resume'
+          : selected
+            ? 'Tap the same legend button or another to deselect'
+            : 'Tap a legend button to highlight a source'}
       </p>
     </div>
   );
