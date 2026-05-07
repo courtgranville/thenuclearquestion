@@ -272,11 +272,6 @@
   color: var(--foreground);
   text-align: left;
   max-width: 16ch;
-  margin-bottom: -2px;
-}
-.fission-hint-line {
-  width: 220px;
-  height: 80px;
 }
 @media (max-width: 900px) {
   .fission-hint { display: none; }
