@@ -3,7 +3,6 @@ import { buildPolylines, type BBox } from '@/lib/parseSvg';
 import {
   TUNING_LIQUID,
   depthWeightLiquid,
-  cursorInfluence,
 } from '@/lib/posterMotionLiquid';
 import formsData from '@/assets/poster-002-forms.json';
 
@@ -217,7 +216,8 @@ function stripCanvasGroups(svgText: string): string {
   const svg = doc.querySelector('svg');
   if (!svg) return svgText;
   svg.querySelectorAll('g[id^="form-"]').forEach((el) => el.remove());
-  svg.querySelectorAll('g[id^="land-"]').forEach((el) => el.remove());
+  // Strip land-* geometry groups but keep land-val-*, land-rect-* overlay elements
+  svg.querySelectorAll('g[id^="land-"]:not([id^="land-val-"]):not([id^="land-rect-"])').forEach((el) => el.remove());
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', '100%');
   svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -245,8 +245,8 @@ export default function Poster002CanvasViz() {
   const modeRef = useRef<Mode>('combined');
   modeRef.current = mode;
 
-  // Cursor tracking
-  const cursorRef = useRef({ x: -9999, y: -9999, vx: 0, vy: 0, speed: 0 });
+  // Cursor tracking — tx/ty are raw target, x/y are smoothed (eased per frame)
+  const cursorRef = useRef({ x: -9999, y: -9999, tx: -9999, ty: -9999, speed: 0, smoothSpeed: 0 });
   const transformRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 
   // Dev-only tuning refs
@@ -254,10 +254,13 @@ export default function Poster002CanvasViz() {
     flowAmp: TUNING_LIQUID.flowAmp,
     flowK1: TUNING_LIQUID.flowK1,
     flowW1: TUNING_LIQUID.flowW1,
-    rippleW: TUNING_LIQUID.rippleW,
-    rippleK: TUNING_LIQUID.rippleK,
     cursorAmpMax: TUNING_LIQUID.cursorAmpMax,
     cursorFalloffPad: TUNING_LIQUID.cursorFalloffPad,
+    cycleLen: 7.0,
+    drawDur: 1.0,
+    holdDur: 4.5,
+    fadeDur: 1.5,
+    phaseCoeff: 0.015,
   });
 
   // Dev FPS counter
@@ -300,47 +303,28 @@ export default function Poster002CanvasViz() {
     return () => { cancelled = true; };
   }, []);
 
-  // Pointer tracking
+  // Pointer tracking — writes to tx/ty; RAF loop smooths to x/y
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    let prevX = -9999;
-    let prevY = -9999;
-    let prevTime = 0;
 
     const onMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
       const px = e.clientX - r.left;
       const py = e.clientY - r.top;
-
-      // Convert to SVG coords
       const tf = transformRef.current;
-      const svgX = (px - tf.offsetX) / tf.scale;
-      const svgY = (py - tf.offsetY) / tf.scale;
-
-      const now = performance.now();
-      const dt = Math.max((now - prevTime) / 1000, 0.001);
-      const vx = prevX > -9000 ? (svgX - prevX) / dt : 0;
-      const vy = prevY > -9000 ? (svgY - prevY) / dt : 0;
-
-      // Smooth speed
-      const rawSpeed = Math.hypot(vx, vy);
-      const cur = cursorRef.current;
-      cur.x = svgX;
-      cur.y = svgY;
-      cur.vx = vx;
-      cur.vy = vy;
-      cur.speed = cur.speed * 0.7 + rawSpeed * 0.3;
-
-      prevX = svgX;
-      prevY = svgY;
-      prevTime = now;
+      cursorRef.current.tx = (px - tf.offsetX) / tf.scale;
+      cursorRef.current.ty = (py - tf.offsetY) / tf.scale;
     };
 
     const onLeave = () => {
-      cursorRef.current.x = -9999;
-      cursorRef.current.y = -9999;
-      cursorRef.current.speed = 0;
+      const cur = cursorRef.current;
+      cur.tx = -9999;
+      cur.ty = -9999;
+      cur.x = -9999;
+      cur.y = -9999;
+      cur.speed = 0;
+      cur.smoothSpeed = 0;
     };
 
     container.addEventListener('pointermove', onMove);
@@ -398,8 +382,20 @@ export default function Poster002CanvasViz() {
 
       const sel = selectedRef.current;
       const curMode = modeRef.current;
-      const cursor = cursorRef.current;
+      const ptr = cursorRef.current;
       const tune = tuningRef.current;
+
+      // Smooth cursor position per frame (NucleusHero pattern)
+      if (ptr.tx > -9000) {
+        if (ptr.x < -9000) { ptr.x = ptr.tx; ptr.y = ptr.ty; }
+        const prevX = ptr.x;
+        const prevY = ptr.y;
+        ptr.x += (ptr.tx - ptr.x) * 0.10;
+        ptr.y += (ptr.ty - ptr.y) * 0.10;
+        const dt = 1 / 60; // approximate
+        ptr.speed = Math.hypot((ptr.x - prevX) / dt, (ptr.y - prevY) / dt);
+        ptr.smoothSpeed += (ptr.speed - ptr.smoothSpeed) * 0.18;
+      }
 
       const k1 = tune.flowK1;
       const w1 = tune.flowW1;
@@ -435,8 +431,20 @@ export default function Poster002CanvasViz() {
           if (curMode === 'water' || isDimmed) {
             alpha = landBaseAlpha;
           } else {
-            // Ripple
-            alpha = landBaseAlpha * (0.5 + 0.5 * Math.sin(t * tune.rippleW - ll.dist * tune.rippleK));
+            // Draw-on → hold → fade-out cycle
+            const phaseShift = ll.dist * tune.phaseCoeff;
+            const localT = ((t + phaseShift) % tune.cycleLen + tune.cycleLen) % tune.cycleLen;
+            let opacity: number;
+            if (localT < tune.drawDur) {
+              opacity = localT / tune.drawDur;
+            } else if (localT < tune.drawDur + tune.holdDur) {
+              opacity = 1.0;
+            } else if (localT < tune.drawDur + tune.holdDur + tune.fadeDur) {
+              opacity = 1 - (localT - tune.drawDur - tune.holdDur) / tune.fadeDur;
+            } else {
+              opacity = 0;
+            }
+            alpha = landBaseAlpha * opacity;
           }
           ctx.globalAlpha = alpha;
 
@@ -450,7 +458,7 @@ export default function Poster002CanvasViz() {
       }
 
       // ── DRAW WATER BLOBS ──
-      ctx.strokeStyle = '#0d1a1e';
+      ctx.strokeStyle = '#1c3867';
       ctx.lineWidth = 0.65;
       ctx.lineCap = 'butt';
       ctx.lineJoin = 'miter';
@@ -470,34 +478,36 @@ export default function Poster002CanvasViz() {
           waterBaseAlpha = 1;
         }
 
-        // Cursor influence for this form
-        let cursorAmp = 0;
-        let cursorDx = 0;
-        let cursorDy = 0;
-        if (!isLandMode && cursor.x > -9000) {
-          const influence = cursorInfluence(
-            cursor.x, cursor.y,
-            form.formCentroid[0], form.formCentroid[1],
-            form.formBboxMaxDim,
-          );
-          if (influence > 0.001) {
+        // Per-form cursor bulge parameters (form-local coords)
+        let cursorActive = false;
+        let cuxLocal = 0;
+        let cuyLocal = 0;
+        let cursorBulgeAmp = 0;
+        let sigma = 1;
+        if (!isLandMode && ptr.x > -9000) {
+          const halfMaxDim = form.formBboxMaxDim / 2;
+          const reach = halfMaxDim * (1 + tune.cursorFalloffPad);
+          cuxLocal = ptr.x - form.formCentroid[0];
+          cuyLocal = ptr.y - form.formCentroid[1];
+          const cursorDist = Math.hypot(cuxLocal, cuyLocal);
+          if (cursorDist < reach) {
+            const falloff = 1 - cursorDist / reach;
             const normSpeed = Math.min(
               1,
-              Math.max(0, (cursor.speed / 1000 - TUNING_LIQUID.cursorSpeedFloor) /
+              Math.max(0, (ptr.smoothSpeed / 1000 - TUNING_LIQUID.cursorSpeedFloor) /
                 (TUNING_LIQUID.cursorSpeedSat - TUNING_LIQUID.cursorSpeedFloor)),
             );
-            cursorAmp = tune.cursorAmpMax * influence * normSpeed;
-            const cdist = Math.hypot(
-              cursor.x - form.formCentroid[0],
-              cursor.y - form.formCentroid[1],
-            ) || 1;
-            cursorDx = (cursor.x - form.formCentroid[0]) / cdist;
-            cursorDy = (cursor.y - form.formCentroid[1]) / cdist;
+            cursorBulgeAmp = tune.cursorAmpMax * falloff * normSpeed;
+            sigma = halfMaxDim * 0.75;
+            cursorActive = cursorBulgeAmp > 0.01;
           }
         }
 
         const flowAmp = isLandMode ? 0 : tune.flowAmp;
         const N = form.waterLines.length;
+        const cx = form.formCentroid[0];
+        const cy = form.formCentroid[1];
+        const sigmaInv2 = 1 / (2 * sigma * sigma);
 
         // Bucket-batched strokes
         for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
@@ -526,30 +536,40 @@ export default function Poster002CanvasViz() {
               continue;
             }
 
-            // Interior — flow field + cursor displacement
+            // Interior — flow field + per-point cursor bulge
             const pts = line.pts;
             const n = line.n;
             if (n < 2) continue;
             const a = flowAmp * line.dw;
-            const ca = cursorAmp * line.dw;
+            const ca = cursorActive ? cursorBulgeAmp * line.dw : 0;
 
-            {
-              const x = pts[0];
-              const y = pts[1];
-              const ax1 = k1 * x + t1off;
-              const ay1 = k1 * y + t1offY;
-              const dx = a * Math.sin(ax1) * Math.cos(ay1) + ca * cursorDx;
-              const dy = a * (-Math.cos(ax1) * Math.sin(ay1)) + ca * cursorDy;
-              ctx.moveTo(x + dx, y + dy);
-            }
-            for (let kk = 1; kk < n; kk++) {
+            for (let kk = 0; kk < n; kk++) {
               const x = pts[kk * 2];
               const y = pts[kk * 2 + 1];
+
+              // Flow field displacement
               const ax1 = k1 * x + t1off;
               const ay1 = k1 * y + t1offY;
-              const dx = a * Math.sin(ax1) * Math.cos(ay1) + ca * cursorDx;
-              const dy = a * (-Math.cos(ax1) * Math.sin(ay1)) + ca * cursorDy;
-              ctx.lineTo(x + dx, y + dy);
+              let dx = a * Math.sin(ax1) * Math.cos(ay1);
+              let dy = a * (-Math.cos(ax1) * Math.sin(ay1));
+
+              // Per-point cursor bulge (form-local Gaussian push)
+              if (ca > 0) {
+                const plx = (x - cx) - cuxLocal;
+                const ply = (y - cy) - cuyLocal;
+                const distSq = plx * plx + ply * ply;
+                const g = Math.exp(-distSq * sigmaInv2);
+                const distLen = Math.sqrt(distSq) + 1e-3;
+                const push = g * ca;
+                dx += (plx / distLen) * push;
+                dy += (ply / distLen) * push;
+              }
+
+              if (kk === 0) {
+                ctx.moveTo(x + dx, y + dy);
+              } else {
+                ctx.lineTo(x + dx, y + dy);
+              }
             }
           }
 
@@ -619,10 +639,13 @@ export default function Poster002CanvasViz() {
             ['flowAmp', 0, 20],
             ['flowK1', 0, 0.03],
             ['flowW1', 0, 1],
-            ['rippleW', 0, 4],
-            ['rippleK', 0, 0.05],
             ['cursorAmpMax', 0, 100],
             ['cursorFalloffPad', 0, 0.5],
+            ['cycleLen', 2, 15],
+            ['drawDur', 0.1, 3],
+            ['holdDur', 1, 10],
+            ['fadeDur', 0.1, 4],
+            ['phaseCoeff', 0, 0.05],
           ] as [keyof typeof tuningRef.current, number, number][]).map(
             ([key, min, max]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
