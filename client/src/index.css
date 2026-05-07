@@ -229,8 +229,10 @@
 .hero-icon {
   position: relative;
   width: 100vw;
-  height: min(50dvh, 540px);
-  margin-bottom: 12px;
+  flex: 1 1 auto;
+  min-height: 320px;
+  max-height: 760px;
+  margin-bottom: 16px;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
   background: transparent;
@@ -259,7 +261,8 @@
   letter-spacing: .22em;
   text-transform: uppercase;
   color: var(--muted-foreground);
-  margin-bottom: 20px;
+  margin-top: 16px;
+  margin-bottom: 16px;
 }
 
 .hero-title {
@@ -275,7 +278,7 @@
 }
 
 .hero-body {
-  margin: 24px 0 0;
+  margin: 16px 0 0;
   max-width: 72ch;
   font-family: 'Playfair', serif;
   font-weight: 300;
@@ -286,7 +289,7 @@
 .hero-body p { margin: 0; }
 
 .hero-sig {
-  margin-top: 32px;
+  margin-top: 24px;
   font-family: 'Playfair Display', serif;
   font-weight: 400;
   font-style: italic;
