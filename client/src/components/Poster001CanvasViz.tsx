@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buildPolylines, type Polyline, type BBox } from '@/lib/parseSvg';
-import { resolveMotion, applyMotion, type FormMotion } from '@/lib/posterMotion';
+import { buildPolylines, type BBox } from '@/lib/parseSvg';
+import { resolveMotion, initLineMotion, applyLineMotion, type FormMotion } from '@/lib/posterMotion';
 import formsData from '@/assets/poster-001-forms.json';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -130,14 +130,35 @@ const SVG_VIEW_H = 1674.75;
 
 // ─────────────────────────────────────────────────────────────────────
 // Pre-parse all form polylines + resolve motion ONCE at module level.
+// Path2D objects are pre-built so the RAF loop only calls stroke().
 // ─────────────────────────────────────────────────────────────────────
+
+interface PreparedLine {
+  path: Path2D;   // pre-built once at init
+  n: number;      // point count (kept for debug)
+}
 
 interface PreparedForm {
   id: string;
-  polylines: Polyline[];
+  lines: PreparedLine[];
   bbox: BBox;
   centroid: [number, number];
   motion: FormMotion;
+  outward: [number, number];  // unit vector from SVG centre to centroid
+}
+
+// SVG centre point for computing per-form outward direction.
+const SVG_CENTRE_X = SVG_VIEW_W / 2;
+const SVG_CENTRE_Y = SVG_VIEW_H / 2;
+
+function buildPath(pts: Float32Array, n: number): Path2D {
+  const p = new Path2D();
+  if (n < 2) return p;
+  p.moveTo(pts[0], pts[1]);
+  for (let k = 1; k < n; k++) {
+    p.lineTo(pts[k * 2], pts[k * 2 + 1]);
+  }
+  return p;
 }
 
 const FORMS: PreparedForm[] = Object.entries(
@@ -152,12 +173,26 @@ const FORMS: PreparedForm[] = Object.entries(
   >,
 ).map(([id, data]) => {
   const { polylines, bbox } = buildPolylines(data.paths);
+  const lines: PreparedLine[] = polylines.map((L) => ({
+    path: buildPath(L.pts, L.n),
+    n: L.n,
+  }));
+  const motion = resolveMotion(data.emissions);
+  initLineMotion(motion, lines.length);
+
+  // Outward direction: unit vector from SVG centre to form centroid.
+  const dx = data.centroid[0] - SVG_CENTRE_X;
+  const dy = data.centroid[1] - SVG_CENTRE_Y;
+  const len = Math.hypot(dx, dy) || 1;
+  const outward: [number, number] = [dx / len, dy / len];
+
   return {
     id,
-    polylines,
+    lines,
     bbox,
     centroid: data.centroid,
-    motion: resolveMotion(data.emissions),
+    motion,
+    outward,
   };
 });
 
@@ -287,45 +322,37 @@ export default function Poster001CanvasViz() {
         const isDimmed = sel !== null && !isSelected;
         const baseAlpha = isDimmed ? 0.08 : 1;
 
-        const motion = applyMotion(form.motion, t);
-
-        ctx.save();
-        ctx.translate(form.centroid[0], form.centroid[1]);
-        ctx.scale(motion.scale, motion.scale);
-        ctx.translate(-form.centroid[0], -form.centroid[1]);
-        ctx.translate(motion.offsetX, motion.offsetY);
-
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = '#0d1a1e';
         ctx.lineWidth = 0.5;
 
-        const N = form.polylines.length;
+        const N = form.lines.length;
         for (let li = 0; li < N; li++) {
-          const L = form.polylines[li];
-          const pts = L.pts;
-          const n = L.n;
-          if (n < 2) continue;
-
+          const line = form.lines[li];
           const depth = N > 1 ? li / (N - 1) : 0;
+
+          // Line-level alpha: outline is brightest, interior fades.
           ctx.globalAlpha = baseAlpha * (0.5 + 0.5 * (1 - depth));
 
-          const jx =
-            form.motion.jitterAmp *
-            Math.sin(t * 0.43 + li * 0.91 + form.motion.phaseDrift);
-          const jy =
-            form.motion.jitterAmp *
-            Math.cos(t * 0.37 + li * 0.71 + form.motion.phaseDrift);
+          const { offsetX, offsetY } = applyLineMotion(
+            form.motion,
+            li,
+            depth,
+            t,
+            form.outward,
+          );
 
-          ctx.beginPath();
-          ctx.moveTo(pts[0] + jx, pts[1] + jy);
-          for (let k = 1; k < n; k++) {
-            ctx.lineTo(pts[k * 2] + jx, pts[k * 2 + 1] + jy);
+          if (offsetX === 0 && offsetY === 0) {
+            // Outline lines: stroke without translation.
+            ctx.stroke(line.path);
+          } else {
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.stroke(line.path);
+            ctx.restore();
           }
-          ctx.stroke();
         }
-
-        ctx.restore();
       }
 
       rafId = requestAnimationFrame(frame);
