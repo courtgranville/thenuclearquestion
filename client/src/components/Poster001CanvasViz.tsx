@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { buildPolylines, type BBox } from '@/lib/parseSvg';
-import { resolveMotion, initLineMotion, applyLineMotion, type FormMotion } from '@/lib/posterMotion';
+import {
+  resolveMotion,
+  depthWeight,
+  TUNING,
+  type FormMotion,
+} from '@/lib/posterMotion';
 import formsData from '@/assets/poster-001-forms.json';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -130,12 +135,18 @@ const SVG_VIEW_H = 1674.75;
 
 // ─────────────────────────────────────────────────────────────────────
 // Pre-parse all form polylines + resolve motion ONCE at module level.
-// Path2D objects are pre-built so the RAF loop only calls stroke().
+// Path2D objects are pre-built for OUTLINE lines only (depth < threshold).
+// Interior lines keep raw Float32Array points for per-frame deformation.
 // ─────────────────────────────────────────────────────────────────────
 
 interface PreparedLine {
-  path: Path2D;   // pre-built once at init
-  n: number;      // point count (kept for debug)
+  // For outline lines (dw === 0): pre-built Path2D.
+  // For interior lines: null, and pts/n carry the data instead.
+  path: Path2D | null;
+  pts: Float32Array;
+  n: number;
+  depth: number;
+  dw: number;        // pre-computed depthWeight, used per-frame
 }
 
 interface PreparedForm {
@@ -144,12 +155,7 @@ interface PreparedForm {
   bbox: BBox;
   centroid: [number, number];
   motion: FormMotion;
-  outward: [number, number];  // unit vector from SVG centre to centroid
 }
-
-// SVG centre point for computing per-form outward direction.
-const SVG_CENTRE_X = SVG_VIEW_W / 2;
-const SVG_CENTRE_Y = SVG_VIEW_H / 2;
 
 function buildPath(pts: Float32Array, n: number): Path2D {
   const p = new Path2D();
@@ -173,26 +179,24 @@ const FORMS: PreparedForm[] = Object.entries(
   >,
 ).map(([id, data]) => {
   const { polylines, bbox } = buildPolylines(data.paths);
-  const lines: PreparedLine[] = polylines.map((L) => ({
-    path: buildPath(L.pts, L.n),
-    n: L.n,
-  }));
-  const motion = resolveMotion(data.emissions);
-  initLineMotion(motion, lines.length);
-
-  // Outward direction: unit vector from SVG centre to form centroid.
-  const dx = data.centroid[0] - SVG_CENTRE_X;
-  const dy = data.centroid[1] - SVG_CENTRE_Y;
-  const len = Math.hypot(dx, dy) || 1;
-  const outward: [number, number] = [dx / len, dy / len];
-
+  const N = polylines.length;
+  const lines: PreparedLine[] = polylines.map((L, li) => {
+    const depth = N > 1 ? li / (N - 1) : 0;
+    const dw = depthWeight(depth);
+    return {
+      path: dw === 0 ? buildPath(L.pts, L.n) : null,
+      pts: L.pts,
+      n: L.n,
+      depth,
+      dw,
+    };
+  });
   return {
     id,
     lines,
     bbox,
     centroid: data.centroid,
-    motion,
-    outward,
+    motion: resolveMotion(data.emissions),
   };
 });
 
@@ -317,6 +321,14 @@ export default function Poster001CanvasViz() {
 
       const sel = selectedRef.current;
 
+      // Pull TUNING locals into the closure so the hot loop can hit
+      // them without property access overhead.
+      const k1 = TUNING.flowK1;
+      const w1 = TUNING.flowW1;
+      const k2 = TUNING.flowK2;
+      const w2 = TUNING.flowW2;
+      const a2w = TUNING.flowAmp2Weight;
+
       for (const form of FORMS) {
         const isSelected = sel === form.id;
         const isDimmed = sel !== null && !isSelected;
@@ -327,31 +339,67 @@ export default function Poster001CanvasViz() {
         ctx.strokeStyle = '#0d1a1e';
         ctx.lineWidth = 0.5;
 
+        const flowAmp = form.motion.flowAmp;
         const N = form.lines.length;
+
+        // Pre-compute time-dependent phase offsets once per form per frame.
+        const t1off = w1 * t;
+        const t1offY = w1 * t * 1.3;
+        const t2off = w2 * t * 1.7;
+        const t2offY = w2 * t * 0.7;
+
         for (let li = 0; li < N; li++) {
           const line = form.lines[li];
-          const depth = N > 1 ? li / (N - 1) : 0;
 
-          // Line-level alpha: outline is brightest, interior fades.
-          ctx.globalAlpha = baseAlpha * (0.5 + 0.5 * (1 - depth));
+          // Line-level alpha: outline brightest, interior fades.
+          ctx.globalAlpha = baseAlpha * (0.5 + 0.5 * (1 - line.depth));
 
-          const { offsetX, offsetY } = applyLineMotion(
-            form.motion,
-            li,
-            depth,
-            t,
-            form.outward,
-          );
-
-          if (offsetX === 0 && offsetY === 0) {
-            // Outline lines: stroke without translation.
+          if (line.path !== null) {
+            // Outline line: stroke pre-built path. No per-point work.
             ctx.stroke(line.path);
-          } else {
-            ctx.save();
-            ctx.translate(offsetX, offsetY);
-            ctx.stroke(line.path);
-            ctx.restore();
+            continue;
           }
+
+          // Interior line: per-point flow displacement.
+          const pts = line.pts;
+          const n = line.n;
+          if (n < 2) continue;
+
+          const a = flowAmp * line.dw;
+
+          ctx.beginPath();
+          // First point.
+          {
+            const x = pts[0];
+            const y = pts[1];
+            const ax1 = k1 * x + t1off;
+            const ay1 = k1 * y + t1offY;
+            const ax2 = k2 * x + t2off;
+            const ay2 = k2 * y + t2offY;
+            const dx =
+              Math.sin(ax1) * Math.cos(ay1) +
+              a2w * Math.sin(ax2) * Math.cos(ay2);
+            const dy =
+              -Math.cos(ax1) * Math.sin(ay1) -
+              a2w * Math.cos(ax2) * Math.sin(ay2);
+            ctx.moveTo(x + a * dx, y + a * dy);
+          }
+          for (let k = 1; k < n; k++) {
+            const x = pts[k * 2];
+            const y = pts[k * 2 + 1];
+            const ax1 = k1 * x + t1off;
+            const ay1 = k1 * y + t1offY;
+            const ax2 = k2 * x + t2off;
+            const ay2 = k2 * y + t2offY;
+            const dx =
+              Math.sin(ax1) * Math.cos(ay1) +
+              a2w * Math.sin(ax2) * Math.cos(ay2);
+            const dy =
+              -Math.cos(ax1) * Math.sin(ay1) -
+              a2w * Math.cos(ax2) * Math.sin(ay2);
+            ctx.lineTo(x + a * dx, y + a * dy);
+          }
+          ctx.stroke();
         }
       }
 
