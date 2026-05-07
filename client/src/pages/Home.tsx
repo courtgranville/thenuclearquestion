@@ -98,28 +98,24 @@ export default function Home() {
                       transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] as const }}
                     >
                       <span className="fission-hint-text">
-                        shake your mouse to split the atom
+                        shake your mouse<br />to split the atom
                       </span>
                       <svg
                         className="fission-hint-line"
-                        viewBox="0 0 180 70"
+                        viewBox="0 0 200 80"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
                       >
                         <path
-                          d="M4 6 C 30 10, 70 22, 110 36 C 140 46, 158 54, 170 60"
+                          d="M12 4 C 24 18, 48 40, 80 52 C 112 64, 152 70, 188 68"
                           stroke="var(--foreground)"
                           strokeWidth="0.75"
                           strokeDasharray="7 5"
                           strokeLinecap="round"
                         />
-                        <path
-                          d="M164 54 L172 62 L162 62"
-                          stroke="var(--foreground)"
-                          strokeWidth="0.75"
-                          fill="none"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
+                        <polygon
+                          points="192,64 184,68 186,72"
+                          fill="var(--foreground)"
                         />
                       </svg>
                     </motion.div>
