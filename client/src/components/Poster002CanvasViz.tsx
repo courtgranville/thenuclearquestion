@@ -122,7 +122,8 @@ interface PreparedWaterLine {
 interface PreparedLandLine {
   pts: Float32Array;
   n: number;
-  dist: number; // dist_from_centre, precomputed
+  dist: number;     // dist_from_centre, precomputed
+  distNorm: number;  // |dist| / maxDist in this surface, 0–1
 }
 
 interface PreparedForm {
@@ -182,12 +183,15 @@ const FORMS: PreparedForm[] = Object.entries(
   });
 
   // Land surface lines
+  const distances = data.land_lines.map((ll) => Math.abs(ll.dist_from_centre));
+  const maxDist = Math.max(...distances, 0.001);
   const landLines: PreparedLandLine[] = data.land_lines.map((ll) => {
     const pts = parseLandPoints(ll.points);
     return {
       pts,
       n: pts.length >> 1,
       dist: ll.dist_from_centre,
+      distNorm: Math.abs(ll.dist_from_centre) / maxDist,
     };
   });
 
@@ -205,6 +209,15 @@ const FORMS: PreparedForm[] = Object.entries(
     formBboxMaxDim,
   };
 });
+
+// Dev guard: catch silent extraction failures
+if (import.meta.env.DEV) {
+  for (const f of FORMS) {
+    if (f.landLines.length === 0) {
+      console.error(`[poster-002] Source "${f.id}" has 0 land_lines — extraction failed for this source.`);
+    }
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Strip form-* and land-* groups from SVG for the overlay
@@ -256,11 +269,11 @@ export default function Poster002CanvasViz() {
     flowW1: TUNING_LIQUID.flowW1,
     cursorAmpMax: TUNING_LIQUID.cursorAmpMax,
     cursorFalloffPad: TUNING_LIQUID.cursorFalloffPad,
-    cycleLen: 7.0,
-    drawDur: 1.0,
-    holdDur: 4.5,
+    cursorSigmaMul: TUNING_LIQUID.cursorSigmaMul,
+    growthDur: 2.5,
+    holdDur: 3.5,
     fadeDur: 1.5,
-    phaseCoeff: 0.015,
+    fadeInPerLine: 0.25,
   });
 
   // Dev FPS counter
@@ -431,16 +444,21 @@ export default function Poster002CanvasViz() {
           if (curMode === 'water' || isDimmed) {
             alpha = landBaseAlpha;
           } else {
-            // Draw-on → hold → fade-out cycle
-            const phaseShift = ll.dist * tune.phaseCoeff;
-            const localT = ((t + phaseShift) % tune.cycleLen + tune.cycleLen) % tune.cycleLen;
+            // Wave-of-appearance: growth → hold → fade → gap
+            const GAP_DUR = 0.5;
+            const CYCLE_LEN = tune.growthDur + tune.holdDur + tune.fadeDur + GAP_DUR;
+            const appearTime = ll.distNorm * tune.growthDur;
+            const localT = ((t % CYCLE_LEN) + CYCLE_LEN) % CYCLE_LEN;
             let opacity: number;
-            if (localT < tune.drawDur) {
-              opacity = localT / tune.drawDur;
-            } else if (localT < tune.drawDur + tune.holdDur) {
-              opacity = 1.0;
-            } else if (localT < tune.drawDur + tune.holdDur + tune.fadeDur) {
-              opacity = 1 - (localT - tune.drawDur - tune.holdDur) / tune.fadeDur;
+            if (localT < appearTime) {
+              opacity = 0;
+            } else if (localT < tune.growthDur + tune.holdDur) {
+              const sinceAppear = localT - appearTime;
+              opacity = sinceAppear < tune.fadeInPerLine
+                ? sinceAppear / tune.fadeInPerLine
+                : 1.0;
+            } else if (localT < tune.growthDur + tune.holdDur + tune.fadeDur) {
+              opacity = 1 - (localT - tune.growthDur - tune.holdDur) / tune.fadeDur;
             } else {
               opacity = 0;
             }
@@ -471,7 +489,7 @@ export default function Poster002CanvasViz() {
         const isLandMode = curMode === 'land';
         let waterBaseAlpha: number;
         if (isLandMode) {
-          waterBaseAlpha = 0.10;
+          waterBaseAlpha = 0.04;
         } else if (isDimmed) {
           waterBaseAlpha = 0.08;
         } else {
@@ -498,7 +516,7 @@ export default function Poster002CanvasViz() {
                 (TUNING_LIQUID.cursorSpeedSat - TUNING_LIQUID.cursorSpeedFloor)),
             );
             cursorBulgeAmp = tune.cursorAmpMax * falloff * normSpeed;
-            sigma = halfMaxDim * 0.75;
+            sigma = halfMaxDim * tune.cursorSigmaMul;
             cursorActive = cursorBulgeAmp > 0.01;
           }
         }
@@ -591,7 +609,7 @@ export default function Poster002CanvasViz() {
   const overlayStyle = useMemo(() => {
     const base: Record<string, string> = {};
     if (mode === 'land') {
-      base['--water-val-opacity'] = '0.20';
+      base['--water-val-opacity'] = '0.04';
       base['--annotation-opacity'] = '0.10';
       base['--land-val-opacity'] = '1';
     } else if (mode === 'water') {
@@ -641,11 +659,11 @@ export default function Poster002CanvasViz() {
             ['flowW1', 0, 1],
             ['cursorAmpMax', 0, 100],
             ['cursorFalloffPad', 0, 0.5],
-            ['cycleLen', 2, 15],
-            ['drawDur', 0.1, 3],
-            ['holdDur', 1, 10],
-            ['fadeDur', 0.1, 4],
-            ['phaseCoeff', 0, 0.05],
+            ['cursorSigmaMul', 0.3, 3],
+            ['growthDur', 0.5, 6],
+            ['holdDur', 0.5, 8],
+            ['fadeDur', 0.5, 3],
+            ['fadeInPerLine', 0, 1],
           ] as [keyof typeof tuningRef.current, number, number][]).map(
             ([key, min, max]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>

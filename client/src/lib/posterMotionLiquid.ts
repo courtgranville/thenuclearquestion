@@ -8,13 +8,10 @@ export const TUNING_LIQUID = {
 
   // Cursor magnetism — only active in Combined + Water modes.
   cursorFalloffPad:         0.15,     // padding fraction of bbox max-dim
-  cursorAmpMax:             40,       // max push amplitude (SVG units) when cursor on form
+  cursorAmpMax:             60,       // max push amplitude (SVG units) when cursor on form
+  cursorSigmaMul:           1.5,      // multiplier on halfMaxDim for Gaussian sigma
   cursorSpeedFloor:         0.05,     // below this normalised speed → no effect
   cursorSpeedSat:           1.5,      // above this normalised speed → max amplitude
-
-  // Land ripple
-  rippleW:                  1.5,      // rad/s
-  rippleK:                  0.015,    // per SVG unit
 } as const;
 
 // Smoothstep used for depth weighting — same as posterMotion.ts::depthWeight.

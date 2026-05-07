@@ -156,12 +156,18 @@ function extractLandPoints(element) {
       flat: parsePolylinePoints(pointsMatch[1]),
     };
   }
-  // Otherwise it's a path with d attribute
+  // Otherwise it's a path with d attribute — flatten to x,y pairs
   const dMatch = element.match(/\sd="([^"]+)"/);
   if (dMatch) {
+    const flat = parseD(dMatch[1]);
+    // Convert flat [x0,y0,x1,y1,...] to "x0,y0 x1,y1 ..." format
+    const pairs = [];
+    for (let i = 0; i < flat.length; i += 2) {
+      pairs.push(`${flat[i]},${flat[i + 1]}`);
+    }
     return {
-      points: dMatch[1],
-      flat: parseD(dMatch[1]),
+      points: pairs.join(' '),
+      flat,
     };
   }
   return null;
