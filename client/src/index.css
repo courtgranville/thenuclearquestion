@@ -257,13 +257,13 @@
 /* Fission hint annotation — poster-style dashed line + text */
 .fission-hint {
   position: absolute;
-  right: max(24px, calc(50vw - 440px));
-  bottom: 52px;
+  left: max(32px, calc(50vw - 380px));
+  top: 28px;
   z-index: 5;
   pointer-events: none;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 .fission-hint-text {
   font-family: 'Playfair', serif;
@@ -272,14 +272,14 @@
   font-size: 14px;
   line-height: 1.4;
   color: var(--foreground);
-  text-align: right;
+  text-align: left;
   max-width: 18ch;
 }
 .fission-hint-line {
-  width: 160px;
-  height: 100px;
-  margin-top: 2px;
-  margin-right: -8px;
+  width: 180px;
+  height: 70px;
+  margin-top: 4px;
+  margin-left: 24px;
 }
 @media (max-width: 900px) {
   .fission-hint { display: none; }
