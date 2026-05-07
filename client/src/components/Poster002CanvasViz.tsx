@@ -135,6 +135,7 @@ interface PreparedForm {
   landBbox: { minX: number; minY: number; maxX: number; maxY: number };
   landCentroid: [number, number];
   formBboxMaxDim: number;
+  formBboxHeight: number;
 }
 
 function buildPath2D(pts: Float32Array, n: number): Path2D {
@@ -197,6 +198,7 @@ const FORMS: PreparedForm[] = Object.entries(
 
   const fb = data.form_bbox;
   const formBboxMaxDim = Math.max(fb.maxX - fb.minX, fb.maxY - fb.minY);
+  const formBboxHeight = fb.maxY - fb.minY;
 
   return {
     id,
@@ -207,6 +209,7 @@ const FORMS: PreparedForm[] = Object.entries(
     landBbox: data.land_bbox,
     landCentroid: data.land_centroid,
     formBboxMaxDim,
+    formBboxHeight,
   };
 });
 
@@ -274,6 +277,11 @@ export default function Poster002CanvasViz() {
     holdDur: 3.5,
     fadeDur: 1.5,
     fadeInPerLine: 0.25,
+    waterDropDur: 2.5,
+    waterHoldDur: 3.5,
+    waterFadeDur: 1.5,
+    waterGapDur: 0.5,
+    waterDropHeightMul: 0.6,
   });
 
   // Dev FPS counter
@@ -485,16 +493,48 @@ export default function Poster002CanvasViz() {
       for (const form of FORMS) {
         const isSelected = sel === form.id;
         const isDimmed = sel !== null && !isSelected;
-
         const isLandMode = curMode === 'land';
-        let waterBaseAlpha: number;
-        if (isLandMode) {
-          waterBaseAlpha = 0.04;
-        } else if (isDimmed) {
-          waterBaseAlpha = 0.08;
+
+        // ── Water drop-in cycle (synced with land's CYCLE_LEN) ──
+        const WATER_CYCLE = tune.waterDropDur + tune.waterHoldDur + tune.waterFadeDur + tune.waterGapDur;
+        const wLocalT = ((t % WATER_CYCLE) + WATER_CYCLE) % WATER_CYCLE;
+
+        let waterScale: number;
+        let waterYOffset: number;
+        let waterOpacity: number;
+        let cursorStrength: number;
+
+        if (wLocalT < tune.waterDropDur) {
+          const p = wLocalT / tune.waterDropDur;
+          const eased = 1 - Math.pow(1 - p, 3);
+          waterScale = eased;
+          waterYOffset = -form.formBboxHeight * tune.waterDropHeightMul * (1 - eased);
+          waterOpacity = Math.min(1, p * 2);
+          cursorStrength = 0;
+        } else if (wLocalT < tune.waterDropDur + tune.waterHoldDur) {
+          waterScale = 1;
+          waterYOffset = 0;
+          waterOpacity = 1;
+          cursorStrength = 1;
+        } else if (wLocalT < tune.waterDropDur + tune.waterHoldDur + tune.waterFadeDur) {
+          const p = (wLocalT - tune.waterDropDur - tune.waterHoldDur) / tune.waterFadeDur;
+          waterScale = 1;
+          waterYOffset = 0;
+          waterOpacity = 1 - p;
+          cursorStrength = waterOpacity;
         } else {
-          waterBaseAlpha = 1;
+          waterScale = 0;
+          waterYOffset = 0;
+          waterOpacity = 0;
+          cursorStrength = 0;
         }
+
+        // Final opacity: cycle × mode × selection
+        const modeAlpha = isLandMode ? 0.04 : 1;
+        const selAlpha = isDimmed ? 0.10 : 1;
+        const waterBaseAlpha = waterOpacity * modeAlpha * selAlpha;
+
+        if (waterBaseAlpha < 0.001 || waterScale < 0.001) continue; // skip invisible forms
 
         // Per-form cursor bulge parameters (form-local coords)
         let cursorActive = false;
@@ -502,7 +542,7 @@ export default function Poster002CanvasViz() {
         let cuyLocal = 0;
         let cursorBulgeAmp = 0;
         let sigma = 1;
-        if (!isLandMode && ptr.x > -9000) {
+        if (!isLandMode && cursorStrength > 0 && ptr.x > -9000) {
           const halfMaxDim = form.formBboxMaxDim / 2;
           const reach = halfMaxDim * (1 + tune.cursorFalloffPad);
           cuxLocal = ptr.x - form.formCentroid[0];
@@ -515,17 +555,23 @@ export default function Poster002CanvasViz() {
               Math.max(0, (ptr.smoothSpeed / 1000 - TUNING_LIQUID.cursorSpeedFloor) /
                 (TUNING_LIQUID.cursorSpeedSat - TUNING_LIQUID.cursorSpeedFloor)),
             );
-            cursorBulgeAmp = tune.cursorAmpMax * falloff * normSpeed;
+            cursorBulgeAmp = tune.cursorAmpMax * falloff * normSpeed * cursorStrength;
             sigma = halfMaxDim * tune.cursorSigmaMul;
             cursorActive = cursorBulgeAmp > 0.01;
           }
         }
 
-        const flowAmp = isLandMode ? 0 : tune.flowAmp;
+        const flowAmp = (isLandMode || waterScale < 0.5) ? 0 : tune.flowAmp;
         const N = form.waterLines.length;
         const cx = form.formCentroid[0];
         const cy = form.formCentroid[1];
         const sigmaInv2 = 1 / (2 * sigma * sigma);
+
+        // Apply drop transform around form centroid
+        ctx.save();
+        ctx.translate(cx, cy + waterYOffset);
+        ctx.scale(waterScale, waterScale);
+        ctx.translate(-cx, -cy);
 
         // Bucket-batched strokes
         for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
@@ -593,6 +639,8 @@ export default function Poster002CanvasViz() {
 
           ctx.stroke();
         }
+
+        ctx.restore(); // end drop transform
       }
 
       rafId = requestAnimationFrame(frame);
@@ -664,6 +712,11 @@ export default function Poster002CanvasViz() {
             ['holdDur', 0.5, 8],
             ['fadeDur', 0.5, 3],
             ['fadeInPerLine', 0, 1],
+            ['waterDropDur', 0.5, 5],
+            ['waterHoldDur', 1, 8],
+            ['waterFadeDur', 0.5, 3],
+            ['waterGapDur', 0, 2],
+            ['waterDropHeightMul', 0.1, 1.5],
           ] as [keyof typeof tuningRef.current, number, number][]).map(
             ([key, min, max]) => (
               <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
