@@ -274,7 +274,7 @@ export default function Poster003Viz() {
           borderRadius: 12,
           boxShadow:
             '0 8px 28px rgba(13, 26, 30, 0.16), 0 2px 6px rgba(13, 26, 30, 0.08)',
-          padding: '14px 36px 10px',
+          padding: '14px 24px 16px',
         }}
       >
         <div
