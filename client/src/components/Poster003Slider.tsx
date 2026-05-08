@@ -276,17 +276,33 @@ export default function Poster003Slider({
         />
       </div>
 
-      {/* Tick labels */}
+      {/* Tick labels — endpoint labels anchor to the inside of their
+          tick (left fans right, right fans left) so they don't extend
+          past the track and crowd the panel edge. */}
       <div className="relative w-full mt-2 px-3" style={{ height: 32 }}>
         {TICKS.map((tick) => {
           const isActive = activeAnchor === tick.id;
+          const isFirst = tick.fraction === 0;
+          const isLast = tick.fraction === 1;
+          const transform = isFirst
+            ? 'translateX(0)'
+            : isLast
+              ? 'translateX(-100%)'
+              : 'translateX(-50%)';
+          const textAlign: 'left' | 'right' | 'center' = isFirst
+            ? 'left'
+            : isLast
+              ? 'right'
+              : 'center';
           return (
             <div
               key={tick.id}
-              className="absolute -translate-x-1/2 text-center"
+              className="absolute"
               style={{
                 left: `calc(12px + (100% - 24px) * ${tick.fraction})`,
                 top: 0,
+                transform,
+                textAlign,
                 color: '#0D1A1E',
                 fontFamily: "'Playfair', Georgia, serif",
                 fontSize: 12,
