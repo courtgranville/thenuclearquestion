@@ -9,21 +9,23 @@ import {
 /**
  * Poster 003 — energy-mix dendrogram (SVG, fixed node positions).
  *
- * Node radii morph proportionally to source TWh using the same
- * area-proportional convention as the printed artwork:
- *   r = baseRadius × √(currentTwh / s1Twh)
- * (i.e. disc area is proportional to TWh; not the linear formula
- * given in the original brief — verified against the printed S2 and
- * S3 dendrograms, where r grows by √(TWh ratio).)
+ * Node radii morph proportionally to source TWh, area-proportional:
+ *   r = baseRadius × √(currentTwh / maxTwh)
  *
- * Connector lines and nodes are hard-cut to invisible when a source
- * effectively reaches zero (geometricTwh < 0.5). No fade. Snap back
- * to visible on the way left.
+ * Smooth fades replace the original hard cut-off:
+ *   - Above 5 TWh: full opacity.
+ *   - 5 TWh → 0 TWh: opacity fades linearly from 1 to 0.
+ *   - Below 0 TWh: hidden.
+ * Circle, connector line, and label all share this opacity so a
+ * vanishing source disappears as a unit. No CSS transition on r —
+ * radii update directly from interpolated state each render, which
+ * is smoother than transitioning per-frame state changes.
  */
 
 const SVG_URL = '/assets/003-S1-dendrogram_19832a4f.svg';
 
-const STROKE_NUCLEAR = '#b4822e';
+// Canonical CLAUDE.md ochre / stone, matching the canvas-deaths layer.
+const STROKE_NUCLEAR = '#b5822e';
 const STROKE_OTHER = '#7d746a';
 const STROKE_LINK = '#0d1a1e';
 
@@ -40,7 +42,30 @@ const SOURCE_BY_X: ReadonlyArray<{ x: number; id: SourceId }> = [
   { x: 775.01, id: 'gas' },
 ];
 
-const NODE_TWH_VISIBILITY_THRESHOLD = 0.5;
+// Hand-encoded label positions for the React-controlled labels
+// beneath each node. Coordinates read off the bbox centres of the
+// burned-in S1 dendrogram label groups (which we strip from the
+// overlay so they don't double-render). Text content is built per
+// frame from anchor-state TWh — per-source % stays snap-only.
+const LABEL_DATA: Readonly<Record<SourceId, { name: string; x: number; y: number }>> = {
+  coal:      { name: 'COAL',      x: 374, y: 905 },
+  hydro:     { name: 'HYDRO',     x: 426, y: 905 },
+  oil:       { name: 'OIL',       x: 480, y: 905 },
+  solar:     { name: 'SOLAR',     x: 535, y: 905 },
+  bioenergy: { name: 'BIOENERGY', x: 592, y: 922 },
+  nuclear:   { name: 'NUCLEAR',   x: 651, y: 922 },
+  wind:      { name: 'WIND',      x: 712, y: 922 },
+  gas:       { name: 'GAS',       x: 775, y: 922 },
+};
+
+// Opacity-fade thresholds for circle, line, and label.
+const OPACITY_FULL_TWH = 5;
+
+function fadeOpacity(twh: number): number {
+  if (twh >= OPACITY_FULL_TWH) return 1;
+  if (twh <= 0) return 0;
+  return twh / OPACITY_FULL_TWH;
+}
 
 interface ParsedNode {
   sourceId: SourceId;
@@ -58,7 +83,7 @@ interface ParsedLink {
 
 interface ParsedDendrogram {
   viewBox: string;
-  textOverlay: string;
+  staticOverlay: string;
   nodes: ParsedNode[];
   links: ParsedLink[];
 }
@@ -78,21 +103,35 @@ function nearestSourceId(cx: number): SourceId {
   return best.id;
 }
 
-// Extract the trailing "x y" from a d-string by reading the last two
-// space- or comma-separated numbers.
 function endpointOfD(d: string): { x: number; y: number } | null {
   const numRe = /(-?\d*\.?\d+(?:e-?\d+)?)/g;
   const nums: number[] = [];
   let m;
   while ((m = numRe.exec(d)) !== null) nums.push(parseFloat(m[1]));
   if (nums.length < 2) return null;
-  // For relative bezier curves the endpoint isn't necessarily the
-  // last two numbers in absolute coords — but this dendrogram uses
-  // a uniform structure where the last two numbers ARE the absolute
-  // endpoint for both M-prefixed absolute paths and the c-suffix
-  // pattern present here ("M cx0 cy0 c …, end_x end_y"). The c-relative
-  // anchor is the same as M in these paths, so end_x = M.x + relX.
-  return { x: nums[0] + nums[nums.length - 2], y: nums[1] + nums[nums.length - 1] };
+  return {
+    x: nums[0] + nums[nums.length - 2],
+    y: nums[1] + nums[nums.length - 1],
+  };
+}
+
+// Returns the centroid y of a depth-0 group's path "M x,y" anchors.
+// Used to identify per-source label groups (which sit at y > 880)
+// versus the central trunk label (at y ≈ 657).
+function groupCentroidY(g: Element): number {
+  const ds = Array.from(g.querySelectorAll('path'))
+    .map((p) => p.getAttribute('d') || '')
+    .filter(Boolean);
+  let sum = 0;
+  let n = 0;
+  for (const d of ds) {
+    const m = /^M\s*(-?[\d.]+),(-?[\d.]+)/.exec(d);
+    if (m) {
+      sum += parseFloat(m[2]);
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : 0;
 }
 
 function parseDendrogramSvg(svgText: string): ParsedDendrogram | null {
@@ -102,7 +141,6 @@ function parseDendrogramSvg(svgText: string): ParsedDendrogram | null {
   if (!svg) return null;
   const viewBox = svg.getAttribute('viewBox') || '0 0 1000 1000';
 
-  // Nodes: every <circle> in the document.
   const circleEls = Array.from(svg.querySelectorAll('circle'));
   const nodes: ParsedNode[] = circleEls.map((c) => {
     const cx = parseFloat(c.getAttribute('cx') || '0');
@@ -114,7 +152,6 @@ function parseDendrogramSvg(svgText: string): ParsedDendrogram | null {
     return { sourceId, cx, cy, s1Radius: r, s1Twh, fill };
   });
 
-  // Links: paths inside <g id="links">.
   const linksGroup = svg.querySelector('g#links');
   const links: ParsedLink[] = [];
   if (linksGroup) {
@@ -128,10 +165,16 @@ function parseDendrogramSvg(svgText: string): ParsedDendrogram | null {
     }
   }
 
-  // Strip the circles and the links group from the SVG; keep
-  // everything else (text labels) as the static overlay.
+  // Strip circles, links group, AND per-source label groups (those
+  // with centroid y > 880 — the row of source labels below the
+  // nodes). The central trunk label (y ≈ 657) stays intact.
   circleEls.forEach((c) => c.remove());
   if (linksGroup) linksGroup.remove();
+  Array.from(svg.children)
+    .filter((el) => el.tagName.toLowerCase() === 'g')
+    .forEach((g) => {
+      if (groupCentroidY(g) > 880) g.remove();
+    });
 
   svg.setAttribute('width', '100%');
   svg.setAttribute('height', '100%');
@@ -140,9 +183,9 @@ function parseDendrogramSvg(svgText: string): ParsedDendrogram | null {
     'style',
     'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;',
   );
-  const textOverlay = new XMLSerializer().serializeToString(svg);
+  const staticOverlay = new XMLSerializer().serializeToString(svg);
 
-  return { viewBox, textOverlay, nodes, links };
+  return { viewBox, staticOverlay, nodes, links };
 }
 
 export interface Poster003DendrogramProps {
@@ -184,23 +227,31 @@ export default function Poster003Dendrogram({
     };
   }, []);
 
-  // Per-frame node + link state.
+  // Per-source render data — radius, opacity, and a snap-locked
+  // label string. Recomputed each render directly from interpolated
+  // state; no CSS transition on r.
   const nodeRender = useMemo(() => {
     if (!parsed) return [];
+    const totalTwh = vizState.anchorState.totalTwh;
     return parsed.nodes.map((node) => {
       const currentTwh = vizState.geometricSources[node.sourceId].twh;
-      const visible = currentTwh >= NODE_TWH_VISIBILITY_THRESHOLD;
-      // Area-proportional: r ∝ √TWh. baseRadius is calibrated to
-      // the source's max-TWh scenario so r at max ≡ baseRadius.
-      // (For nuclear the SVG's S1 radius corresponds to S1 TWh;
-      // we scale up by √(maxTwh/s1Twh) to land at the correct
-      // S3 radius — verified against the printed S3 artwork.)
+      const opacity = fadeOpacity(currentTwh);
       const baseR =
         node.s1Radius *
         Math.sqrt(MAX_TWH_FOR_SOURCE[node.sourceId] / node.s1Twh);
       const r =
         baseR * Math.sqrt(currentTwh / MAX_TWH_FOR_SOURCE[node.sourceId]);
-      return { node, r: Math.max(0, r), visible };
+      // Label uses the SNAP value, not the geometric value. Per-
+      // source TWh % stays snap-only.
+      const anchorTwh = vizState.anchorState.sources[node.sourceId].twh;
+      const pct = totalTwh > 0 ? (anchorTwh / totalTwh) * 100 : 0;
+      const labelText =
+        anchorTwh <= 0
+          ? '0%'
+          : pct >= 10
+            ? `${pct.toFixed(0)}%`
+            : `${pct.toFixed(1)}%`;
+      return { node, r: Math.max(0, r), opacity, labelText };
     });
   }, [parsed, vizState]);
 
@@ -208,10 +259,7 @@ export default function Poster003Dendrogram({
     if (!parsed) return [];
     return parsed.links.map((link) => {
       const currentTwh = vizState.geometricSources[link.sourceId].twh;
-      return {
-        link,
-        visible: currentTwh >= NODE_TWH_VISIBILITY_THRESHOLD,
-      };
+      return { link, opacity: fadeOpacity(currentTwh) };
     });
   }, [parsed, vizState]);
 
@@ -247,8 +295,7 @@ export default function Poster003Dendrogram({
         className="absolute inset-0 block"
         aria-hidden="true"
       >
-        {/* Connector lines first (under nodes) */}
-        {linkRender.map(({ link, visible }, i) => (
+        {linkRender.map(({ link, opacity }, i) => (
           <path
             key={`link-${i}`}
             d={link.d}
@@ -256,28 +303,57 @@ export default function Poster003Dendrogram({
             stroke={STROKE_LINK}
             strokeWidth={0.5}
             strokeMiterlimit={10}
-            visibility={visible ? 'visible' : 'hidden'}
+            opacity={opacity}
           />
         ))}
-        {/* Nodes on top */}
-        {nodeRender.map(({ node, r, visible }, i) => (
-          <circle
-            key={`node-${i}`}
-            cx={node.cx}
-            cy={node.cy}
-            r={r}
-            fill={node.fill}
-            stroke={STROKE_LINK}
-            strokeMiterlimit={10}
-            strokeWidth={0.5}
-            visibility={visible ? 'visible' : 'hidden'}
-          />
-        ))}
+        {nodeRender.map(({ node, r, opacity, labelText }, i) => {
+          const lbl = LABEL_DATA[node.sourceId];
+          const labelFill =
+            node.sourceId === 'nuclear' ? STROKE_NUCLEAR : '#0d1a1e';
+          return (
+            <g key={`node-${i}`} opacity={opacity}>
+              <circle
+                cx={node.cx}
+                cy={node.cy}
+                r={r}
+                fill={node.sourceId === 'nuclear' ? STROKE_NUCLEAR : node.fill}
+                stroke={STROKE_LINK}
+                strokeMiterlimit={10}
+                strokeWidth={0.5}
+              />
+              <text
+                x={lbl.x}
+                y={lbl.y}
+                textAnchor="middle"
+                fontFamily="'Playfair', Georgia, serif"
+                fontSize={6}
+                fill={labelFill}
+                opacity={0.9}
+                style={{
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {lbl.name}
+              </text>
+              <text
+                x={lbl.x}
+                y={lbl.y + 8}
+                textAnchor="middle"
+                fontFamily="'Playfair', Georgia, serif"
+                fontSize={8}
+                fontWeight={600}
+                fill={labelFill}
+              >
+                {labelText}
+              </text>
+            </g>
+          );
+        })}
       </svg>
-      {/* Text-label overlay */}
       <div
         className="absolute inset-0 w-full h-full pointer-events-none"
-        dangerouslySetInnerHTML={{ __html: parsed.textOverlay }}
+        dangerouslySetInnerHTML={{ __html: parsed.staticOverlay }}
       />
     </div>
   );
