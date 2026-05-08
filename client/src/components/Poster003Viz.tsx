@@ -3,16 +3,26 @@ import Poster003Slider from "@/components/Poster003Slider";
 import Poster003Dots from "@/components/Poster003Dots";
 import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
 import Poster003Dendrogram from "@/components/Poster003Dendrogram";
+import Poster003Ticker from "@/components/Poster003Ticker";
 import { interpolate, type ScenarioData } from "@/lib/poster003Data";
 import { poster003Store } from "@/lib/poster003Store";
 
 /*
   Poster 003 — Slider-driven scenario page.
 
-  One slider controls all three visualisation layers:
-    - Death-toll dots (SVG) — sequential red→green flip
-    - Deaths-by-source blobs (canvas) — sqrt area scaling, fungal decay
-    - Energy-mix dendrogram (SVG) — sqrt area-proportional radii
+  After commit 19, every drag-time visual layer reads from
+  poster003Store directly:
+    - Poster003CanvasDeaths   (commit 18)
+    - Poster003Dots           (commit 19)
+    - Poster003Dendrogram     (commit 19)
+    - Poster003Ticker         (commit 19)
+  All four are wrapped in React.memo and take NO props from this
+  parent — they never re-render during slider drag.
+
+  Poster003Viz still owns the slider's controlled value (sliderFraction)
+  and re-renders on every drag tick to feed the slider thumb position.
+  ScenarioReadout updates when anchorState changes (fraction crosses
+  0.25 / 0.75) and at snap — low frequency, fine for React.
 
   Editorial constraints (encoded structurally, not stylistically):
     1. Numerical readouts read ONLY from anchorState. The interpolate()
@@ -123,100 +133,31 @@ function SectionFrame({ title, annotation, children }: SectionFrameProps) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Live ticker totals beneath the dot grid.
-//
-// Editorial discipline note: this is the deliberate relaxation of
-// the snap-only readout rule. The slider's anchor totals (in the
-// ScenarioReadout above) still update only at snap. This ticker
-// reads the dots component's current red/green counts and renders
-// them directly. The numbers are honest — they are counts of dots
-// actually rendered on screen at this frame, not interpolated
-// mortality estimates. The relaxation applies ONLY to these aggregate
-// dot totals; per-source mortality numbers (deaths-by-source labels)
-// and per-source TWh % (dendrogram) stay snap-only.
-// ─────────────────────────────────────────────────────────────────
-
-interface TickerTotalsProps {
-  redCount: number;
-  greenCount: number;
-}
-
-function TickerTotals({ redCount, greenCount }: TickerTotalsProps) {
-  // The dots SVG is now cropped to the actual dot bbox (no dead
-  // zone below), so the ticker can sit visually close to the dot
-  // mass — gap roughly equal to one numeral line-height.
-  return (
-    <div className="max-w-4xl mx-auto px-4 mt-1 flex gap-10 flex-wrap justify-center">
-      <div className="text-center">
-        <span
-          className="block font-serif tabular-nums"
-          style={{
-            color: '#a51e22',
-            fontWeight: 600,
-            fontSize: 'clamp(40px, 6vw, 64px)',
-            lineHeight: 1,
-            fontFamily: "'Playfair', Georgia, serif",
-          }}
-        >
-          {redCount.toLocaleString()}
-        </span>
-        <span
-          className="block text-[11px] tracking-[0.18em] uppercase text-muted-foreground mt-2"
-          style={{ fontFamily: "'Playfair', Georgia, serif" }}
-        >
-          Estimated deaths per year
-        </span>
-      </div>
-      {greenCount > 0 && (
-        <div className="text-center">
-          <span
-            className="block font-serif tabular-nums"
-            style={{
-              color: '#217B3D',
-              fontWeight: 600,
-              fontSize: 'clamp(40px, 6vw, 64px)',
-              lineHeight: 1,
-              fontFamily: "'Playfair', Georgia, serif",
-            }}
-          >
-            {greenCount.toLocaleString()}
-          </span>
-          <span
-            className="block text-[11px] tracking-[0.18em] uppercase text-muted-foreground mt-2"
-            style={{ fontFamily: "'Playfair', Georgia, serif" }}
-          >
-            Lives saved per year
-          </span>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function Poster003Viz() {
   const [sliderFraction, setSliderFraction] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  // Live counts from the dots component — drive the ticker totals.
-  const [dotCounts, setDotCounts] = useState({ redCount: 699, greenCount: 0 });
 
-  // Slider onChange: keep the existing React state path for the dot
-  // grid + dendrogram + ScenarioReadout + tickers, AND additionally
-  // dispatch to the poster-003 store so Poster003CanvasDeaths can
-  // skip the React render path entirely (commit 18).
+  // Slider onChange dispatches BOTH to React state (drives the
+  // slider thumb's controlled value + the ScenarioReadout's anchor
+  // updates) AND to the poster003Store (drives the four memoised
+  // viz layers via direct DOM mutation, no React commits).
   const handleSliderChange = useCallback((f: number) => {
     setSliderFraction(f);
     poster003Store.update(f);
   }, []);
 
-  // Single source of truth for the three React-driven layers.
+  // Press / release. The store carries the dragging flag so the
+  // dot grid + ticker can preserve their snap-corrected values
+  // (anchorState.livesSaved at S2 = 401, vs 699 − 297 = 402).
+  const handleDragStateChange = useCallback((d: boolean) => {
+    poster003Store.setDragging(d);
+  }, []);
+
+  // Single source of truth for ScenarioReadout. Memoised; changes
+  // only when sliderFraction does. The viz layers don't read this.
   const vizState = useMemo(
     () => interpolate(sliderFraction),
     [sliderFraction],
   );
-
-  // Numerical readout reads from anchorState — never from the
-  // geometric fields. (See poster003Data.ts comments.)
   const anchorScenario = vizState.anchorState;
 
   // Floating slider visibility — driven by an IntersectionObserver
@@ -231,8 +172,6 @@ export default function Poster003Viz() {
       (entries) => {
         for (const entry of entries) setSectionVisible(entry.isIntersecting);
       },
-      // Trigger off as soon as the section's top scrolls above the
-      // viewport top OR its bottom scrolls below the viewport bottom.
       { threshold: 0, rootMargin: '0px 0px 0px 0px' },
     );
     obs.observe(el);
@@ -269,15 +208,9 @@ export default function Poster003Viz() {
             </>
           }
         >
-          <Poster003Dots
-            vizState={vizState}
-            dragging={dragging}
-            onCountsChange={setDotCounts}
-          />
-          <TickerTotals
-            redCount={dotCounts.redCount}
-            greenCount={dotCounts.greenCount}
-          />
+          {/* No props — both layers read poster003Store directly. */}
+          <Poster003Dots />
+          <Poster003Ticker />
         </SectionFrame>
 
         <SectionFrame
@@ -296,9 +229,6 @@ export default function Poster003Viz() {
             </>
           }
         >
-          {/* No vizState prop — this layer reads from poster003Store
-              and writes its labels via refs, so it never re-renders
-              during slider drag. */}
           <Poster003CanvasDeaths />
         </SectionFrame>
 
@@ -318,7 +248,7 @@ export default function Poster003Viz() {
             </>
           }
         >
-          <Poster003Dendrogram vizState={vizState} />
+          <Poster003Dendrogram />
         </SectionFrame>
       </div>
 
@@ -361,7 +291,7 @@ export default function Poster003Viz() {
         <Poster003Slider
           value={sliderFraction}
           onChange={handleSliderChange}
-          onDragStateChange={setDragging}
+          onDragStateChange={handleDragStateChange}
         />
       </div>
     </div>

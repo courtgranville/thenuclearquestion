@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { DOT_ORDERING, type VizState } from '@/lib/poster003Data';
+import { memo, useEffect, useRef, useState } from 'react';
+import { DOT_ORDERING } from '@/lib/poster003Data';
+import { poster003Store } from '@/lib/poster003Store';
 
 /**
- * Poster 003 — death-toll dots layer (699 SVG circles).
+ * Poster 003 — death-toll dots layer (699 dots on a single canvas).
  *
- * Drives a stable seeded sequence of red→green flips controlled by
- * the slider. During drag the green-count tracks the geometric
- * (interpolated) lives-saved value continuously; on release the
- * count snap-corrects to the exact anchor lives-saved.
+ * Architecture (commit 19): the layer subscribes to poster003Store
+ * directly. The component renders ONCE on mount (a single <canvas>)
+ * and never re-renders during slider drag. Subscription callback
+ * schedules a canvas redraw via requestAnimationFrame; the redraw
+ * reads the current vizState + dragging from the store and draws
+ * 699 filled circles, batched into two fill calls (one for red,
+ * one for green) for speed.
  *
- * Editorial constraint: there is NO source attribution per dot.
- * DOT_ORDERING is a pseudo-random permutation; tooltips and hover
- * states are deliberately absent. Death-by-source is told by the
- * deaths-blobs layer, not by individual dots.
+ * Editorial constraints (preserved from the React era):
+ *   - No source attribution per dot — DOT_ORDERING is a stable
+ *     seeded permutation; no tooltips, no hover, no click.
+ *   - The dot grid's count formula switches at snap so the editorial
+ *     livesSaved value (anchorState.livesSaved) holds at settle —
+ *     same behaviour as before commit 19.
  */
 
 const SVG_URL = '/assets/003-S1-dots_009b59b1.svg';
@@ -21,36 +27,31 @@ const DOT_RADIUS = 2.16;
 const COLOR_RED = '#a51e23';
 const COLOR_GREEN = '#217b3d';
 const DOT_OPACITY = 0.85;
+const VIEWBOX_PADDING = 6;
 
 interface DotPosition {
   cx: number;
   cy: number;
 }
 
+interface ViewBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 // Module-level cache so a re-mount doesn't re-fetch and re-parse.
 let cachedPositions: DotPosition[] | null = null;
-let cachedViewBox: string | null = null;
+let cachedViewBox: ViewBox | null = null;
 let cachedAspect = 1;
 
 interface ParsedDots {
   positions: DotPosition[];
-  /** Tight viewBox cropped to the actual dot bbox + small padding. */
-  viewBox: string;
-  /** Aspect ratio derived from the cropped viewBox. */
+  viewBox: ViewBox;
   aspect: number;
 }
 
-// Padding (in viewBox units) around the dot bbox in the cropped
-// viewBox. Leaves a little breathing room without re-introducing
-// the dead zone the source SVG had below the dots (where the
-// burned-in "699 / ESTIMATED DEATHS PER YEAR" text used to live).
-const VIEWBOX_PADDING = 6;
-
-// Pulls only the 699 circle positions and computes a tight viewBox
-// cropped to the actual dot bbox. The source SVG's viewBox has
-// ~34% empty space below the dots (where the burned-in number/
-// subtitle used to live) — we strip the text and tighten the
-// viewBox so the ticker can sit visually close to the dot mass.
 function parseDotsSvg(svgText: string): ParsedDots | null {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, 'image/svg+xml');
@@ -69,65 +70,56 @@ function parseDotsSvg(svgText: string): ParsedDots | null {
     if (p.cy < minY) minY = p.cy;
     if (p.cy > maxY) maxY = p.cy;
   }
-  const x = minX - DOT_RADIUS - VIEWBOX_PADDING;
-  const y = minY - DOT_RADIUS - VIEWBOX_PADDING;
-  const w = (maxX - minX) + 2 * (DOT_RADIUS + VIEWBOX_PADDING);
-  const h = (maxY - minY) + 2 * (DOT_RADIUS + VIEWBOX_PADDING);
-  return {
-    positions,
-    viewBox: `${x} ${y} ${w} ${h}`,
-    aspect: w / h,
+  const viewBox: ViewBox = {
+    x: minX - DOT_RADIUS - VIEWBOX_PADDING,
+    y: minY - DOT_RADIUS - VIEWBOX_PADDING,
+    w: maxX - minX + 2 * (DOT_RADIUS + VIEWBOX_PADDING),
+    h: maxY - minY + 2 * (DOT_RADIUS + VIEWBOX_PADDING),
   };
+  return { positions, viewBox, aspect: viewBox.w / viewBox.h };
 }
 
-export interface Poster003DotsProps {
-  vizState: VizState;
-  /** True while the slider is being dragged (live geometry). */
-  dragging: boolean;
-  /**
-   * Reports the current red/green dot counts each render. Used by
-   * the parent to drive the live ticker totals beneath the grid.
-   *
-   * Editorial note: this is the deliberate ticker relaxation —
-   * mid-drag the parent displays these counts as continuous numbers.
-   * The values are honest counts of dots actually rendered, not
-   * interpolated mortality estimates. See poster003Data.ts and the
-   * Poster003TickerTotals comment for context.
-   */
-  onCountsChange?: (counts: { redCount: number; greenCount: number }) => void;
+/**
+ * Same count formula the React component used pre-commit-19 — kept
+ * here so the snap-corrected editorial value (anchorState.livesSaved)
+ * holds at settle, including the S2 1-dot case where the data
+ * doesn't satisfy livesSaved + totalDeaths = 699 exactly.
+ */
+function targetGreenCount(
+  geometricTotalDeaths: number,
+  livesSavedAtAnchor: number,
+  dragging: boolean,
+): number {
+  const raw = dragging ? NUM_DOTS - geometricTotalDeaths : livesSavedAtAnchor;
+  return Math.max(0, Math.min(NUM_DOTS, Math.round(raw)));
 }
 
-export default function Poster003Dots({
-  vizState,
-  dragging,
-  onCountsChange,
-}: Poster003DotsProps) {
-  const [positions, setPositions] = useState<DotPosition[] | null>(
-    cachedPositions,
-  );
-  const [viewBox, setViewBox] = useState<string | null>(cachedViewBox);
-  const [aspect, setAspect] = useState<number>(cachedAspect);
+function Poster003DotsImpl() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Keep React state to track parse completion (so we can switch
+  // from a placeholder div to a canvas div), but do not feed
+  // slider-driven values through state — those flow via the store.
+  const [parsed, setParsed] = useState<boolean>(!!cachedPositions);
   const [parseError, setParseError] = useState(false);
 
   // ─── One-time fetch + parse ─────────────────────────────────────
   useEffect(() => {
-    if (cachedPositions && cachedViewBox) return;
+    if (cachedPositions) return;
     let cancelled = false;
     const xhr = new XMLHttpRequest();
     xhr.open('GET', SVG_URL, true);
     xhr.responseType = 'text';
-    xhr.responseType = 'text';
     xhr.onload = () => {
       if (cancelled) return;
       if (xhr.status >= 200 && xhr.status < 300) {
-        const parsed = parseDotsSvg(xhr.responseText);
-        if (parsed && parsed.positions.length === NUM_DOTS) {
-          cachedPositions = parsed.positions;
-          cachedViewBox = parsed.viewBox;
-          cachedAspect = parsed.aspect;
-          setPositions(parsed.positions);
-          setViewBox(parsed.viewBox);
-          setAspect(parsed.aspect);
+        const result = parseDotsSvg(xhr.responseText);
+        if (result && result.positions.length === NUM_DOTS) {
+          cachedPositions = result.positions;
+          cachedViewBox = result.viewBox;
+          cachedAspect = result.aspect;
+          setParsed(true);
         } else {
           setParseError(true);
         }
@@ -144,38 +136,122 @@ export default function Poster003Dots({
     };
   }, []);
 
-  // ─── Compute target green count from vizState + dragging ─────────
-  // While dragging: track the interpolated lives-saved so dots flip
-  // continuously. On release: snap to the anchor's exact value.
-  const targetGreen = useMemo(() => {
-    const raw = dragging
-      ? NUM_DOTS - vizState.geometricTotalDeaths
-      : vizState.anchorState.livesSaved;
-    return Math.max(0, Math.min(NUM_DOTS, Math.round(raw)));
-  }, [dragging, vizState]);
-
-  // Build the boolean array deterministically from targetGreen +
-  // DOT_ORDERING. Walking the ordering keeps the flip sequence
-  // stable across forward and backward motion.
-  const isGreen = useMemo(() => {
-    const arr = new Array(NUM_DOTS).fill(false);
-    for (let i = 0; i < targetGreen; i++) {
-      arr[DOT_ORDERING[i]] = true;
-    }
-    return arr;
-  }, [targetGreen]);
-
-  // Report the current counts to the parent (used to drive the
-  // live ticker totals). Identity of the callback is stabilised via
-  // a ref so we don't re-fire on parent re-render alone.
-  const onCountsChangeRef = useRef(onCountsChange);
-  onCountsChangeRef.current = onCountsChange;
+  // ─── Canvas setup + store subscription ─────────────────────────
   useEffect(() => {
-    onCountsChangeRef.current?.({
-      redCount: NUM_DOTS - targetGreen,
-      greenCount: targetGreen,
-    });
-  }, [targetGreen]);
+    if (!parsed) return;
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    const positions = cachedPositions;
+    const vb = cachedViewBox;
+    if (!canvas || !container || !positions || !vb) return;
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let cssW = 0;
+    let cssH = 0;
+    let lastGreen = -1;
+    let rafId: number | null = null;
+
+    // Pre-build a Path2D each redraw uses by walking the positions
+    // array — but the array is fixed, so we can pre-build TWO
+    // Path2Ds (red and green) per redraw. Cheaper to just rebuild
+    // on each redraw than to maintain stateful Path2Ds.
+    const redraw = () => {
+      const viz = poster003Store.getCurrent();
+      const dragging = poster003Store.isDragging();
+      const targetGreen = targetGreenCount(
+        viz.geometricTotalDeaths,
+        viz.anchorState.livesSaved,
+        dragging,
+      );
+      // Bail if nothing visible has changed.
+      if (targetGreen === lastGreen) return;
+      lastGreen = targetGreen;
+
+      // Build the green-set: first targetGreen entries of DOT_ORDERING.
+      const isGreen = new Uint8Array(NUM_DOTS);
+      for (let i = 0; i < targetGreen; i++) isGreen[DOT_ORDERING[i]] = 1;
+
+      // Compose the viewBox-fit transform.
+      const fit = Math.min(cssW / vb.w, cssH / vb.h);
+      const offX = (cssW - vb.w * fit) / 2;
+      const offY = (cssH - vb.h * fit) / 2;
+      ctx.setTransform(
+        fit * DPR,
+        0,
+        0,
+        fit * DPR,
+        (offX - vb.x * fit) * DPR,
+        (offY - vb.y * fit) * DPR,
+      );
+      ctx.clearRect(vb.x, vb.y, vb.w, vb.h);
+
+      ctx.globalAlpha = DOT_OPACITY;
+
+      // Red batch.
+      ctx.fillStyle = COLOR_RED;
+      ctx.beginPath();
+      for (let i = 0; i < NUM_DOTS; i++) {
+        if (isGreen[i]) continue;
+        const p = positions[i];
+        ctx.moveTo(p.cx + DOT_RADIUS, p.cy);
+        ctx.arc(p.cx, p.cy, DOT_RADIUS, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      // Green batch.
+      ctx.fillStyle = COLOR_GREEN;
+      ctx.beginPath();
+      for (let i = 0; i < NUM_DOTS; i++) {
+        if (!isGreen[i]) continue;
+        const p = positions[i];
+        ctx.moveTo(p.cx + DOT_RADIUS, p.cy);
+        ctx.arc(p.cx, p.cy, DOT_RADIUS, 0, Math.PI * 2);
+      }
+      ctx.fill();
+
+      ctx.globalAlpha = 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+    };
+
+    const scheduleRedraw = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        redraw();
+      });
+    };
+
+    const resize = () => {
+      const r = container.getBoundingClientRect();
+      cssW = r.width;
+      cssH = r.height;
+      canvas.width = Math.max(1, Math.floor(cssW * DPR));
+      canvas.height = Math.max(1, Math.floor(cssH * DPR));
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      // Force redraw after size change (lastGreen comparison still
+      // holds; but the canvas has been cleared so we need to repaint).
+      lastGreen = -1;
+      scheduleRedraw();
+    };
+    resize();
+
+    const ro = new ResizeObserver(resize);
+    ro.observe(container);
+
+    const unsubscribe = poster003Store.subscribe(() => scheduleRedraw());
+
+    // Initial paint at the current store state.
+    scheduleRedraw();
+
+    return () => {
+      unsubscribe();
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
+  }, [parsed]);
 
   if (parseError) {
     return (
@@ -187,39 +263,22 @@ export default function Poster003Dots({
     );
   }
 
-  if (!positions || !viewBox) {
-    return (
-      <div
-        className="w-full mx-auto"
-        style={{ aspectRatio: aspect, maxWidth: 600 }}
-      />
-    );
-  }
-
   return (
     <div
+      ref={containerRef}
       className="relative w-full mx-auto"
-      style={{ aspectRatio: aspect, maxWidth: 600 }}
+      style={{ aspectRatio: cachedAspect, maxWidth: 600 }}
     >
-      <svg
-        viewBox={viewBox}
-        preserveAspectRatio="xMidYMid meet"
-        width="100%"
-        height="100%"
-        className="absolute inset-0 block"
-        aria-hidden="true"
-      >
-        {positions.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.cx}
-            cy={p.cy}
-            r={DOT_RADIUS}
-            fill={isGreen[i] ? COLOR_GREEN : COLOR_RED}
-            opacity={DOT_OPACITY}
-          />
-        ))}
-      </svg>
+      {parsed && (
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full block"
+          aria-hidden="true"
+        />
+      )}
     </div>
   );
 }
+
+// memo — no props means the default shallow compare always bails.
+export default memo(Poster003DotsImpl);
