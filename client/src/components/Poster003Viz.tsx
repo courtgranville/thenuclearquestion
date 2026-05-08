@@ -269,10 +269,12 @@ export default function Poster003Viz() {
           opacity: sectionVisible ? 1 : 0,
           pointerEvents: sectionVisible ? 'auto' : 'none',
           transition: 'opacity 200ms ease',
-          backgroundColor: '#ECE7DF',
+          backgroundColor: '#F5F1E9',
+          border: '1px solid rgba(13, 26, 30, 0.10)',
           borderRadius: 12,
-          boxShadow: '0 4px 24px rgba(13, 26, 30, 0.08)',
-          padding: '14px 18px 10px',
+          boxShadow:
+            '0 8px 28px rgba(13, 26, 30, 0.16), 0 2px 6px rgba(13, 26, 30, 0.08)',
+          padding: '14px 36px 10px',
         }}
       >
         <div
