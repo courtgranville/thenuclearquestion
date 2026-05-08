@@ -37,14 +37,26 @@ import { poster003Store } from '@/lib/poster003Store';
  * the RAF tick; written directly to refs.
  */
 
-// Canvas viewBox (the S1 deaths SVG viewBox).
+// Canvas viewBox. The width / x-origin match the source S1 deaths
+// SVG; the height is enlarged from the source's 515.22 so the polar
+// form cluster at S1 (gas centred, oil + bioenergy below) fits
+// without clipping at peak FORM_SCALE_MULT. The cluster's worst-
+// case vertical extent is ~610 viewBox units (oil at angle π/2
+// reaches BY+424; hydro at angle ~244° reaches BY−187 with their
+// radii). 800 + an 8% margin gives ~672 usable, comfortable room.
+// Container aspectRatio follows W/H — drops from ~1.685 (widescreen)
+// to ~1.085 (close to square).
 const SVG_VIEW_X = 387.10;
 const SVG_VIEW_Y = 410.07;
 const SVG_VIEW_W = 867.91;
-const SVG_VIEW_H = 515.22;
+const SVG_VIEW_H = 800;
 
-// Cluster targets in absolute viewBox coordinates.
-const BASELINE_FRAC = 0.55;
+// Cluster targets in absolute viewBox coordinates. BASELINE_FRAC
+// is biased upward from centre (~0.4) because the polar layout's
+// largest reach is downward (oil at angle π/2 with the longest
+// placement radius), so anchoring slightly above centre keeps the
+// cluster vertically symmetric within the canvas.
+const BASELINE_FRAC = 0.4;
 const BASELINE_Y = SVG_VIEW_Y + BASELINE_FRAC * SVG_VIEW_H;
 const CENTER_X = SVG_VIEW_X + 0.5 * SVG_VIEW_W;
 
