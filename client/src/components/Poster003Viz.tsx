@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Poster003Slider from "@/components/Poster003Slider";
 import Poster003Dots from "@/components/Poster003Dots";
 import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
 import Poster003Dendrogram from "@/components/Poster003Dendrogram";
 import { interpolate, type ScenarioData } from "@/lib/poster003Data";
+import { poster003Store } from "@/lib/poster003Store";
 
 /*
   Poster 003 — Slider-driven scenario page.
@@ -199,7 +200,16 @@ export default function Poster003Viz() {
   // Live counts from the dots component — drive the ticker totals.
   const [dotCounts, setDotCounts] = useState({ redCount: 699, greenCount: 0 });
 
-  // Single source of truth for all three layers.
+  // Slider onChange: keep the existing React state path for the dot
+  // grid + dendrogram + ScenarioReadout + tickers, AND additionally
+  // dispatch to the poster-003 store so Poster003CanvasDeaths can
+  // skip the React render path entirely (commit 18).
+  const handleSliderChange = useCallback((f: number) => {
+    setSliderFraction(f);
+    poster003Store.update(f);
+  }, []);
+
+  // Single source of truth for the three React-driven layers.
   const vizState = useMemo(
     () => interpolate(sliderFraction),
     [sliderFraction],
@@ -286,7 +296,10 @@ export default function Poster003Viz() {
             </>
           }
         >
-          <Poster003CanvasDeaths vizState={vizState} />
+          {/* No vizState prop — this layer reads from poster003Store
+              and writes its labels via refs, so it never re-renders
+              during slider drag. */}
+          <Poster003CanvasDeaths />
         </SectionFrame>
 
         <SectionFrame
@@ -347,7 +360,7 @@ export default function Poster003Viz() {
         </div>
         <Poster003Slider
           value={sliderFraction}
-          onChange={setSliderFraction}
+          onChange={handleSliderChange}
           onDragStateChange={setDragging}
         />
       </div>

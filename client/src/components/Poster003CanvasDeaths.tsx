@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { buildPolylines, type BBox } from '@/lib/parseSvg';
 import formsData from '@/assets/poster-003-forms.json';
 import {
@@ -7,35 +7,33 @@ import {
   type SourceId,
   type VizState,
 } from '@/lib/poster003Data';
+import { poster003Store } from '@/lib/poster003Store';
 
 /**
  * Poster 003 — deaths-by-source canvas layer + label overlay.
  *
- * REGISTER CHANGE (commit 17): per-frame form motion removed.
+ * Architecture (commit 18): this layer is decoupled from the React
+ * render path. The slider in Poster003Viz dispatches into
+ * poster003Store; the canvas RAF loop in this component polls the
+ * store; SVG labels and connector lines are pre-rendered once on
+ * mount and updated thereafter via refs + setAttribute / textContent.
+ * The component does NOT re-render during slider drag — verified
+ * by zero commits in the React Profiler. The dot grid, dendrogram,
+ * ScenarioReadout, and tickers continue on their existing React
+ * render path; this is a layer-scoped change.
  *
- * Posters 001 and 002 carry their visual identity in continuous flow
- * displacement of the form interiors. Poster 003 is paired with a
- * continuously-driven slider, ticking labels above and below, and a
- * dendrogram with per-frame state — the cumulative budget could not
- * carry the 8-form × 270-polyline × per-point sin/cos loop. Forms
- * here render as static stroked outlines, scaled and positioned per
- * frame from a pre-built Path2D. Their identity now lives in the
- * hand-drawn outlines and in the layout choreography (sort, polar
- * placement, gravity-toward-baseline, ease-into-position) — not in
- * motion of the lines themselves.
+ * REGISTER (commit 17): forms render as static stroked outlines.
+ * Module-load step pre-builds one Path2D per form combining all
+ * polylines. Per-frame draw is one ctx.stroke(path) per form under
+ * a composed setTransform. Decay = shrink + linear alpha fade
+ * below baseScale 0.3. No per-point math.
  *
- * Decay simplifies likewise: shrink + linear alpha fade below
- * baseScale 0.3. The radial fraying / fungal-creeping treatment is
- * dropped — the shrink-and-fade carries enough of "the source
- * vanishes" without the per-point cost.
- *
- * Labels: collision-aware placement. For each visible source, a
- * candidate label is computed on the LEFT and the RIGHT of its form;
- * each candidate is scored by overlaps with other forms / other
- * already-placed labels / canvas-edge violations; greedy assignment
- * in scale-descending order; then up to 3 iterations of vertical
- * push to resolve any remaining form-overlap. Recomputed each render
- * (~1k ops, trivial).
+ * Labels: collision-aware placement. For each visible source, build
+ * LEFT and RIGHT candidate label bboxes; score by overlap with other
+ * forms (heavy) / other already-placed labels (medium) / canvas-edge
+ * violations (light); greedy assign in scale-descending order; up to
+ * 3 iterations of vertical push to clear remaining form-overlaps.
+ * Computed inside the RAF tick; written directly to refs.
  */
 
 // Canvas viewBox (the S1 deaths SVG viewBox).
@@ -59,7 +57,7 @@ const ACTIVE_THRESHOLD = 0.05;
 const STROKE_NUCLEAR = '#b5822e';
 const STROKE_OTHER = '#7d746a';
 
-// Alpha fade — shrink + fade is the new decay treatment.
+// Alpha fade — shrink + fade is the decay treatment.
 const ALPHA_FADE_THRESHOLD = 0.3;
 
 // ─── Layout constants (analytical placement) ────────────────────
@@ -73,17 +71,13 @@ const SETTLE_TOLERANCE = 0.3;
 // ─── Label-layout constants ─────────────────────────────────────
 const LABEL_GAP = 22;
 const LABEL_EDGE_MARGIN = 8;
-// Approximate per-character widths in viewBox units. Playfair at
-// the chosen sizes. Slightly generous so collision detection
-// over-estimates rather than misses overlaps.
-const CHAR_W_NAME = 1.7;     // 9-px small caps with 0.18em tracking
-const CHAR_W_DEATHS = 7.0;   // 13-px regular weight
+const CHAR_W_NAME = 1.7;
+const CHAR_W_DEATHS = 7.0;
 const LABEL_NAME_FS = 9;
 const LABEL_DEATHS_FS = 13;
 const LABEL_VERTICAL_PUSH = 8;
 const LABEL_OVERLAP_ITER = 3;
 
-// Scoring weights.
 const SCORE_FORM_OVERLAP = 100;
 const SCORE_LABEL_OVERLAP = 50;
 const SCORE_EDGE_VIOLATION = 4;
@@ -148,8 +142,6 @@ const FORM_BY_ID: Record<SourceId, PreparedForm> = SOURCE_IDS.reduce(
   {} as Record<SourceId, PreparedForm>,
 );
 
-// ─── Decay (shrink + linear alpha fade) ─────────────────────────
-
 function alphaFor(baseScale: number): number {
   if (baseScale >= ALPHA_FADE_THRESHOLD) return 1;
   if (baseScale <= 0) return 0;
@@ -195,7 +187,6 @@ function computeLayout(
 
   for (let iter = 0; iter < LAYOUT_ITER; iter++) {
     let moved = false;
-
     for (const id of visible) {
       const r = formR(id);
       const [cx, cy] = positions.get(id)!;
@@ -207,7 +198,6 @@ function computeLayout(
       if (nx !== cx || ny !== cy) moved = true;
       positions.set(id, [nx, ny]);
     }
-
     for (let i = 0; i < visible.length; i++) {
       for (let j = i + 1; j < visible.length; j++) {
         const idA = visible[i];
@@ -230,10 +220,8 @@ function computeLayout(
         }
       }
     }
-
     if (!moved) break;
   }
-
   return positions;
 }
 
@@ -319,7 +307,6 @@ function scoreCandidate(
   placed: Map<SourceId, LabelLayout>,
 ): number {
   let score = 0;
-  // Form overlaps (heavy).
   positions.forEach((pos, id) => {
     if (id === thisId) return;
     const r = FORM_BY_ID[id].formRadius * visualScales[id];
@@ -327,14 +314,12 @@ function scoreCandidate(
       score += SCORE_FORM_OVERLAP;
     }
   });
-  // Label overlaps (medium).
   placed.forEach((l, id) => {
     if (id === thisId) return;
     if (rectsOverlap(cand.rect, l.rect)) {
       score += SCORE_LABEL_OVERLAP;
     }
   });
-  // Edge proximity (light).
   const minViewX = SVG_VIEW_X + LABEL_EDGE_MARGIN;
   const maxViewX = SVG_VIEW_X + SVG_VIEW_W - LABEL_EDGE_MARGIN;
   if (cand.rect.minX < minViewX) {
@@ -360,11 +345,9 @@ function computeLabelLayouts(
 ): Map<SourceId, LabelLayout> {
   const out = new Map<SourceId, LabelLayout>();
 
-  // Visible set sorted by visualScale DESCENDING — biggest forms
-  // get first claim on label space.
-  const sorted = SOURCE_IDS.filter((id) =>
-    positions.has(id),
-  ).sort((a, b) => visualScales[b] - visualScales[a]);
+  const sorted = SOURCE_IDS.filter((id) => positions.has(id)).sort(
+    (a, b) => visualScales[b] - visualScales[a],
+  );
 
   for (const id of sorted) {
     const pos = positions.get(id)!;
@@ -380,28 +363,12 @@ function computeLabelLayouts(
     const candL = makeLabelCandidate('left', cx, cy, formR, labelW, labelH);
     const candR = makeLabelCandidate('right', cx, cy, formR, labelW, labelH);
 
-    const scoreL = scoreCandidate(
-      candL,
-      id,
-      positions,
-      visualScales,
-      out,
-    );
-    const scoreR = scoreCandidate(
-      candR,
-      id,
-      positions,
-      visualScales,
-      out,
-    );
+    const scoreL = scoreCandidate(candL, id, positions, visualScales, out);
+    const scoreR = scoreCandidate(candR, id, positions, visualScales, out);
 
     out.set(id, scoreL <= scoreR ? candL : candR);
   }
 
-  // Iterative vertical adjustment for remaining form-overlaps.
-  // Push each label vertically away from the offending form's
-  // centre, but stop at the canvas margin (degrade gracefully if
-  // truly impossible to fully resolve).
   const minLabelY = SVG_VIEW_Y + LABEL_EDGE_MARGIN;
   const maxLabelY = SVG_VIEW_Y + SVG_VIEW_H - LABEL_EDGE_MARGIN;
   for (let iter = 0; iter < LABEL_OVERLAP_ITER; iter++) {
@@ -419,8 +386,7 @@ function computeLabelLayouts(
         }
       });
       if (pushUpRequired || pushDownRequired) {
-        const dy =
-          (pushUpRequired ? -1 : 1) * LABEL_VERTICAL_PUSH;
+        const dy = (pushUpRequired ? -1 : 1) * LABEL_VERTICAL_PUSH;
         const nextMinY = layout.rect.minY + dy;
         const nextMaxY = layout.rect.maxY + dy;
         if (nextMinY >= minLabelY && nextMaxY <= maxLabelY) {
@@ -435,56 +401,50 @@ function computeLabelLayouts(
   return out;
 }
 
-// ─── React component ────────────────────────────────────────────
-
-export interface Poster003CanvasDeathsProps {
-  vizState: VizState;
+// Build a deaths label string from a per-source geometric value.
+// Editorial relaxation (commit 15): per-source death counts tick
+// continuously — same justification as the dot grid (commit 9) and
+// dendrogram percentages (commit 14).
+function deathsLabelFor(geomDeaths: number): string {
+  if (geomDeaths >= 1) {
+    return `${Math.round(geomDeaths).toLocaleString()} Deaths`;
+  }
+  if (geomDeaths >= 0.5) return '1 Death';
+  if (geomDeaths > 0) return '<1 Death';
+  return '0 Deaths';
 }
 
-export default function Poster003CanvasDeaths({
-  vizState,
-}: Poster003CanvasDeathsProps) {
+// ─── React component ────────────────────────────────────────────
+
+interface ElementRefs {
+  group: SVGGElement | null;
+  line: SVGLineElement | null;
+  nameText: SVGTextElement | null;
+  deathsText: SVGTextElement | null;
+}
+
+function Poster003CanvasDeathsImpl() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const vizStateRef = useRef<VizState>(vizState);
-  vizStateRef.current = vizState;
+  // Refs to all 8 SVG groups + their children, set on initial mount.
+  // After mount the React tree never re-renders this component;
+  // labels and connectors are mutated via these refs directly.
+  const elementRefs = useRef<Record<SourceId, ElementRefs>>(
+    SOURCE_IDS.reduce((acc, id) => {
+      acc[id] = { group: null, line: null, nameText: null, deathsText: null };
+      return acc;
+    }, {} as Record<SourceId, ElementRefs>),
+  );
 
+  // Persistent state that lives across RAF frames (never touches React).
   const positionsRef = useRef<Map<SourceId, [number, number]>>(new Map());
   const lastSeenRef = useRef<Set<SourceId>>(new Set());
-
   const layoutTargetRef = useRef<Map<SourceId, [number, number]>>(new Map());
   const lastScalesRef = useRef<Record<SourceId, number>>(
     {} as Record<SourceId, number>,
   );
 
-  const [, forceUpdate] = useReducer((x: number) => (x + 1) % 1e9, 0);
-
-  // ─── Dev FPS counter ────────────────────────────────────────────
-  const [fps, setFps] = useState(0);
-  useEffect(() => {
-    if (import.meta.env.PROD) return;
-    let frames = 0;
-    let lastReport = performance.now();
-    let cancelled = false;
-    const tick = () => {
-      if (cancelled) return;
-      frames++;
-      const now = performance.now();
-      if (now - lastReport >= 500) {
-        setFps(Math.round((frames * 1000) / (now - lastReport)));
-        frames = 0;
-        lastReport = now;
-      }
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // ─── Canvas RAF loop ────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -507,15 +467,17 @@ export default function Poster003CanvasDeaths({
     };
     resize();
 
-    const ro = new ResizeObserver(resize);
+    const ro = new ResizeObserver(() => {
+      resize();
+      scheduleFrame();
+    });
     ro.observe(container);
 
-    let rafId = 0;
+    let rafId: number | null = null;
 
-    const frame = () => {
-      const viz = vizStateRef.current;
+    const drawFrame = (): boolean => {
+      const viz: VizState = poster003Store.getCurrent();
 
-      // ─── Compute visualScales ─────────────────────────────────
       const visualScales: Record<SourceId, number> = {} as Record<
         SourceId,
         number
@@ -535,7 +497,6 @@ export default function Poster003CanvasDeaths({
         }
       }
 
-      // ─── Recompute layout when scales move enough ────────────
       if (scalesChanged || layoutTargetRef.current.size === 0) {
         layoutTargetRef.current = computeLayout(visualScales);
         for (const id of SOURCE_IDS) {
@@ -543,7 +504,6 @@ export default function Poster003CanvasDeaths({
         }
       }
 
-      // ─── Ease positions toward target ────────────────────────
       const presentSet = new Set<SourceId>();
       let easingActive = false;
       for (const id of SOURCE_IDS) {
@@ -578,17 +538,15 @@ export default function Poster003CanvasDeaths({
       }
       lastSeenRef.current = presentSet;
 
-      // ─── Draw canvas ─────────────────────────────────────────
+      // ── Draw canvas ─────────────────────────────────────────
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Set the base transform (DPR + viewBox-fit). All per-form
-      // drawing then nests its own transform on top of this.
-      const baseScale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
-      const offsetX = (cssW - SVG_VIEW_W * baseScale) / 2;
-      const offsetY = (cssH - SVG_VIEW_H * baseScale) / 2;
-      const baseTx = (offsetX - SVG_VIEW_X * baseScale) * DPR;
-      const baseTy = (offsetY - SVG_VIEW_Y * baseScale) * DPR;
-      const baseSx = baseScale * DPR;
+      const baseScaleFit = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
+      const offsetX = (cssW - SVG_VIEW_W * baseScaleFit) / 2;
+      const offsetY = (cssH - SVG_VIEW_H * baseScaleFit) / 2;
+      const baseTx = (offsetX - SVG_VIEW_X * baseScaleFit) * DPR;
+      const baseTy = (offsetY - SVG_VIEW_Y * baseScaleFit) * DPR;
+      const baseSx = baseScaleFit * DPR;
 
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -604,11 +562,6 @@ export default function Poster003CanvasDeaths({
         const cx = pos[0];
         const cy = pos[1];
 
-        // Compose the per-form transform on top of the base. Each
-        // form: translate to its current centre, scale by visualScale
-        // around that centre. Done as a setTransform so we can stroke
-        // the prebuilt Path2D in form-local coordinates without
-        // touching individual points.
         ctx.setTransform(
           baseSx * visualScale,
           0,
@@ -617,97 +570,91 @@ export default function Poster003CanvasDeaths({
           baseTx + (cx - form.centroid[0] * visualScale) * baseSx,
           baseTy + (cy - form.centroid[1] * visualScale) * baseSx,
         );
-
         ctx.globalAlpha = alpha;
         ctx.strokeStyle = form.stroke;
-        // Compensate for the per-form scale so the visible stroke
-        // weight stays consistent across small/large forms.
         ctx.lineWidth = 0.5 / visualScale;
         ctx.stroke(form.path);
       }
       ctx.globalAlpha = 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-      // forceUpdate only when easing — vizState changes already
-      // trigger the render via prop. After drag stops, this lets
-      // labels keep up with positions until they settle.
-      if (easingActive) forceUpdate();
+      // ── Update label DOM via refs ──────────────────────────
+      const deathsTexts: Record<SourceId, string> = {} as Record<
+        SourceId,
+        string
+      >;
+      for (const id of SOURCE_IDS) {
+        deathsTexts[id] = deathsLabelFor(viz.geometricSources[id].deaths);
+      }
+      const labelLayouts = computeLabelLayouts(
+        positionsRef.current,
+        visualScales,
+        deathsTexts,
+      );
 
-      rafId = requestAnimationFrame(frame);
+      for (const id of SOURCE_IDS) {
+        const r = elementRefs.current[id];
+        if (!r.group) continue;
+        const layout = labelLayouts.get(id);
+        if (!layout) {
+          r.group.setAttribute('display', 'none');
+          continue;
+        }
+        const baseScale = visualScales[id] / FORM_SCALE_MULT;
+        // Label opacity matches form alpha so labels fade with their
+        // forms during the shrink-and-fade decay window.
+        const labelOpacity = alphaFor(baseScale);
+        r.group.setAttribute('display', 'inline');
+        r.group.setAttribute('opacity', String(labelOpacity));
+        if (r.line) {
+          r.line.setAttribute('x1', String(layout.textX));
+          r.line.setAttribute('y1', String(layout.textY));
+          r.line.setAttribute('x2', String(layout.formEdgeX));
+          r.line.setAttribute('y2', String(layout.formEdgeY));
+        }
+        if (r.nameText) {
+          r.nameText.setAttribute('x', String(layout.textX));
+          r.nameText.setAttribute('y', String(layout.textY - 4));
+          r.nameText.setAttribute('text-anchor', layout.textAnchor);
+        }
+        if (r.deathsText) {
+          r.deathsText.setAttribute('x', String(layout.textX));
+          r.deathsText.setAttribute('y', String(layout.textY + 12));
+          r.deathsText.setAttribute('text-anchor', layout.textAnchor);
+          if (r.deathsText.textContent !== deathsTexts[id]) {
+            r.deathsText.textContent = deathsTexts[id];
+          }
+        }
+      }
+
+      return easingActive;
     };
-    rafId = requestAnimationFrame(frame);
+
+    function scheduleFrame() {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const stillEasing = drawFrame();
+        if (stillEasing) scheduleFrame();
+      });
+    }
+
+    // Subscribe to store. Each slider tick wakes the RAF; the RAF
+    // does the work aligned to the next animation frame.
+    const unsubscribe = poster003Store.subscribe(() => scheduleFrame());
+
+    // Initial render — paint the layer at the current store state.
+    scheduleFrame();
 
     return () => {
-      cancelAnimationFrame(rafId);
+      unsubscribe();
+      if (rafId !== null) cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // ─── Build label layouts each render ────────────────────────────
-  // Read positionsRef directly. Cost: O(N²) ≈ 1k ops for 8 forms,
-  // negligible compared to canvas redraw.
-  const visualScalesRender: Record<SourceId, number> = {} as Record<
-    SourceId,
-    number
-  >;
-  const deathsTexts: Record<SourceId, string> = {} as Record<
-    SourceId,
-    string
-  >;
-  for (const id of SOURCE_IDS) {
-    const f = FORM_BY_ID[id];
-    const ratio = vizState.geometricSources[id].deaths / f.maxDeaths;
-    const baseScale = ratio > 0 ? Math.sqrt(ratio) : 0;
-    visualScalesRender[id] = baseScale * FORM_SCALE_MULT;
-
-    // Editorial relaxation (commit 15): per-source death counts
-    // tick continuously. Same justification as the dot grid (commit
-    // 9) and dendrogram percentages (commit 14) — counts are
-    // derived from the same interpolated values that drive the
-    // geometry.
-    const geomDeaths = vizState.geometricSources[id].deaths;
-    deathsTexts[id] =
-      geomDeaths >= 1
-        ? `${Math.round(geomDeaths).toLocaleString()} Deaths`
-        : geomDeaths >= 0.5
-          ? '1 Death'
-          : geomDeaths > 0
-            ? '<1 Death'
-            : '0 Deaths';
-  }
-
-  const labelLayoutsMap = computeLabelLayouts(
-    positionsRef.current,
-    visualScalesRender,
-    deathsTexts,
-  );
-  const labelEntries: { id: SourceId; layout: LabelLayout }[] = [];
-  labelLayoutsMap.forEach((layout, id) => {
-    labelEntries.push({ id, layout });
-  });
 
   return (
     <div className="w-full relative">
-      {!import.meta.env.PROD && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            zIndex: 10,
-            fontFamily: 'ui-monospace, monospace',
-            fontSize: 11,
-            padding: '2px 6px',
-            background: 'rgba(13,26,30,0.85)',
-            color: '#ece7df',
-            borderRadius: 3,
-            pointerEvents: 'none',
-          }}
-        >
-          {fps} fps
-        </div>
-      )}
       <div
         ref={containerRef}
         className="relative w-full mx-auto"
@@ -726,26 +673,30 @@ export default function Poster003CanvasDeaths({
           preserveAspectRatio="xMidYMid meet"
           aria-hidden="true"
         >
-          {labelEntries.map(({ id, layout }) => {
+          {SOURCE_IDS.map((id) => {
             const labelColour =
               id === 'nuclear' ? STROKE_NUCLEAR : '#0d1a1e';
-            const form = FORM_BY_ID[id];
             return (
-              <g key={id}>
+              <g
+                key={id}
+                ref={(el) => {
+                  elementRefs.current[id].group = el;
+                }}
+                display="none"
+              >
                 <line
-                  x1={layout.textX}
-                  y1={layout.textY}
-                  x2={layout.formEdgeX}
-                  y2={layout.formEdgeY}
+                  ref={(el) => {
+                    elementRefs.current[id].line = el;
+                  }}
                   stroke="#0d1a1e"
                   strokeOpacity={0.55}
                   strokeWidth={0.5}
                   strokeDasharray="2 2"
                 />
                 <text
-                  x={layout.textX}
-                  y={layout.textY - 4}
-                  textAnchor={layout.textAnchor}
+                  ref={(el) => {
+                    elementRefs.current[id].nameText = el;
+                  }}
                   fontFamily="'Playfair', Georgia, serif"
                   fontSize={LABEL_NAME_FS}
                   fill="#0d1a1e"
@@ -755,20 +706,18 @@ export default function Poster003CanvasDeaths({
                     textTransform: 'uppercase',
                   }}
                 >
-                  {form.labelName}
+                  {FORM_BY_ID[id].labelName}
                 </text>
                 <text
-                  x={layout.textX}
-                  y={layout.textY + 12}
-                  textAnchor={layout.textAnchor}
+                  ref={(el) => {
+                    elementRefs.current[id].deathsText = el;
+                  }}
                   fontFamily="'Playfair', Georgia, serif"
                   fontSize={LABEL_DEATHS_FS}
                   fontWeight={600}
                   fill={labelColour}
                   className="tabular-nums"
-                >
-                  {deathsTexts[id]}
-                </text>
+                />
               </g>
             );
           })}
@@ -777,3 +726,8 @@ export default function Poster003CanvasDeaths({
     </div>
   );
 }
+
+// memo() with no compare fn — props are empty so the default shallow
+// compare always bails. Combined with the empty dependency-array
+// effect, the component renders exactly once per mount/unmount.
+export default memo(Poster003CanvasDeathsImpl);
