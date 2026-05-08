@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import Poster003Slider from "@/components/Poster003Slider";
 import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
+import Poster003Dots from "@/components/Poster003Dots";
 import { interpolate } from "@/lib/poster003Data";
 
 /*
@@ -303,6 +304,7 @@ export default function Poster003Viz() {
   // dev-only route. The slider drives the verification canvas mount
   // below but does not yet drive the three section toggles.
   const [sliderFraction, setSliderFraction] = useState(0);
+  const [sliderDragging, setSliderDragging] = useState(false);
   const sliderVizState = useMemo(() => interpolate(sliderFraction), [sliderFraction]);
 
   const activeScenarios: Record<string, string> = {
@@ -323,10 +325,14 @@ export default function Poster003Viz() {
         <Poster003Slider
           value={sliderFraction}
           onChange={setSliderFraction}
+          onDragStateChange={setSliderDragging}
         />
       </div>
 
-      {/* SCAFFOLD: canvas verification mount, replaced wholesale in commit 7. */}
+      {/* SCAFFOLD: layer verification mounts, replaced wholesale in commit 7. */}
+      <div className="max-w-4xl mx-auto px-4">
+        <Poster003Dots vizState={sliderVizState} dragging={sliderDragging} />
+      </div>
       <div className="max-w-4xl mx-auto px-4">
         <Poster003CanvasDeaths vizState={sliderVizState} />
       </div>
