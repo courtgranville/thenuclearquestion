@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Poster003Slider from "@/components/Poster003Slider";
 import Poster003Dots from "@/components/Poster003Dots";
 import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
@@ -136,27 +136,28 @@ export default function Poster003Viz() {
   // geometric fields. (See poster003Data.ts comments.)
   const anchorScenario = vizState.anchorState;
 
-  return (
-    <div className="w-full">
-      {/* Sticky slider at the top of the scrollable section. */}
-      <div
-        className="sticky top-0 z-20 -mx-4 px-4 py-4 mb-2"
-        style={{
-          backgroundColor: "rgba(236, 231, 223, 0.92)",
-          backdropFilter: "blur(6px)",
-          WebkitBackdropFilter: "blur(6px)",
-          borderBottom: "1px solid rgba(13,26,30,0.08)",
-        }}
-      >
-        <div className="max-w-4xl mx-auto">
-          <Poster003Slider
-            value={sliderFraction}
-            onChange={setSliderFraction}
-            onDragStateChange={setDragging}
-          />
-        </div>
-      </div>
+  // Floating slider visibility — driven by an IntersectionObserver
+  // on the section root. The slider only appears when this section
+  // is in the viewport so it doesn't hover over neighbouring pages.
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const [sectionVisible, setSectionVisible] = useState(false);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) setSectionVisible(entry.isIntersecting);
+      },
+      // Trigger off as soon as the section's top scrolls above the
+      // viewport top OR its bottom scrolls below the viewport bottom.
+      { threshold: 0, rootMargin: '0px 0px 0px 0px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
+  return (
+    <div ref={sectionRef} className="w-full pb-32">
       <ScenarioReadout scenario={anchorScenario} />
 
       <div className="space-y-12 mt-10">
@@ -215,7 +216,7 @@ export default function Poster003Viz() {
               contribution to the ~284 TWh mix.{" "}
               <span
                 className="not-italic font-semibold"
-                style={{ color: "#b4822e" }}
+                style={{ color: "#b5822e" }}
               >
                 Nuclear
               </span>{" "}
@@ -225,6 +226,49 @@ export default function Poster003Viz() {
         >
           <Poster003Dendrogram vizState={vizState} />
         </SectionFrame>
+      </div>
+
+      {/* Floating slider — fixed at the bottom of the viewport while
+          the section is visible. Width caps at 560px desktop; on
+          mobile it spans full width minus 16px each side. */}
+      <div
+        aria-hidden={!sectionVisible}
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
+          margin: '0 auto',
+          width: 'calc(100% - 32px)',
+          maxWidth: 560,
+          zIndex: 50,
+          opacity: sectionVisible ? 1 : 0,
+          pointerEvents: sectionVisible ? 'auto' : 'none',
+          transition: 'opacity 200ms ease',
+          backgroundColor: '#ECE7DF',
+          borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(13, 26, 30, 0.08)',
+          padding: '14px 18px 10px',
+        }}
+      >
+        <div
+          className="mb-1"
+          style={{
+            fontFamily: "'Playfair', Georgia, serif",
+            fontSize: 11,
+            letterSpacing: '0.15em',
+            color: '#0D1A1E',
+            opacity: 0.8,
+            textTransform: 'uppercase',
+          }}
+        >
+          {anchorScenario.label} · {anchorScenario.nuclearSharePct}% nuclear
+        </div>
+        <Poster003Slider
+          value={sliderFraction}
+          onChange={setSliderFraction}
+          onDragStateChange={setDragging}
+        />
       </div>
     </div>
   );
