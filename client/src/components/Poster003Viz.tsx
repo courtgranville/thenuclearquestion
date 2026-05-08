@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Poster003Slider from "@/components/Poster003Slider";
+import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
+import { interpolate } from "@/lib/poster003Data";
 
 /*
   POSTER 003 - Interactive Scenario Comparison
@@ -297,11 +299,11 @@ export default function Poster003Viz() {
   const [dendrogramScenario, setDendrogramScenario] = useState("s1");
 
   // SCAFFOLD: slider preview, replaced wholesale in commit 7. Lives
-  // here so commit 3 can be verified in the running app without a
-  // dev-only route. The slider currently does not drive the three
-  // section toggles below; that wiring lands with the canvas/dots/
-  // dendrogram layers.
+  // here so commits 3–6 can be verified in the running app without a
+  // dev-only route. The slider drives the verification canvas mount
+  // below but does not yet drive the three section toggles.
   const [sliderFraction, setSliderFraction] = useState(0);
+  const sliderVizState = useMemo(() => interpolate(sliderFraction), [sliderFraction]);
 
   const activeScenarios: Record<string, string> = {
     dots: dotsScenario,
@@ -322,6 +324,11 @@ export default function Poster003Viz() {
           value={sliderFraction}
           onChange={setSliderFraction}
         />
+      </div>
+
+      {/* SCAFFOLD: canvas verification mount, replaced wholesale in commit 7. */}
+      <div className="max-w-4xl mx-auto px-4">
+        <Poster003CanvasDeaths vizState={sliderVizState} />
       </div>
 
       {vizSections.map((section) => {
