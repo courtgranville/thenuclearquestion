@@ -300,6 +300,11 @@ export function triggerAllCascade(): void {
 
   cancelActiveRaf();
   poster004Store.setPhase('CASCADE_ALL');
+  // Mark hasSeen at the start so the Skeleton's per-carrier sector
+  // spokes fade in with the cascade rather than after it.
+  for (const c of pending) {
+    poster004Store.markSeen(c.id);
+  }
 
   if (prefersReducedMotion()) {
     runOpacitySnap(() => {
@@ -307,7 +312,6 @@ export function triggerAllCascade(): void {
         for (const s of c.sectors) {
           poster004Store.setSectorScale(s.id, 1);
         }
-        poster004Store.markSeen(c.id);
       }
     }, () => {
       poster004Store.setPhase('POST_HUB');
@@ -374,9 +378,6 @@ export function triggerAllCascade(): void {
     poster004Store.notify();
 
     if (allDone) {
-      for (const c of pending) {
-        poster004Store.markSeen(c.id);
-      }
       poster004Store.setPhase('POST_HUB');
       poster004Store.setActivePulses([]);
       poster004Store.notify();
