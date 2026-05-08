@@ -1,265 +1,74 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Poster003Slider from "@/components/Poster003Slider";
+import Poster003Dots from "@/components/Poster003Dots";
+import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
+import Poster003Dendrogram from "@/components/Poster003Dendrogram";
+import Poster003Ticker from "@/components/Poster003Ticker";
+import { interpolate, type ScenarioData } from "@/lib/poster003Data";
+import { poster003Store } from "@/lib/poster003Store";
 
 /*
-  POSTER 003 - Interactive Scenario Comparison
-  
-  3 scenarios for UK energy mix and their death tolls.
-  Split into 3 separate visualisation sections:
-    1. Dots - death/saved dots per scenario
-    2. Deaths - organic forms sized by source's share of deaths
-    3. Dendrograms - energy mix breakdown
-  
-  LABELS ARE PRESERVED - only paragraph annotations and dashed arrows removed.
-  
-  CENTERING: Each SVG has its viewBox individually centered on its content bbox.
-  The container uses a FIXED HEIGHT and lets the SVG center itself within it
-  using preserveAspectRatio="xMidYMid meet". No fixed aspect ratio on the container.
+  Poster 003 — Slider-driven scenario page.
+
+  After commit 19, every drag-time visual layer reads from
+  poster003Store directly:
+    - Poster003CanvasDeaths   (commit 18)
+    - Poster003Dots           (commit 19)
+    - Poster003Dendrogram     (commit 19)
+    - Poster003Ticker         (commit 19)
+  All four are wrapped in React.memo and take NO props from this
+  parent — they never re-render during slider drag.
+
+  Poster003Viz still owns the slider's controlled value (sliderFraction)
+  and re-renders on every drag tick to feed the slider thumb position.
+  ScenarioReadout updates when anchorState changes (fraction crosses
+  0.25 / 0.75) and at snap — low frequency, fine for React.
+
+  Editorial constraints (encoded structurally, not stylistically):
+    1. Numerical readouts read ONLY from anchorState. The interpolate()
+       helper exposes geometric fields for layer geometry but no
+       formatted-number export — the page physically cannot display a
+       fabricated mid-drag death count.
+    2. Dot ordering has no source attribution.
+    3. Animation register is serious — no spring, no overshoot.
 */
 
-interface ScenarioData {
-  id: string;
-  label: string;
-  subtitle: string;
-  deaths: number;
-  livesSaved: number | null;
-  description: string;
-}
-
-const scenarios: ScenarioData[] = [
-  {
-    id: "s1",
-    label: "Scenario 1",
-    subtitle: "Today's Mix",
-    deaths: 699,
-    livesSaved: null,
-    description:
-      "The UK grid kills an estimated 699 people every year - almost two every day, mostly invisible because they happen in hospitals, not headlines. Gas alone accounts for roughly a third of the toll. Most of these deaths are from sources nobody worries about.",
-  },
-  {
-    id: "s2",
-    label: "Scenario 2",
-    subtitle: "30% Nuclear",
-    deaths: 297,
-    livesSaved: 401,
-    description:
-      "Doubling nuclear's share of the grid - to roughly the level the UK had in the late 1990s - cuts annual deaths to 297 and saves 401 lives a year. The reduction comes mostly from displacing gas, which dominates the current toll.",
-  },
-  {
-    id: "s3",
-    label: "Scenario 3",
-    subtitle: "70% Nuclear",
-    deaths: 9,
-    livesSaved: 690,
-    description:
-      "Reaching France's nuclear share would reduce annual UK grid deaths to 9 and save 690 lives a year compared with today. The red dots almost disappear; nuclear-related deaths only rise from 1 to 6 even as nuclear's share moves from 14% to 70%.",
-  },
-];
-
-// V18 SVG URLs - Individually centered, verified against PDF
-const svgUrls: Record<string, Record<string, string>> = {
-  dots: {
-    s1: "/assets/003-S1-dots_009b59b1.svg",
-    s2: "/assets/003-S2-dots_d36d69ea.svg",
-    s3: "/assets/003-S3-dots_e49e227a.svg",
-  },
-  deaths: {
-    s1: "/assets/003-S1-deaths_7acb96e4.svg",
-    s2: "/assets/003-S2-deaths_b32506cb.svg",
-    s3: "/assets/003-S3-deaths_e4d7bcd5.svg",
-  },
-  dendrogram: {
-    s1: "/assets/003-S1-dendrogram_19832a4f.svg",
-    s2: "/assets/003-S2-dendrogram_aeb36071.svg",
-    s3: "/assets/003-S3-dendrogram_8d6b3808.svg",
-  },
+const SCENARIO_DESCRIPTIONS: Record<ScenarioData["id"], string> = {
+  s1: "The UK grid kills an estimated 699 people every year — almost two every day, mostly invisible because they happen in hospitals, not headlines. Gas alone accounts for roughly a third of the toll. Most of these deaths are from sources nobody worries about.",
+  s2: "Doubling nuclear's share of the grid — to roughly the level the UK had in the late 1990s — cuts annual deaths to 297 and saves 401 lives a year. The reduction comes mostly from displacing gas, which dominates the current toll.",
+  s3: "Reaching France's nuclear share would reduce annual UK grid deaths to 9 and save 690 lives a year compared with today. The red dots almost disappear; nuclear-related deaths only rise from 1 to 6 even as nuclear's share moves from 14% to 70%.",
 };
 
-// Fixed heights per section (px) - gives each section appropriate visual weight
-const sectionHeight: Record<string, number> = {
-  dots: 420,
-  deaths: 550,
-  dendrogram: 420,
-};
-
-// Section annotations that apply to all scenarios
-const vizSections = [
-  {
-    id: "dots",
-    title: "Death Toll",
-    subtitle: "Each red dot is one death; each green dot is one life saved versus today's mix",
-  },
-  {
-    id: "deaths",
-    title: "Deaths by Source",
-    subtitle: "Organic forms sized proportionally to each source's estimated annual premature deaths",
-  },
-  {
-    id: "dendrogram",
-    title: "Energy Mix Breakdown",
-    subtitle: "Each source's share of the electricity mix in TWh - nuclear highlighted in yellow",
-  },
-];
-
-/* ── SVG cache to avoid re-fetching ── */
-const svgCache: Record<string, string> = {};
-
-/* ── Inline SVG display with fixed-height container ── */
-function InlineSvg({
-  src,
-  alt,
-  height,
-}: {
-  src: string;
-  alt: string;
-  height: number;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    if (containerRef.current) {
-      containerRef.current.innerHTML = "";
-    }
-
-    const injectSvg = (svgText: string) => {
-      if (cancelled || !containerRef.current) return;
-
-      // Remove any fixed width/height but KEEP the viewBox
-      let modified = svgText
-        .replace(/(<svg[^>]*?)\s+width="[^"]*"/g, "$1")
-        .replace(/(<svg[^>]*?)\s+height="[^"]*"/g, "$1");
-
-      // Ensure SVG fills container and is centered
-      modified = modified.replace(
-        /(<svg[^>]*?)>/,
-        '$1 style="width:100%;height:100%;display:block" preserveAspectRatio="xMidYMid meet">'
-      );
-
-      containerRef.current.innerHTML = modified;
-      setLoading(false);
-    };
-
-    if (svgCache[src]) {
-      injectSvg(svgCache[src]);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      try {
-        const xhr = new XMLHttpRequest();
-        xhr.open("GET", src, false);
-        xhr.send();
-        if (xhr.status >= 200 && xhr.status < 400) {
-          svgCache[src] = xhr.responseText;
-          injectSvg(xhr.responseText);
-        } else {
-          if (!cancelled) setLoading(false);
-        }
-      } catch {
-        if (!cancelled) setLoading(false);
-      }
-    }, 0);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [src]);
-
-  return (
-    <div
-      className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden mx-auto flex items-center justify-center"
-      style={{
-        width: "100%",
-        maxWidth: "900px",
-        height: `${height}px`,
-      }}
-      role="img"
-      aria-label={alt}
-    >
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
-            <span
-              className="text-sm text-muted-foreground"
-              style={{ fontFamily: "'Playfair', Georgia, serif" }}
-            >
-              Loading visualisation...
-            </span>
-          </div>
-        </div>
-      )}
-      <div ref={containerRef} className="w-full h-full" />
-    </div>
-  );
+interface ScenarioReadoutProps {
+  scenario: ScenarioData;
 }
 
-/* ── Scenario buttons row ── */
-function ScenarioButtons({
-  activeScenario,
-  onSelect,
-}: {
-  activeScenario: string;
-  onSelect: (id: string) => void;
-}) {
+function ScenarioReadout({ scenario }: ScenarioReadoutProps) {
+  const description = SCENARIO_DESCRIPTIONS[scenario.id];
   return (
-    <div className="flex gap-3 mt-4">
-      {scenarios.map((s) => {
-        const isActive = activeScenario === s.id;
-        return (
-          <button
-            key={s.id}
-            onClick={() => onSelect(s.id)}
-            className={`
-              flex-1 py-3 px-4 rounded-sm border transition-all duration-200 cursor-pointer text-left
-              ${
-                isActive
-                  ? "border-foreground bg-foreground text-background"
-                  : "border-border bg-transparent text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-              }
-            `}
-          >
-            <span
-              className="block text-[10px] tracking-[0.15em] uppercase mb-0.5"
-              style={{ fontFamily: "'Playfair', Georgia, serif" }}
-            >
-              {s.label}
-            </span>
-            <span
-              className="block text-base font-medium"
-              style={{ fontFamily: "'Playfair', Georgia, serif" }}
-            >
-              {s.subtitle}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
+    <div className="max-w-4xl mx-auto px-4 mt-6">
+      <div className="flex items-baseline gap-4 flex-wrap mb-3">
+        <h3
+          className="font-serif text-2xl text-foreground"
+          style={{ fontWeight: 600 }}
+        >
+          {scenario.label}
+        </h3>
+        <span
+          className="text-sm tracking-[0.12em] uppercase text-muted-foreground"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
+        >
+          {scenario.nuclearSharePct}% nuclear · {scenario.totalTwh} TWh
+        </span>
+      </div>
 
-/* ── Stats row for the active scenario ── */
-function ScenarioStats({ scenarioId }: { scenarioId: string }) {
-  const scenario = scenarios.find((s) => s.id === scenarioId)!;
-  return (
-    <div className="mt-4">
-      <p
-        className="text-base text-muted-foreground leading-relaxed mb-3"
-        style={{ fontFamily: "'Playfair', Georgia, serif" }}
-      >
-        {scenario.description}
-      </p>
-      <div className="flex gap-6">
+      <div className="flex gap-8 mb-4 flex-wrap">
         <div>
           <span
             className="block text-2xl font-serif"
             style={{ color: "#a51e23", fontWeight: 600 }}
           >
-            {scenario.deaths.toLocaleString()}
+            {scenario.totalDeaths.toLocaleString()}
           </span>
           <span
             className="text-[10px] tracking-[0.1em] uppercase text-muted-foreground"
@@ -268,11 +77,11 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
             Deaths / year
           </span>
         </div>
-        {scenario.livesSaved !== null && (
+        {scenario.livesSaved > 0 && (
           <div>
             <span
               className="block text-2xl font-serif"
-              style={{ color: "#267c3e", fontWeight: 600 }}
+              style={{ color: "#217b3d", fontWeight: 600 }}
             >
               {scenario.livesSaved.toLocaleString()}
             </span>
@@ -285,118 +94,206 @@ function ScenarioStats({ scenarioId }: { scenarioId: string }) {
           </div>
         )}
       </div>
+
+      <p
+        className="text-base text-muted-foreground leading-relaxed"
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
+      >
+        {description}
+      </p>
     </div>
   );
 }
 
-/* ── Main component ── */
+interface SectionFrameProps {
+  title: string;
+  annotation: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function SectionFrame({ title, annotation, children }: SectionFrameProps) {
+  return (
+    <div className="w-full">
+      <div className="max-w-4xl mx-auto px-4 mb-3">
+        <h4
+          className="font-serif text-xl text-foreground mb-2"
+          style={{ fontWeight: 600 }}
+        >
+          {title}
+        </h4>
+        <p
+          className="text-base text-muted-foreground leading-relaxed italic"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
+        >
+          {annotation}
+        </p>
+      </div>
+      <div className="max-w-4xl mx-auto px-4">{children}</div>
+    </div>
+  );
+}
+
 export default function Poster003Viz() {
-  const [dotsScenario, setDotsScenario] = useState("s1");
-  const [deathsScenario, setDeathsScenario] = useState("s1");
-  const [dendrogramScenario, setDendrogramScenario] = useState("s1");
+  const [sliderFraction, setSliderFraction] = useState(0);
 
-  const activeScenarios: Record<string, string> = {
-    dots: dotsScenario,
-    deaths: deathsScenario,
-    dendrogram: dendrogramScenario,
-  };
+  // Slider onChange dispatches BOTH to React state (drives the
+  // slider thumb's controlled value + the ScenarioReadout's anchor
+  // updates) AND to the poster003Store (drives the four memoised
+  // viz layers via direct DOM mutation, no React commits).
+  const handleSliderChange = useCallback((f: number) => {
+    setSliderFraction(f);
+    poster003Store.update(f);
+  }, []);
 
-  const setters: Record<string, (id: string) => void> = {
-    dots: setDotsScenario,
-    deaths: setDeathsScenario,
-    dendrogram: setDendrogramScenario,
-  };
+  // Press / release. The store carries the dragging flag so the
+  // dot grid + ticker can preserve their snap-corrected values
+  // (anchorState.livesSaved at S2 = 401, vs 699 − 297 = 402).
+  const handleDragStateChange = useCallback((d: boolean) => {
+    poster003Store.setDragging(d);
+  }, []);
+
+  // Single source of truth for ScenarioReadout. Memoised; changes
+  // only when sliderFraction does. The viz layers don't read this.
+  const vizState = useMemo(
+    () => interpolate(sliderFraction),
+    [sliderFraction],
+  );
+  const anchorScenario = vizState.anchorState;
+
+  // Floating slider visibility — driven by an IntersectionObserver
+  // on the section root. The slider only appears when this section
+  // is in the viewport so it doesn't hover over neighbouring pages.
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const [sectionVisible, setSectionVisible] = useState(false);
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) setSectionVisible(entry.isIntersecting);
+      },
+      { threshold: 0, rootMargin: '0px 0px 0px 0px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   return (
-    <div className="w-full space-y-16">
-      {vizSections.map((section) => {
-        const activeId = activeScenarios[section.id];
-        const svgUrl = svgUrls[section.id][activeId];
-        const scenario = scenarios.find((s) => s.id === activeId)!;
-        const height = sectionHeight[section.id];
+    <div ref={sectionRef} className="w-full pb-32">
+      <ScenarioReadout scenario={anchorScenario} />
 
-        return (
-          <div key={section.id} className="w-full">
-            {/* Section header */}
-            <div className="max-w-4xl mx-auto px-4 mb-4">
-              <p
-                className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-1"
-                style={{ fontFamily: "'Playfair', Georgia, serif" }}
+      <div className="space-y-12 mt-10">
+        <SectionFrame
+          title="Death Toll"
+          annotation={
+            <>
+              Each{" "}
+              <span
+                className="not-italic font-semibold"
+                style={{ color: "#a51e23" }}
               >
-                {section.subtitle}
-              </p>
-              <h4
-                className="font-serif text-xl text-foreground"
-                style={{ fontWeight: 600 }}
+                red dot
+              </span>{" "}
+              represents one estimated death per year from the UK's
+              electricity generation. Each{" "}
+              <span
+                className="not-italic font-semibold"
+                style={{ color: "#217b3d" }}
               >
-                {section.title}
-              </h4>
-            </div>
+                green dot
+              </span>{" "}
+              represents one life saved compared to today's energy mix.
+              Dot positions and the order in which they flip are not
+              tied to any individual source.
+            </>
+          }
+        >
+          {/* No props — both layers read poster003Store directly. */}
+          <Poster003Dots />
+          <Poster003Ticker />
+        </SectionFrame>
 
-            {/* Annotation callout - applies to all scenarios */}
-            <div className="max-w-4xl mx-auto px-4 mb-6">
-              <div className="flex items-start gap-3">
-                {section.id === "dots" && (
-                  <p
-                    className="text-base text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                  >
-                    Each <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>red dot</span> represents
-                    one estimated death per year from the UK's electricity generation.
-                    Each <span className="not-italic font-semibold" style={{ color: "#237c3e" }}>green dot</span> represents
-                    one life saved compared to today's energy mix.
-                  </p>
-                )}
-                {section.id === "deaths" && (
-                  <p
-                    className="text-base text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                  >
-                    Organic form area is proportional to <span className="not-italic font-semibold" style={{ color: "#a51e23" }}>deaths</span> from
-                    that source. Labels show each energy source and its estimated annual death toll.
-                  </p>
-                )}
-                {section.id === "dendrogram" && (
-                  <p
-                    className="text-base text-muted-foreground leading-relaxed italic"
-                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                  >
-                    Circle area represents the percentage each source of electricity takes in an energy mix of ~284 TWh.{" "}
-                    <span className="not-italic font-semibold" style={{ color: "#b4822e" }}>Nuclear</span> is highlighted in yellow.
-                  </p>
-                )}
-              </div>
-            </div>
+        <SectionFrame
+          title="Deaths by Source"
+          annotation={
+            <>
+              Organic-form area is proportional to{" "}
+              <span
+                className="not-italic font-semibold"
+                style={{ color: "#a51e23" }}
+              >
+                deaths
+              </span>{" "}
+              from that source. As a source's share collapses the form
+              creeps in on itself before vanishing.
+            </>
+          }
+        >
+          <Poster003CanvasDeaths />
+        </SectionFrame>
 
-            {/* SVG - fixed height container, SVG centers itself */}
-            <div className="max-w-4xl mx-auto px-4">
-              <InlineSvg
-                key={`${section.id}-${activeId}`}
-                src={svgUrl}
-                alt={`${section.title} - ${scenario.label}: ${scenario.subtitle}`}
-                height={height}
-              />
-            </div>
+        <SectionFrame
+          title="Energy Mix Breakdown"
+          annotation={
+            <>
+              Each circle's area is proportional to a source's TWh
+              contribution to the ~284 TWh mix.{" "}
+              <span
+                className="not-italic font-semibold"
+                style={{ color: "#b5822e" }}
+              >
+                Nuclear
+              </span>{" "}
+              is highlighted in yellow.
+            </>
+          }
+        >
+          <Poster003Dendrogram />
+        </SectionFrame>
+      </div>
 
-            {/* Scenario buttons + stats below the image */}
-            <div className="max-w-4xl mx-auto px-4">
-              <ScenarioButtons
-                activeScenario={activeId}
-                onSelect={setters[section.id]}
-              />
-              <ScenarioStats scenarioId={activeId} />
-            </div>
-          </div>
-        );
-      })}
-
-      {/* Hint */}
-      <p
-        className="text-center text-sm text-muted-foreground"
-        style={{ fontFamily: "'Playfair', Georgia, serif" }}
+      {/* Floating slider — fixed at the bottom of the viewport while
+          the section is visible. Width caps at 560px desktop; on
+          mobile it spans full width minus 16px each side. */}
+      <div
+        aria-hidden={!sectionVisible}
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 'max(24px, env(safe-area-inset-bottom, 0px))',
+          margin: '0 auto',
+          width: 'calc(100% - 32px)',
+          maxWidth: 560,
+          zIndex: 50,
+          opacity: sectionVisible ? 1 : 0,
+          pointerEvents: sectionVisible ? 'auto' : 'none',
+          transition: 'opacity 200ms ease',
+          backgroundColor: '#ECE7DF',
+          borderRadius: 12,
+          boxShadow: '0 4px 24px rgba(13, 26, 30, 0.08)',
+          padding: '14px 18px 10px',
+        }}
       >
-        Switch scenarios in each section to compare
-      </p>
+        <div
+          className="mb-1"
+          style={{
+            fontFamily: "'Playfair', Georgia, serif",
+            fontSize: 11,
+            letterSpacing: '0.15em',
+            color: '#0D1A1E',
+            opacity: 0.8,
+            textTransform: 'uppercase',
+          }}
+        >
+          {anchorScenario.label} · {anchorScenario.nuclearSharePct}% nuclear
+        </div>
+        <Poster003Slider
+          value={sliderFraction}
+          onChange={handleSliderChange}
+          onDragStateChange={handleDragStateChange}
+        />
+      </div>
     </div>
   );
 }
