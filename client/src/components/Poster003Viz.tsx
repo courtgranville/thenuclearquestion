@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import Poster003Slider from "@/components/Poster003Slider";
 
 /*
   POSTER 003 - Interactive Scenario Comparison
@@ -295,6 +296,13 @@ export default function Poster003Viz() {
   const [deathsScenario, setDeathsScenario] = useState("s1");
   const [dendrogramScenario, setDendrogramScenario] = useState("s1");
 
+  // SCAFFOLD: slider preview, replaced wholesale in commit 7. Lives
+  // here so commit 3 can be verified in the running app without a
+  // dev-only route. The slider currently does not drive the three
+  // section toggles below; that wiring lands with the canvas/dots/
+  // dendrogram layers.
+  const [sliderFraction, setSliderFraction] = useState(0);
+
   const activeScenarios: Record<string, string> = {
     dots: dotsScenario,
     deaths: deathsScenario,
@@ -309,6 +317,13 @@ export default function Poster003Viz() {
 
   return (
     <div className="w-full space-y-16">
+      <div className="max-w-4xl mx-auto px-4">
+        <Poster003Slider
+          value={sliderFraction}
+          onChange={setSliderFraction}
+        />
+      </div>
+
       {vizSections.map((section) => {
         const activeId = activeScenarios[section.id];
         const svgUrl = svgUrls[section.id][activeId];
