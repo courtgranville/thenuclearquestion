@@ -39,19 +39,25 @@ const BASELINE_Y = TRUNK_Y + 217.03;
 const C1_DY = 172.54; // first cubic control offset, y from trunk
 const C2_DY = 44.48;  // second cubic control offset, y from trunk
 
-// Horizontal layout window. Matches the printed S1's left-to-right
-// span (coal at ~374, gas at ~775) plus a small inset so labels
-// don't run into the dendrogram viewBox edges.
-const X_MIN = 380;
-const X_MAX = 775;
-const X_CENTER = (X_MIN + X_MAX) / 2;
-const X_SPAN = X_MAX - X_MIN;
+// Cluster centred on the trunk apex. With overflow=visible on the
+// SVG, the cluster can extend beyond the natural viewBox horizontal
+// span at S1 if the slot-width rule requires it (it doesn't at
+// current data — see slotWidthFor — but the SVG won't clip if a
+// future scenario does).
+const X_CENTER = TRUNK_X;
 
-// Margin-aware spacing: keep PREFERRED_SPACING between nodes when
-// it fits, otherwise compress to fit in the available span. So a
-// small N (S3, three sources) clusters tightly at centre rather
-// than stretching to fill the full horizontal width.
+// Slot spacing rules:
+//   slot >= sum of the two largest radii in the present set + MIN_PADDING
+// guarantees no adjacent-node overlap. Computed per frame from
+// current TWh so the slot width adapts to the anchor (S1 with eight
+// small/medium nodes packs more tightly than S3 with one very large
+// nuclear node and two small siblings).
+//
+// PREFERRED_SPACING is a floor for visual consistency when nodes
+// are tiny — without it, an all-tiny cluster would collapse onto
+// itself.
 const PREFERRED_SPACING = 56;
+const MIN_PADDING_BETWEEN_NODES = 14;
 const EASE_FACTOR = 0.15;
 const SETTLE_TOLERANCE = 0.05;
 
@@ -133,16 +139,28 @@ function connectorPath(nodeX: number): string {
   );
 }
 
-// Given N present sources, return the target x for index i in
-// [0..N-1]. Margin-aware: PREFERRED_SPACING between nodes when
-// it fits; otherwise compress to fit X_SPAN.
-function targetXFor(i: number, n: number): number {
+// Given N present sources sorted by current TWh ascending, plus
+// the array of their current radii, return the target x for index
+// i in [0..N-1]. Slot width = max(PREFERRED_SPACING, sum of the two
+// largest radii + MIN_PADDING_BETWEEN_NODES) so no adjacent pair
+// overlaps. Cluster centred on the trunk apex; nodes are allowed
+// to extend beyond X_MIN/X_MAX if N requires it (the SVG has
+// overflow=visible, so they still render). At S3 with just three
+// nodes including a much larger nuclear, this is the formula that
+// reserves enough space to avoid the previous overlap.
+function slotWidthFor(sortedRadiiAsc: number[]): number {
+  const n = sortedRadiiAsc.length;
+  if (n <= 1) return PREFERRED_SPACING;
+  const r1 = sortedRadiiAsc[n - 1];
+  const r2 = sortedRadiiAsc[n - 2];
+  const minSlot = r1 + r2 + MIN_PADDING_BETWEEN_NODES;
+  return Math.max(PREFERRED_SPACING, minSlot);
+}
+
+function targetXForSlot(i: number, n: number, slot: number): number {
   if (n <= 1) return X_CENTER;
-  const totalSpan = (n - 1) * PREFERRED_SPACING;
-  const useSpacing =
-    totalSpan <= X_SPAN ? PREFERRED_SPACING : X_SPAN / (n - 1);
-  const startX = X_CENTER - ((n - 1) * useSpacing) / 2;
-  return startX + i * useSpacing;
+  const startX = X_CENTER - ((n - 1) * slot) / 2;
+  return startX + i * slot;
 }
 
 export interface Poster003DendrogramProps {
@@ -213,11 +231,17 @@ export default function Poster003Dendrogram({
       );
       const presentSet = new Set(present);
       const N = present.length;
+      // Compute the per-frame slot width based on the two largest
+      // radii in the present set (avoids adjacent-node overlap).
+      const radiiAsc = present.map(
+        (id) => RADIUS_CONSTANT * Math.sqrt(viz.geometricSources[id].twh),
+      );
+      const slot = slotWidthFor(radiiAsc);
 
       // Compute and ease target positions.
       for (let i = 0; i < N; i++) {
         const id = present[i];
-        const target = targetXFor(i, N);
+        const target = targetXForSlot(i, N, slot);
         const wasPresent = presentLastFrameRef.current.has(id);
         if (!wasPresent) {
           // Reappearing — teleport to target so the source pops
@@ -285,6 +309,10 @@ export default function Poster003Dendrogram({
         width="100%"
         height="100%"
         className="absolute inset-0 block"
+        // overflow=visible so a cluster wider than the natural
+        // viewBox span (when slot width × N exceeds it) renders
+        // its outermost nodes instead of clipping them.
+        style={{ overflow: 'visible' }}
         aria-hidden="true"
       >
         {/* Connector lines first (under nodes) */}
