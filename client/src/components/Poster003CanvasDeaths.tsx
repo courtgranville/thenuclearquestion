@@ -17,9 +17,11 @@ import {
  * interior split with per-point flow displacement on interiors only.
  *
  * Differences from 001:
- *   - Each form scales per-frame by `currentScale = currentDeaths /
- *     MAX_DEATHS_FOR_SOURCE`, applied per-point around the form's
- *     centroid (so the canvas transform stays in viewBox space).
+ *   - Each form scales per-frame by `currentScale =
+ *     √(currentDeaths / MAX_DEATHS_FOR_SOURCE)`, applied per-point
+ *     around the form's centroid. Sqrt (not linear) so that visible
+ *     area scales linearly with deaths — same area-proportional
+ *     convention as the printed dendrogram artwork.
  *   - Below `DECAY_THRESHOLD` the interior lines pick up a second
  *     noise field whose amplitude grows and frequency tightens as
  *     the form vanishes — the form creeps in on itself.
@@ -269,7 +271,10 @@ export default function Poster003CanvasDeaths({
         const sourceState = viz.geometricSources[form.id];
         const currentDeaths = sourceState.deaths;
         if (currentDeaths <= 0) continue;
-        const currentScale = currentDeaths / form.maxDeaths;
+        // sqrt so visible area ∝ deaths (area-proportional convention,
+        // matches the printed dendrogram and the standard data-viz
+        // convention for proportional 2D shapes).
+        const currentScale = Math.sqrt(currentDeaths / form.maxDeaths);
         if (currentScale <= 0) continue;
 
         const cx = form.centroid[0];

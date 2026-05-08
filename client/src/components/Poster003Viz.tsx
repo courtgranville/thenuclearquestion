@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Poster003Slider from "@/components/Poster003Slider";
 import Poster003CanvasDeaths from "@/components/Poster003CanvasDeaths";
 import Poster003Dots from "@/components/Poster003Dots";
+import Poster003Dendrogram from "@/components/Poster003Dendrogram";
 import { interpolate } from "@/lib/poster003Data";
 
 /*
@@ -335,6 +336,9 @@ export default function Poster003Viz() {
       </div>
       <div className="max-w-4xl mx-auto px-4">
         <Poster003CanvasDeaths vizState={sliderVizState} />
+      </div>
+      <div className="max-w-4xl mx-auto px-4">
+        <Poster003Dendrogram vizState={sliderVizState} />
       </div>
 
       {vizSections.map((section) => {
