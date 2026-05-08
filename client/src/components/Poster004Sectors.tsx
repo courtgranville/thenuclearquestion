@@ -103,12 +103,15 @@ const Poster004Sectors = memo(function Poster004Sectors() {
                 fill="#0D1A1E"
                 style={{
                   fontFamily: "'Playfair', Georgia, serif",
-                  fontSize: 9,
+                  fontSize: 10,
                   opacity: 1,
                   transition: 'opacity 200ms ease',
                 }}
               >
-                {s.label} {s.twh} TWh
+                {s.label}
+                <tspan dx="4" style={{ opacity: 0.7 }}>
+                  {s.twh} TWh
+                </tspan>
               </text>
             </g>
           );

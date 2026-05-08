@@ -35,7 +35,7 @@ export default function Poster004ProgressButton() {
       type="button"
       onClick={action}
       aria-label={label}
-      className="px-4 py-2 text-sm border border-foreground/40 rounded-sm hover:bg-foreground hover:text-background transition-colors duration-200"
+      className="px-4 py-2 text-sm border border-foreground/40 rounded-sm hover:bg-foreground hover:text-background transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ fontFamily: "'Playfair', Georgia, serif" }}
     >
       {label}

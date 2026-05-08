@@ -31,7 +31,7 @@ export default function Poster004StaticButton() {
       type="button"
       onClick={goStatic}
       aria-label="View static poster — dismiss interactive animation"
-      className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200"
+      className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm"
       style={{ fontFamily: "'Playfair', Georgia, serif" }}
     >
       View static poster

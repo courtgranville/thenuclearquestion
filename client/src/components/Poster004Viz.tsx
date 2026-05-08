@@ -27,7 +27,6 @@
 
 import { useEffect } from 'react';
 import { DENDROGRAM_SIZE } from '@/lib/poster004Data';
-import { poster004Store } from '@/lib/poster004Store';
 import { reset as resetEngine } from '@/lib/poster004Engine';
 import Poster004Skeleton from '@/components/Poster004Skeleton';
 import Poster004Hub from '@/components/Poster004Hub';
@@ -43,14 +42,12 @@ import Poster004HonestyCaveat from '@/components/Poster004HonestyCaveat';
 export default function Poster004Viz() {
   // Reset the store on mount so navigating back to the page always
   // starts from DEFAULT. Module-scope singleton retains state
-  // across React tree unmounts otherwise.
+  // across React tree unmounts otherwise. resetEngine() also
+  // cancels any in-flight RAF loop, so the cleanup is the same.
   useEffect(() => {
     resetEngine();
     return () => {
-      // Cancel any in-flight RAF loop when the component unmounts.
       resetEngine();
-      // Force phase back to DEFAULT for next mount.
-      poster004Store.resetAll();
     };
   }, []);
 
