@@ -12,28 +12,29 @@ import { poster003Store } from '@/lib/poster003Store';
 /**
  * Poster 003 — deaths-by-source canvas layer + label overlay.
  *
- * Architecture (commit 18): this layer is decoupled from the React
- * render path. The slider in Poster003Viz dispatches into
- * poster003Store; the canvas RAF loop in this component polls the
- * store; SVG labels and connector lines are pre-rendered once on
- * mount and updated thereafter via refs + setAttribute / textContent.
- * The component does NOT re-render during slider drag — verified
- * by zero commits in the React Profiler. The dot grid, dendrogram,
- * ScenarioReadout, and tickers continue on their existing React
- * render path; this is a layer-scoped change.
+ * Architecture (commit 18): decoupled from React render path —
+ * subscribes to poster003Store, updates SVG labels via refs.
  *
- * REGISTER (commit 17): forms render as static stroked outlines.
- * Module-load step pre-builds one Path2D per form combining all
- * polylines. Per-frame draw is one ctx.stroke(path) per form under
- * a composed setTransform. Decay = shrink + linear alpha fade
- * below baseScale 0.3. No per-point math.
+ * RASTERISATION (commit 20): forms are now bitmap-cached. Each
+ * form's Path2D is stroked ONCE into a sized OffscreenCanvas-style
+ * cache at module load; per-frame draw is one ctx.drawImage per
+ * form. drawImage is a GPU blit — near-free per frame. This
+ * replaces the previous live-stroke approach, which was rasterising
+ * ~41k anti-aliased line segments per frame at DPR=2 (verified via
+ * Chrome DevTools Performance trace: 1374 ms of GPU rasterisation
+ * over a 3.3s drag, 51 long-tasks blocked on GPU). With the cache
+ * the per-frame canvas cost drops to a handful of GPU blits.
  *
- * Labels: collision-aware placement. For each visible source, build
- * LEFT and RIGHT candidate label bboxes; score by overlap with other
- * forms (heavy) / other already-placed labels (medium) / canvas-edge
- * violations (light); greedy assign in scale-descending order; up to
- * 3 iterations of vertical push to clear remaining form-overlaps.
- * Computed inside the RAF tick; written directly to refs.
+ * Trade-off: the cached bitmap has a fixed resolution and lineWidth.
+ * As a form shrinks under drawImage, line weight scales down with it
+ * — visually similar to the original "constant visible weight"
+ * behaviour at the largest sizes, slightly thinner at very small
+ * sizes (when the form is also alpha-fading toward zero anyway).
+ *
+ * Decay = shrink + linear alpha fade below baseScale 0.3.
+ *
+ * Labels: collision-aware placement (commit 17). Computed inside
+ * the RAF tick; written directly to refs.
  */
 
 // Canvas viewBox (the S1 deaths SVG viewBox).
@@ -59,6 +60,17 @@ const STROKE_OTHER = '#7d746a';
 
 // Alpha fade — shrink + fade is the decay treatment.
 const ALPHA_FADE_THRESHOLD = 0.3;
+
+// Bitmap cache resolution: how many cache pixels per viewBox unit.
+// 3 px/unit gives gas (bbox ~222) a 666 px cache canvas, enough to
+// drawImage at the maximum displayed size (~600 device px at DPR=2,
+// FORM_SCALE_MULT=1.3, canvas at 900 CSS px) without upscaling
+// blur. Total cache memory ~3 MB across 8 forms.
+const CACHE_PX_PER_UNIT = 3;
+// Stroke weight in viewBox units inside the cache. Matches the
+// 0.5 viewBox-unit lineWidth the live-stroke version used at peak
+// scale; downscales naturally as forms shrink under drawImage.
+const CACHE_LINE_WIDTH = 0.5;
 
 // ─── Layout constants (analytical placement) ────────────────────
 const LAYOUT_MARGIN_FRAC = 0.08;
@@ -141,6 +153,53 @@ const FORM_BY_ID: Record<SourceId, PreparedForm> = SOURCE_IDS.reduce(
   },
   {} as Record<SourceId, PreparedForm>,
 );
+
+// ─── Bitmap cache (built lazily on first canvas mount) ──────────
+// Each form is stroked exactly once into a detached <canvas>; the
+// per-frame draw is then a single ctx.drawImage per form, which the
+// browser implements as a GPU blit. Memory: ~3 MB across 8 forms.
+
+let cachedBitmaps: Record<SourceId, HTMLCanvasElement> | null = null;
+
+function buildFormBitmap(form: PreparedForm): HTMLCanvasElement {
+  const bbox = form.bbox;
+  const bboxW = bbox.maxX - bbox.minX;
+  const bboxH = bbox.maxY - bbox.minY;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.ceil(bboxW * CACHE_PX_PER_UNIT));
+  canvas.height = Math.max(1, Math.ceil(bboxH * CACHE_PX_PER_UNIT));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+  // Translate so the form's bbox.minX/minY maps to (0, 0) in the
+  // cache, then scale up to the cache's pixel density. This means
+  // we can stroke form.path in its original viewBox coordinates.
+  ctx.setTransform(
+    CACHE_PX_PER_UNIT,
+    0,
+    0,
+    CACHE_PX_PER_UNIT,
+    -bbox.minX * CACHE_PX_PER_UNIT,
+    -bbox.minY * CACHE_PX_PER_UNIT,
+  );
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = form.stroke;
+  ctx.lineWidth = CACHE_LINE_WIDTH;
+  ctx.stroke(form.path);
+  return canvas;
+}
+
+function ensureBitmaps(): Record<SourceId, HTMLCanvasElement> {
+  if (cachedBitmaps) return cachedBitmaps;
+  cachedBitmaps = SOURCE_IDS.reduce(
+    (acc, id) => {
+      acc[id] = buildFormBitmap(FORM_BY_ID[id]);
+      return acc;
+    },
+    {} as Record<SourceId, HTMLCanvasElement>,
+  );
+  return cachedBitmaps;
+}
 
 function alphaFor(baseScale: number): number {
   if (baseScale >= ALPHA_FADE_THRESHOLD) return 1;
@@ -453,6 +512,10 @@ function Poster003CanvasDeathsImpl() {
     if (!ctx) return;
 
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    // Build (or reuse) the per-form bitmap cache. Each form is
+    // stroked exactly once into a detached canvas; subsequent frames
+    // are GPU blits via ctx.drawImage. ~3 MB total memory.
+    const bitmaps = ensureBitmaps();
     let cssW = 0;
     let cssH = 0;
 
@@ -541,15 +604,20 @@ function Poster003CanvasDeathsImpl() {
       // ── Draw canvas ─────────────────────────────────────────
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Single canvas-fit transform; per-form is just drawImage in
+      // viewBox coordinates. The bitmaps have already been stroked
+      // at module load — per-frame canvas work is now GPU blits only.
       const baseScaleFit = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * baseScaleFit) / 2;
       const offsetY = (cssH - SVG_VIEW_H * baseScaleFit) / 2;
-      const baseTx = (offsetX - SVG_VIEW_X * baseScaleFit) * DPR;
-      const baseTy = (offsetY - SVG_VIEW_Y * baseScaleFit) * DPR;
-      const baseSx = baseScaleFit * DPR;
-
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      ctx.setTransform(
+        baseScaleFit * DPR,
+        0,
+        0,
+        baseScaleFit * DPR,
+        (offsetX - SVG_VIEW_X * baseScaleFit) * DPR,
+        (offsetY - SVG_VIEW_Y * baseScaleFit) * DPR,
+      );
 
       for (const form of FORMS) {
         const visualScale = visualScales[form.id];
@@ -562,18 +630,14 @@ function Poster003CanvasDeathsImpl() {
         const cx = pos[0];
         const cy = pos[1];
 
-        ctx.setTransform(
-          baseSx * visualScale,
-          0,
-          0,
-          baseSx * visualScale,
-          baseTx + (cx - form.centroid[0] * visualScale) * baseSx,
-          baseTy + (cy - form.centroid[1] * visualScale) * baseSx,
-        );
+        const bitmap = bitmaps[form.id];
+        const bbox = form.bbox;
+        const destW = (bbox.maxX - bbox.minX) * visualScale;
+        const destH = (bbox.maxY - bbox.minY) * visualScale;
+        const destX = cx - destW / 2;
+        const destY = cy - destH / 2;
         ctx.globalAlpha = alpha;
-        ctx.strokeStyle = form.stroke;
-        ctx.lineWidth = 0.5 / visualScale;
-        ctx.stroke(form.path);
+        ctx.drawImage(bitmap, destX, destY, destW, destH);
       }
       ctx.globalAlpha = 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
