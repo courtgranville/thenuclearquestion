@@ -1,6 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { buildPolylines, type BBox } from '@/lib/parseSvg';
-import { TUNING, depthWeight } from '@/lib/posterMotion';
 import formsData from '@/assets/poster-003-forms.json';
 import {
   MAX_DEATHS_FOR_SOURCE,
@@ -12,43 +11,31 @@ import {
 /**
  * Poster 003 — deaths-by-source canvas layer + label overlay.
  *
- * Layout: analytical placement + per-frame easing.
- *   1. Sort visible sources by current scale, descending.
- *   2. Anchor the largest at canvas centre, slightly below.
- *   3. Place subsequent forms in a polar arrangement around the
- *      anchor, starting from the bottom and rotating around.
- *   4. Constraint pass (≤10 iterations): clamp inside an 8% margin,
- *      resolve pairwise overlaps along the axis of overlap.
- *   5. Cache the layout — recompute only when any source's scale
- *      changes by > 0.005.
- *   6. Each frame, ease the live position toward target by 0.18.
+ * REGISTER CHANGE (commit 17): per-frame form motion removed.
  *
- * Replaces the per-frame gravity simulation that shipped in
- * commit 13. The simulation was the main source of the drag lag
- * and the cause of forms drifting outside the canvas. Analytical
- * placement is deterministic, fits the viewBox by construction,
- * and an order of magnitude cheaper per frame.
+ * Posters 001 and 002 carry their visual identity in continuous flow
+ * displacement of the form interiors. Poster 003 is paired with a
+ * continuously-driven slider, ticking labels above and below, and a
+ * dendrogram with per-frame state — the cumulative budget could not
+ * carry the 8-form × 270-polyline × per-point sin/cos loop. Forms
+ * here render as static stroked outlines, scaled and positioned per
+ * frame from a pre-built Path2D. Their identity now lives in the
+ * hand-drawn outlines and in the layout choreography (sort, polar
+ * placement, gravity-toward-baseline, ease-into-position) — not in
+ * motion of the lines themselves.
  *
- * Form scaling: sqrt-area-proportional with a 1.3× scale-up
- *   visualScale = √(deaths / max) × FORM_SCALE_MULT
+ * Decay simplifies likewise: shrink + linear alpha fade below
+ * baseScale 0.3. The radial fraying / fungal-creeping treatment is
+ * dropped — the shrink-and-fade carries enough of "the source
+ * vanishes" without the per-point cost.
  *
- * Mycelium decay (graded curve, unchanged from commit 13 but
- * recapped here for context):
- *   1.0 → 0.85   normal flow on interiors
- *   0.85 → 0.4   trembleAmp ramps 0 → 2.5×; flow freq × 1.7
- *   0.4 → 0.08   tremble at peak; outline + interior fray
- *   0.08 → 0     alpha fades 1 → 0 alongside continued fraying
- *
- * Labels: React-controlled SVG. For each visible source, the
- * label sits horizontally to the LEFT or RIGHT of the form
- * (whichever side has more canvas room), vertically aligned with
- * the form's centroid Y. Side choice is recomputed every frame
- * so labels don't end up squashed against canvas edges. The
- * deaths value ticks continuously from geometric state — same
- * deliberate ticker relaxation as the dot grid (commit 9) and the
- * dendrogram percentages (commit 14). Per-source counts are
- * honest because they are rounded values of the exact geometry
- * the user is seeing.
+ * Labels: collision-aware placement. For each visible source, a
+ * candidate label is computed on the LEFT and the RIGHT of its form;
+ * each candidate is scored by overlaps with other forms / other
+ * already-placed labels / canvas-edge violations; greedy assignment
+ * in scale-descending order; then up to 3 iterations of vertical
+ * push to resolve any remaining form-overlap. Recomputed each render
+ * (~1k ops, trivial).
  */
 
 // Canvas viewBox (the S1 deaths SVG viewBox).
@@ -65,59 +52,53 @@ const CENTER_X = SVG_VIEW_X + 0.5 * SVG_VIEW_W;
 // Visual scale-up applied on top of currentScale = √(deaths/max).
 const FORM_SCALE_MULT = 1.3;
 
-// Below this scale a form is considered "gone" and skipped.
+// Below this scale a form is considered gone and skipped entirely.
 const ACTIVE_THRESHOLD = 0.05;
 
 // Stone for non-nuclear, ochre for nuclear (CLAUDE.md canonical).
 const STROKE_NUCLEAR = '#b5822e';
 const STROKE_OTHER = '#7d746a';
 
-// ─── Mycelium decay curve constants ──────────────────────────────
-const TH_NORMAL = 0.85;
-const TH_TREMBLE = 0.4;
-const TH_FRAY = 0.08;
-const TREMBLE_AMP_PEAK = 2.5;
-const TREMBLE_FREQ_PEAK_MULT = 1.7;
-const FRAY_VISIBLE_MAG = 10;
-const FRAY_NOISE_K = 0.6;
-const FRAY_NOISE_W = 0.45;
-const INTERIOR_FLOW_AMP = 4;
+// Alpha fade — shrink + fade is the new decay treatment.
+const ALPHA_FADE_THRESHOLD = 0.3;
 
-// ─── Layout constants ───────────────────────────────────────────
-const LAYOUT_MARGIN_FRAC = 0.08; // 8% inset on every viewBox edge
-const LAYOUT_GAP = 8;            // viewBox units between bounding circles
-const LAYOUT_ITER = 10;          // constraint-pass iterations
-const SCALE_QUANTUM = 0.005;     // recompute layout when any scale moves more than this
+// ─── Layout constants (analytical placement) ────────────────────
+const LAYOUT_MARGIN_FRAC = 0.08;
+const LAYOUT_GAP = 8;
+const LAYOUT_ITER = 10;
+const SCALE_QUANTUM = 0.005;
 const EASE_FACTOR = 0.18;
 const SETTLE_TOLERANCE = 0.3;
 
-// ─── Label constants ────────────────────────────────────────────
-const LABEL_GAP = 22;            // distance from form edge to label text edge
-const LABEL_CLAMP_MARGIN = 8;    // keep labels inside the viewBox by at least this
+// ─── Label-layout constants ─────────────────────────────────────
+const LABEL_GAP = 22;
+const LABEL_EDGE_MARGIN = 8;
+// Approximate per-character widths in viewBox units. Playfair at
+// the chosen sizes. Slightly generous so collision detection
+// over-estimates rather than misses overlaps.
+const CHAR_W_NAME = 1.7;     // 9-px small caps with 0.18em tracking
+const CHAR_W_DEATHS = 7.0;   // 13-px regular weight
+const LABEL_NAME_FS = 9;
+const LABEL_DEATHS_FS = 13;
+const LABEL_VERTICAL_PUSH = 8;
+const LABEL_OVERLAP_ITER = 3;
 
-interface PreparedLine {
-  pts: Float32Array;
-  n: number;
-  depth: number;
-  dw: number;
-}
+// Scoring weights.
+const SCORE_FORM_OVERLAP = 100;
+const SCORE_LABEL_OVERLAP = 50;
+const SCORE_EDGE_VIOLATION = 4;
 
-interface LabelData {
-  name: string;
-  // Other JSON fields (position, textAnchor, formEdgeDirection) are
-  // ignored after the analytical-layout rebuild. The label component
-  // computes side/anchor from the form's current position each frame.
-}
+// ─── Form preparation ───────────────────────────────────────────
 
 interface PreparedForm {
   id: SourceId;
-  lines: PreparedLine[];
+  path: Path2D;
   bbox: BBox;
   centroid: [number, number];
   formRadius: number;
   maxDeaths: number;
   stroke: string;
-  label: LabelData;
+  labelName: string;
 }
 
 type FormJson = {
@@ -128,24 +109,34 @@ type FormJson = {
   label: { name: string; [key: string]: unknown };
 };
 
+function buildFormPath(
+  polylines: { pts: Float32Array; n: number }[],
+): Path2D {
+  const p = new Path2D();
+  for (const L of polylines) {
+    if (L.n < 2) continue;
+    p.moveTo(L.pts[0], L.pts[1]);
+    for (let k = 1; k < L.n; k++) {
+      p.lineTo(L.pts[k * 2], L.pts[k * 2 + 1]);
+    }
+  }
+  return p;
+}
+
 const FORMS: PreparedForm[] = SOURCE_IDS.map((id) => {
   const data = (formsData as Record<SourceId, FormJson>)[id];
   const { polylines, bbox } = buildPolylines(data.paths);
-  const N = polylines.length;
-  const lines: PreparedLine[] = polylines.map((L, li) => {
-    const depth = N > 1 ? li / (N - 1) : 0;
-    return { pts: L.pts, n: L.n, depth, dw: depthWeight(depth) };
-  });
+  const path = buildFormPath(polylines);
   const radius = Math.max(bbox.maxX - bbox.minX, bbox.maxY - bbox.minY) / 2;
   return {
     id,
-    lines,
+    path,
     bbox,
     centroid: [data.centroid[0], data.centroid[1]] as [number, number],
     formRadius: radius,
     maxDeaths: MAX_DEATHS_FOR_SOURCE[id],
     stroke: id === 'nuclear' ? STROKE_NUCLEAR : STROKE_OTHER,
-    label: { name: data.label.name },
+    labelName: data.label.name,
   };
 });
 
@@ -157,43 +148,12 @@ const FORM_BY_ID: Record<SourceId, PreparedForm> = SOURCE_IDS.reduce(
   {} as Record<SourceId, PreparedForm>,
 );
 
-// ─── Decay-stage helpers ─────────────────────────────────────────
+// ─── Decay (shrink + linear alpha fade) ─────────────────────────
 
-interface DecayState {
-  trembleAmp: number;
-  trembleFreqMult: number;
-  frayAmp: number;
-  alpha: number;
-}
-
-function decayStateFor(currentScale: number): DecayState {
-  if (currentScale >= TH_NORMAL) {
-    return { trembleAmp: 0, trembleFreqMult: 1, frayAmp: 0, alpha: 1 };
-  }
-  if (currentScale >= TH_TREMBLE) {
-    const t = (TH_NORMAL - currentScale) / (TH_NORMAL - TH_TREMBLE);
-    return {
-      trembleAmp: TREMBLE_AMP_PEAK * t,
-      trembleFreqMult: 1 + (TREMBLE_FREQ_PEAK_MULT - 1) * t,
-      frayAmp: 0,
-      alpha: 1,
-    };
-  }
-  if (currentScale >= TH_FRAY) {
-    const t = (TH_TREMBLE - currentScale) / (TH_TREMBLE - TH_FRAY);
-    return {
-      trembleAmp: TREMBLE_AMP_PEAK,
-      trembleFreqMult: TREMBLE_FREQ_PEAK_MULT,
-      frayAmp: t,
-      alpha: 1,
-    };
-  }
-  return {
-    trembleAmp: TREMBLE_AMP_PEAK,
-    trembleFreqMult: TREMBLE_FREQ_PEAK_MULT,
-    frayAmp: 1,
-    alpha: Math.max(0, currentScale / TH_FRAY),
-  };
+function alphaFor(baseScale: number): number {
+  if (baseScale >= ALPHA_FADE_THRESHOLD) return 1;
+  if (baseScale <= 0) return 0;
+  return baseScale / ALPHA_FADE_THRESHOLD;
 }
 
 // ─── Analytical layout ───────────────────────────────────────────
@@ -210,17 +170,12 @@ function computeLayout(
   if (visible.length === 0) return positions;
 
   const formR = (id: SourceId) =>
-    FORM_BY_ID[id].formRadius * visualScales[id] * FORM_SCALE_MULT;
+    FORM_BY_ID[id].formRadius * visualScales[id];
 
-  // 1. Anchor the largest form at canvas centre, slightly below.
   const anchor = visible[0];
   const anchorR = formR(anchor);
   positions.set(anchor, [CENTER_X, BASELINE_Y]);
 
-  // 2. Polar placement for the rest. Start from straight down
-  // (angle = π/2 in screen coords because y grows downward) and
-  // rotate around. Each form sits tangent to the anchor (anchorR +
-  // formR + LAYOUT_GAP from the centre).
   for (let i = 1; i < visible.length; i++) {
     const id = visible[i];
     const r = formR(id);
@@ -233,9 +188,6 @@ function computeLayout(
     positions.set(id, [px, py]);
   }
 
-  // 3. Constraint pass: keep every form inside the 8% margin and
-  // resolve pairwise overlaps. Both passes are idempotent at
-  // convergence; LAYOUT_ITER is generous so we settle reliably.
   const minX = SVG_VIEW_X + LAYOUT_MARGIN_FRAC * SVG_VIEW_W;
   const maxX = SVG_VIEW_X + (1 - LAYOUT_MARGIN_FRAC) * SVG_VIEW_W;
   const minY = SVG_VIEW_Y + LAYOUT_MARGIN_FRAC * SVG_VIEW_H;
@@ -244,7 +196,6 @@ function computeLayout(
   for (let iter = 0; iter < LAYOUT_ITER; iter++) {
     let moved = false;
 
-    // Clamp inside margin.
     for (const id of visible) {
       const r = formR(id);
       const [cx, cy] = positions.get(id)!;
@@ -257,7 +208,6 @@ function computeLayout(
       positions.set(id, [nx, ny]);
     }
 
-    // Resolve pairwise overlap along axis of overlap.
     for (let i = 0; i < visible.length; i++) {
       for (let j = i + 1; j < visible.length; j++) {
         const idA = visible[i];
@@ -287,6 +237,204 @@ function computeLayout(
   return positions;
 }
 
+// ─── Collision-aware label layout ───────────────────────────────
+
+interface LabelRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+interface LabelLayout {
+  side: 'left' | 'right';
+  textX: number;
+  textY: number;
+  textAnchor: 'start' | 'end';
+  formEdgeX: number;
+  formEdgeY: number;
+  rect: LabelRect;
+}
+
+function makeLabelCandidate(
+  side: 'left' | 'right',
+  formCx: number,
+  formCy: number,
+  formR: number,
+  labelW: number,
+  labelH: number,
+): LabelLayout {
+  const sign = side === 'left' ? -1 : 1;
+  const formEdgeX = formCx + sign * formR;
+  const textX = formEdgeX + sign * LABEL_GAP;
+  const textY = formCy;
+  const halfH = labelH / 2;
+  const rect: LabelRect =
+    side === 'left'
+      ? {
+          minX: textX - labelW,
+          minY: textY - halfH,
+          maxX: textX,
+          maxY: textY + halfH,
+        }
+      : {
+          minX: textX,
+          minY: textY - halfH,
+          maxX: textX + labelW,
+          maxY: textY + halfH,
+        };
+  return {
+    side,
+    textX,
+    textY,
+    textAnchor: side === 'left' ? 'end' : 'start',
+    formEdgeX,
+    formEdgeY: formCy,
+    rect,
+  };
+}
+
+function rectsOverlap(a: LabelRect, b: LabelRect): boolean {
+  return a.minX < b.maxX && a.maxX > b.minX && a.minY < b.maxY && a.maxY > b.minY;
+}
+
+function rectCircleOverlap(
+  rect: LabelRect,
+  cx: number,
+  cy: number,
+  r: number,
+): boolean {
+  const closestX = Math.max(rect.minX, Math.min(cx, rect.maxX));
+  const closestY = Math.max(rect.minY, Math.min(cy, rect.maxY));
+  const dx = cx - closestX;
+  const dy = cy - closestY;
+  return dx * dx + dy * dy < r * r;
+}
+
+function scoreCandidate(
+  cand: LabelLayout,
+  thisId: SourceId,
+  positions: Map<SourceId, [number, number]>,
+  visualScales: Record<SourceId, number>,
+  placed: Map<SourceId, LabelLayout>,
+): number {
+  let score = 0;
+  // Form overlaps (heavy).
+  positions.forEach((pos, id) => {
+    if (id === thisId) return;
+    const r = FORM_BY_ID[id].formRadius * visualScales[id];
+    if (rectCircleOverlap(cand.rect, pos[0], pos[1], r)) {
+      score += SCORE_FORM_OVERLAP;
+    }
+  });
+  // Label overlaps (medium).
+  placed.forEach((l, id) => {
+    if (id === thisId) return;
+    if (rectsOverlap(cand.rect, l.rect)) {
+      score += SCORE_LABEL_OVERLAP;
+    }
+  });
+  // Edge proximity (light).
+  const minViewX = SVG_VIEW_X + LABEL_EDGE_MARGIN;
+  const maxViewX = SVG_VIEW_X + SVG_VIEW_W - LABEL_EDGE_MARGIN;
+  if (cand.rect.minX < minViewX) {
+    score += (minViewX - cand.rect.minX) * SCORE_EDGE_VIOLATION;
+  }
+  if (cand.rect.maxX > maxViewX) {
+    score += (cand.rect.maxX - maxViewX) * SCORE_EDGE_VIOLATION;
+  }
+  return score;
+}
+
+function shiftLayoutVertically(layout: LabelLayout, dy: number): void {
+  layout.textY += dy;
+  layout.formEdgeY += dy;
+  layout.rect.minY += dy;
+  layout.rect.maxY += dy;
+}
+
+function computeLabelLayouts(
+  positions: Map<SourceId, [number, number]>,
+  visualScales: Record<SourceId, number>,
+  deathsTexts: Record<SourceId, string>,
+): Map<SourceId, LabelLayout> {
+  const out = new Map<SourceId, LabelLayout>();
+
+  // Visible set sorted by visualScale DESCENDING — biggest forms
+  // get first claim on label space.
+  const sorted = SOURCE_IDS.filter((id) =>
+    positions.has(id),
+  ).sort((a, b) => visualScales[b] - visualScales[a]);
+
+  for (const id of sorted) {
+    const pos = positions.get(id)!;
+    const cx = pos[0];
+    const cy = pos[1];
+    const formR = FORM_BY_ID[id].formRadius * visualScales[id];
+
+    const nameW = FORM_BY_ID[id].labelName.length * CHAR_W_NAME;
+    const deathsW = deathsTexts[id].length * CHAR_W_DEATHS;
+    const labelW = Math.max(nameW, deathsW);
+    const labelH = LABEL_NAME_FS + LABEL_DEATHS_FS + 4;
+
+    const candL = makeLabelCandidate('left', cx, cy, formR, labelW, labelH);
+    const candR = makeLabelCandidate('right', cx, cy, formR, labelW, labelH);
+
+    const scoreL = scoreCandidate(
+      candL,
+      id,
+      positions,
+      visualScales,
+      out,
+    );
+    const scoreR = scoreCandidate(
+      candR,
+      id,
+      positions,
+      visualScales,
+      out,
+    );
+
+    out.set(id, scoreL <= scoreR ? candL : candR);
+  }
+
+  // Iterative vertical adjustment for remaining form-overlaps.
+  // Push each label vertically away from the offending form's
+  // centre, but stop at the canvas margin (degrade gracefully if
+  // truly impossible to fully resolve).
+  const minLabelY = SVG_VIEW_Y + LABEL_EDGE_MARGIN;
+  const maxLabelY = SVG_VIEW_Y + SVG_VIEW_H - LABEL_EDGE_MARGIN;
+  for (let iter = 0; iter < LABEL_OVERLAP_ITER; iter++) {
+    let adjusted = false;
+    out.forEach((layout, id) => {
+      let pushUpRequired = false;
+      let pushDownRequired = false;
+      positions.forEach((pos, otherId) => {
+        if (otherId === id) return;
+        const r = FORM_BY_ID[otherId].formRadius * visualScales[otherId];
+        if (rectCircleOverlap(layout.rect, pos[0], pos[1], r)) {
+          const labelMidY = (layout.rect.minY + layout.rect.maxY) / 2;
+          if (labelMidY < pos[1]) pushUpRequired = true;
+          else pushDownRequired = true;
+        }
+      });
+      if (pushUpRequired || pushDownRequired) {
+        const dy =
+          (pushUpRequired ? -1 : 1) * LABEL_VERTICAL_PUSH;
+        const nextMinY = layout.rect.minY + dy;
+        const nextMaxY = layout.rect.maxY + dy;
+        if (nextMinY >= minLabelY && nextMaxY <= maxLabelY) {
+          shiftLayoutVertically(layout, dy);
+          adjusted = true;
+        }
+      }
+    });
+    if (!adjusted) break;
+  }
+
+  return out;
+}
+
 // ─── React component ────────────────────────────────────────────
 
 export interface Poster003CanvasDeathsProps {
@@ -299,24 +447,17 @@ export default function Poster003CanvasDeaths({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Live ref for the RAF loop.
   const vizStateRef = useRef<VizState>(vizState);
   vizStateRef.current = vizState;
 
-  // Live (eased) form positions, keyed by source id. Persisted
-  // across frames; ease toward layoutTargetRef each frame.
   const positionsRef = useRef<Map<SourceId, [number, number]>>(new Map());
   const lastSeenRef = useRef<Set<SourceId>>(new Set());
 
-  // Layout cache: only recompute when any source's scale moves more
-  // than SCALE_QUANTUM since the last computation.
   const layoutTargetRef = useRef<Map<SourceId, [number, number]>>(new Map());
   const lastScalesRef = useRef<Record<SourceId, number>>(
     {} as Record<SourceId, number>,
   );
 
-  // forceUpdate triggers a React re-render so the SVG label layer
-  // can pick up the latest positions / deaths text.
   const [, forceUpdate] = useReducer((x: number) => (x + 1) % 1e9, 0);
 
   // ─── Dev FPS counter ────────────────────────────────────────────
@@ -363,35 +504,15 @@ export default function Poster003CanvasDeaths({
       canvas.height = Math.max(1, Math.floor(cssH * DPR));
       canvas.style.width = cssW + 'px';
       canvas.style.height = cssH + 'px';
-      const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
-      const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
-      const offsetY = (cssH - SVG_VIEW_H * scale) / 2;
-      ctx.setTransform(
-        scale * DPR,
-        0,
-        0,
-        scale * DPR,
-        (offsetX - SVG_VIEW_X * scale) * DPR,
-        (offsetY - SVG_VIEW_Y * scale) * DPR,
-      );
-      ctx.imageSmoothingEnabled = true;
     };
     resize();
 
     const ro = new ResizeObserver(resize);
     ro.observe(container);
 
-    const t0 = performance.now();
     let rafId = 0;
 
-    const k1 = TUNING.flowK1;
-    const w1 = TUNING.flowW1;
-
-    const NUM_BUCKETS = 8;
-
-    const frame = (now: number) => {
-      const t = (now - t0) / 1000;
-
+    const frame = () => {
       const viz = vizStateRef.current;
 
       // ─── Compute visualScales ─────────────────────────────────
@@ -414,7 +535,7 @@ export default function Poster003CanvasDeaths({
         }
       }
 
-      // ─── Recompute layout if scales moved enough ──────────────
+      // ─── Recompute layout when scales move enough ────────────
       if (scalesChanged || layoutTargetRef.current.size === 0) {
         layoutTargetRef.current = computeLayout(visualScales);
         for (const id of SOURCE_IDS) {
@@ -422,7 +543,7 @@ export default function Poster003CanvasDeaths({
         }
       }
 
-      // ─── Determine present sources, ease toward target ────────
+      // ─── Ease positions toward target ────────────────────────
       const presentSet = new Set<SourceId>();
       let easingActive = false;
       for (const id of SOURCE_IDS) {
@@ -433,7 +554,6 @@ export default function Poster003CanvasDeaths({
           layoutTargetRef.current.get(id) ?? [CENTER_X, BASELINE_Y];
         const wasSeen = lastSeenRef.current.has(id);
         if (!wasSeen) {
-          // Reappearing or first-time: pop into target position.
           positionsRef.current.set(id, [target[0], target[1]]);
         } else {
           const cur = positionsRef.current.get(id) ?? target;
@@ -453,126 +573,64 @@ export default function Poster003CanvasDeaths({
           }
         }
       }
-      // Drop forgotten sources.
       for (const id of SOURCE_IDS) {
         if (!presentSet.has(id)) positionsRef.current.delete(id);
       }
       lastSeenRef.current = presentSet;
 
       // ─── Draw canvas ─────────────────────────────────────────
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.restore();
+
+      // Set the base transform (DPR + viewBox-fit). All per-form
+      // drawing then nests its own transform on top of this.
+      const baseScale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
+      const offsetX = (cssW - SVG_VIEW_W * baseScale) / 2;
+      const offsetY = (cssH - SVG_VIEW_H * baseScale) / 2;
+      const baseTx = (offsetX - SVG_VIEW_X * baseScale) * DPR;
+      const baseTy = (offsetY - SVG_VIEW_Y * baseScale) * DPR;
+      const baseSx = baseScale * DPR;
 
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = 0.5;
-
-      const tFray = FRAY_NOISE_W * t;
 
       for (const form of FORMS) {
         const visualScale = visualScales[form.id];
-        const baseScale = visualScale / FORM_SCALE_MULT;
-        if (baseScale <= ACTIVE_THRESHOLD) continue;
-
-        const { trembleAmp, trembleFreqMult, frayAmp, alpha } =
-          decayStateFor(baseScale);
+        const sBase = visualScale / FORM_SCALE_MULT;
+        if (sBase <= ACTIVE_THRESHOLD) continue;
+        const alpha = alphaFor(sBase);
         if (alpha <= 0) continue;
-
         const pos = positionsRef.current.get(form.id);
         if (!pos) continue;
         const cx = pos[0];
         const cy = pos[1];
 
+        // Compose the per-form transform on top of the base. Each
+        // form: translate to its current centre, scale by visualScale
+        // around that centre. Done as a setTransform so we can stroke
+        // the prebuilt Path2D in form-local coordinates without
+        // touching individual points.
+        ctx.setTransform(
+          baseSx * visualScale,
+          0,
+          0,
+          baseSx * visualScale,
+          baseTx + (cx - form.centroid[0] * visualScale) * baseSx,
+          baseTy + (cy - form.centroid[1] * visualScale) * baseSx,
+        );
+
+        ctx.globalAlpha = alpha;
         ctx.strokeStyle = form.stroke;
-
-        const interiorFlowAmp =
-          INTERIOR_FLOW_AMP * visualScale * (1 + trembleAmp);
-        const flowK1 = k1 * trembleFreqMult;
-        const flowW1eff = w1 * trembleFreqMult;
-        const t1offEff = flowW1eff * t;
-        const t1offYEff = flowW1eff * t * 1.3;
-
-        const frayMag =
-          frayAmp > 0
-            ? (frayAmp * FRAY_VISIBLE_MAG) / Math.max(visualScale, 0.01)
-            : 0;
-
-        const naturalCx = form.centroid[0];
-        const naturalCy = form.centroid[1];
-
-        for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
-          const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
-          ctx.globalAlpha =
-            alpha * (0.55 + 0.45 * (1 - bucketDepthMid));
-
-          ctx.beginPath();
-
-          for (let li = 0; li < form.lines.length; li++) {
-            const line = form.lines[li];
-            const lineBucket = Math.min(
-              NUM_BUCKETS - 1,
-              Math.floor(line.depth * NUM_BUCKETS),
-            );
-            if (lineBucket !== bucket) continue;
-            if (line.n < 2) continue;
-
-            const pts = line.pts;
-            const n = line.n;
-            const isInterior = line.dw > 0;
-            const flowAmpThisLine = isInterior
-              ? interiorFlowAmp * line.dw
-              : 0;
-            const frayMagThisLine =
-              frayMag * (isInterior ? 0.6 + 0.4 * line.dw : 1);
-
-            for (let kk = 0; kk < n; kk++) {
-              let x = cx + (pts[kk * 2] - naturalCx) * visualScale;
-              let y = cy + (pts[kk * 2 + 1] - naturalCy) * visualScale;
-
-              if (flowAmpThisLine > 0) {
-                const ax1 = flowK1 * x + t1offEff;
-                const ay1 = flowK1 * y + t1offYEff;
-                const ddx = Math.sin(ax1) * Math.cos(ay1);
-                const ddy = -Math.cos(ax1) * Math.sin(ay1);
-                x += flowAmpThisLine * ddx;
-                y += flowAmpThisLine * ddy;
-              }
-
-              if (frayMagThisLine > 0) {
-                const dx = x - cx;
-                const dy = y - cy;
-                const len = Math.hypot(dx, dy);
-                if (len > 0.01) {
-                  const ux = dx / len;
-                  const uy = dy / len;
-                  const nz =
-                    0.7 +
-                    0.3 *
-                      Math.sin(FRAY_NOISE_K * x + tFray) *
-                      Math.cos(FRAY_NOISE_K * y + tFray * 0.83);
-                  const m = frayMagThisLine * nz;
-                  x += ux * m;
-                  y += uy * m;
-                }
-              }
-
-              if (kk === 0) ctx.moveTo(x, y);
-              else ctx.lineTo(x, y);
-            }
-          }
-
-          ctx.stroke();
-        }
+        // Compensate for the per-form scale so the visible stroke
+        // weight stays consistent across small/large forms.
+        ctx.lineWidth = 0.5 / visualScale;
+        ctx.stroke(form.path);
       }
+      ctx.globalAlpha = 1;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-      // forceUpdate only when easing is still in progress. During
-      // active drag the parent's vizState change already triggers
-      // a re-render — adding forceUpdate would just double-render.
-      // After drag stops, the canvas RAF keeps running (for flow
-      // drift / fraying) but the React tree doesn't need to update
-      // unless positions are still settling.
+      // forceUpdate only when easing — vizState changes already
+      // trigger the render via prop. After drag stops, this lets
+      // labels keep up with positions until they settle.
       if (easingActive) forceUpdate();
 
       rafId = requestAnimationFrame(frame);
@@ -586,102 +644,48 @@ export default function Poster003CanvasDeaths({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── React-controlled labels + connector lines ───────────────────
-  // Read positionsRef directly each render; vizState provides the
-  // ticking deaths value via the geometric field.
-  const labelLayer = (() => {
-    const items: React.ReactNode[] = [];
-    const positions = positionsRef.current;
-    const labelMinX = SVG_VIEW_X + LABEL_CLAMP_MARGIN;
-    const labelMaxX = SVG_VIEW_X + SVG_VIEW_W - LABEL_CLAMP_MARGIN;
+  // ─── Build label layouts each render ────────────────────────────
+  // Read positionsRef directly. Cost: O(N²) ≈ 1k ops for 8 forms,
+  // negligible compared to canvas redraw.
+  const visualScalesRender: Record<SourceId, number> = {} as Record<
+    SourceId,
+    number
+  >;
+  const deathsTexts: Record<SourceId, string> = {} as Record<
+    SourceId,
+    string
+  >;
+  for (const id of SOURCE_IDS) {
+    const f = FORM_BY_ID[id];
+    const ratio = vizState.geometricSources[id].deaths / f.maxDeaths;
+    const baseScale = ratio > 0 ? Math.sqrt(ratio) : 0;
+    visualScalesRender[id] = baseScale * FORM_SCALE_MULT;
 
-    for (const form of FORMS) {
-      const geomSource = vizState.geometricSources[form.id];
-      const baseScale =
-        geomSource.deaths > 0
-          ? Math.sqrt(geomSource.deaths / form.maxDeaths)
-          : 0;
-      if (baseScale <= ACTIVE_THRESHOLD) continue;
-      const visualScale = baseScale * FORM_SCALE_MULT;
+    // Editorial relaxation (commit 15): per-source death counts
+    // tick continuously. Same justification as the dot grid (commit
+    // 9) and dendrogram percentages (commit 14) — counts are
+    // derived from the same interpolated values that drive the
+    // geometry.
+    const geomDeaths = vizState.geometricSources[id].deaths;
+    deathsTexts[id] =
+      geomDeaths >= 1
+        ? `${Math.round(geomDeaths).toLocaleString()} Deaths`
+        : geomDeaths >= 0.5
+          ? '1 Death'
+          : geomDeaths > 0
+            ? '<1 Death'
+            : '0 Deaths';
+  }
 
-      const pos = positions.get(form.id);
-      if (!pos) continue;
-      const [cx, cy] = pos;
-      const formRadiusEff = form.formRadius * visualScale;
-
-      // Side selection: label sits on whichever side has more
-      // canvas room. Recomputed each frame so the choice updates
-      // as forms drift across the canvas centreline.
-      const useLeft = cx > CENTER_X;
-      const sign = useLeft ? -1 : 1;
-      const formEdgeX = cx + sign * formRadiusEff;
-      let labelX = formEdgeX + sign * LABEL_GAP;
-      labelX = Math.max(labelMinX, Math.min(labelMaxX, labelX));
-      const labelY = cy;
-      const textAnchor = useLeft ? 'end' : 'start';
-
-      // Editorial relaxation (commit 15): per-source death counts
-      // tick continuously. Same justification as the dot grid
-      // ticker (commit 9) and the dendrogram percentages
-      // (commit 14) — counts are derived from the same
-      // interpolated values that drive the geometry.
-      const geomDeaths = geomSource.deaths;
-      const deathsLabel =
-        geomDeaths >= 1
-          ? `${Math.round(geomDeaths).toLocaleString()} Deaths`
-          : geomDeaths >= 0.5
-            ? '1 Death'
-            : geomDeaths > 0
-              ? '<1 Death'
-              : '0 Deaths';
-
-      const labelColour =
-        form.id === 'nuclear' ? STROKE_NUCLEAR : '#0d1a1e';
-
-      items.push(
-        <g key={form.id}>
-          <line
-            x1={labelX}
-            y1={labelY}
-            x2={formEdgeX}
-            y2={labelY}
-            stroke="#0d1a1e"
-            strokeOpacity={0.55}
-            strokeWidth={0.5}
-            strokeDasharray="2 2"
-          />
-          <text
-            x={labelX}
-            y={labelY - 4}
-            textAnchor={textAnchor}
-            fontFamily="'Playfair', Georgia, serif"
-            fontSize={9}
-            fill="#0d1a1e"
-            opacity={0.7}
-            style={{
-              letterSpacing: '0.18em',
-              textTransform: 'uppercase',
-            }}
-          >
-            {form.label.name}
-          </text>
-          <text
-            x={labelX}
-            y={labelY + 12}
-            textAnchor={textAnchor}
-            fontFamily="'Playfair', Georgia, serif"
-            fontSize={13}
-            fontWeight={600}
-            fill={labelColour}
-            className="tabular-nums"
-          >
-            {deathsLabel}
-          </text>
-        </g>,
-      );
-    }
-    return items;
-  })();
+  const labelLayoutsMap = computeLabelLayouts(
+    positionsRef.current,
+    visualScalesRender,
+    deathsTexts,
+  );
+  const labelEntries: { id: SourceId; layout: LabelLayout }[] = [];
+  labelLayoutsMap.forEach((layout, id) => {
+    labelEntries.push({ id, layout });
+  });
 
   return (
     <div className="w-full relative">
@@ -722,7 +726,52 @@ export default function Poster003CanvasDeaths({
           preserveAspectRatio="xMidYMid meet"
           aria-hidden="true"
         >
-          {labelLayer}
+          {labelEntries.map(({ id, layout }) => {
+            const labelColour =
+              id === 'nuclear' ? STROKE_NUCLEAR : '#0d1a1e';
+            const form = FORM_BY_ID[id];
+            return (
+              <g key={id}>
+                <line
+                  x1={layout.textX}
+                  y1={layout.textY}
+                  x2={layout.formEdgeX}
+                  y2={layout.formEdgeY}
+                  stroke="#0d1a1e"
+                  strokeOpacity={0.55}
+                  strokeWidth={0.5}
+                  strokeDasharray="2 2"
+                />
+                <text
+                  x={layout.textX}
+                  y={layout.textY - 4}
+                  textAnchor={layout.textAnchor}
+                  fontFamily="'Playfair', Georgia, serif"
+                  fontSize={LABEL_NAME_FS}
+                  fill="#0d1a1e"
+                  opacity={0.7}
+                  style={{
+                    letterSpacing: '0.18em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {form.labelName}
+                </text>
+                <text
+                  x={layout.textX}
+                  y={layout.textY + 12}
+                  textAnchor={layout.textAnchor}
+                  fontFamily="'Playfair', Georgia, serif"
+                  fontSize={LABEL_DEATHS_FS}
+                  fontWeight={600}
+                  fill={labelColour}
+                  className="tabular-nums"
+                >
+                  {deathsTexts[id]}
+                </text>
+              </g>
+            );
+          })}
         </svg>
       </div>
     </div>
