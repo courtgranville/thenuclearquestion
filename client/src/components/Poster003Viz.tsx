@@ -122,9 +122,79 @@ function SectionFrame({ title, annotation, children }: SectionFrameProps) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Live ticker totals beneath the dot grid.
+//
+// Editorial discipline note: this is the deliberate relaxation of
+// the snap-only readout rule. The slider's anchor totals (in the
+// ScenarioReadout above) still update only at snap. This ticker
+// reads the dots component's current red/green counts and renders
+// them directly. The numbers are honest — they are counts of dots
+// actually rendered on screen at this frame, not interpolated
+// mortality estimates. The relaxation applies ONLY to these aggregate
+// dot totals; per-source mortality numbers (deaths-by-source labels)
+// and per-source TWh % (dendrogram) stay snap-only.
+// ─────────────────────────────────────────────────────────────────
+
+interface TickerTotalsProps {
+  redCount: number;
+  greenCount: number;
+}
+
+function TickerTotals({ redCount, greenCount }: TickerTotalsProps) {
+  return (
+    <div className="max-w-4xl mx-auto px-4 mt-6 flex gap-10 flex-wrap justify-center">
+      <div className="text-center">
+        <span
+          className="block font-serif tabular-nums"
+          style={{
+            color: '#a51e22',
+            fontWeight: 600,
+            fontSize: 'clamp(40px, 6vw, 64px)',
+            lineHeight: 1,
+            fontFamily: "'Playfair', Georgia, serif",
+          }}
+        >
+          {redCount.toLocaleString()}
+        </span>
+        <span
+          className="block text-[11px] tracking-[0.18em] uppercase text-muted-foreground mt-2"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
+        >
+          Estimated deaths per year
+        </span>
+      </div>
+      {greenCount > 0 && (
+        <div className="text-center">
+          <span
+            className="block font-serif tabular-nums"
+            style={{
+              color: '#217B3D',
+              fontWeight: 600,
+              fontSize: 'clamp(40px, 6vw, 64px)',
+              lineHeight: 1,
+              fontFamily: "'Playfair', Georgia, serif",
+            }}
+          >
+            {greenCount.toLocaleString()}
+          </span>
+          <span
+            className="block text-[11px] tracking-[0.18em] uppercase text-muted-foreground mt-2"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            Lives saved per year
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Poster003Viz() {
   const [sliderFraction, setSliderFraction] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // Live counts from the dots component — drive the ticker totals.
+  const [dotCounts, setDotCounts] = useState({ redCount: 699, greenCount: 0 });
 
   // Single source of truth for all three layers.
   const vizState = useMemo(
@@ -186,7 +256,15 @@ export default function Poster003Viz() {
             </>
           }
         >
-          <Poster003Dots vizState={vizState} dragging={dragging} />
+          <Poster003Dots
+            vizState={vizState}
+            dragging={dragging}
+            onCountsChange={setDotCounts}
+          />
+          <TickerTotals
+            redCount={dotCounts.redCount}
+            greenCount={dotCounts.greenCount}
+          />
         </SectionFrame>
 
         <SectionFrame

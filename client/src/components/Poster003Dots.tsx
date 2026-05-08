@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DOT_ORDERING, type VizState } from '@/lib/poster003Data';
 
 /**
@@ -29,15 +29,17 @@ interface DotPosition {
 
 // Module-level cache so a re-mount doesn't re-fetch and re-parse.
 let cachedPositions: DotPosition[] | null = null;
-let cachedTextOverlay: string | null = null;
 let cachedViewBox: string | null = null;
 
 interface ParsedDots {
   positions: DotPosition[];
-  textOverlay: string;
   viewBox: string;
 }
 
+// Pulls only the 699 circle positions and the viewBox. The SVG's
+// burned-in text labels (e.g. "699 / ESTIMATED DEATHS PER YEAR")
+// are deliberately discarded — the live ticker beneath the grid
+// replaces them.
 function parseDotsSvg(svgText: string): ParsedDots | null {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, 'image/svg+xml');
@@ -49,41 +51,40 @@ function parseDotsSvg(svgText: string): ParsedDots | null {
     cx: parseFloat(c.getAttribute('cx') || '0'),
     cy: parseFloat(c.getAttribute('cy') || '0'),
   }));
-  // Strip circles. The remaining text-label paths are the overlay.
-  circleEls.forEach((c) => c.remove());
-  svg.setAttribute('width', '100%');
-  svg.setAttribute('height', '100%');
-  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  svg.setAttribute(
-    'style',
-    'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;',
-  );
-  const textOverlay = new XMLSerializer().serializeToString(svg);
-  return { positions, textOverlay, viewBox };
+  return { positions, viewBox };
 }
 
 export interface Poster003DotsProps {
   vizState: VizState;
   /** True while the slider is being dragged (live geometry). */
   dragging: boolean;
+  /**
+   * Reports the current red/green dot counts each render. Used by
+   * the parent to drive the live ticker totals beneath the grid.
+   *
+   * Editorial note: this is the deliberate ticker relaxation —
+   * mid-drag the parent displays these counts as continuous numbers.
+   * The values are honest counts of dots actually rendered, not
+   * interpolated mortality estimates. See poster003Data.ts and the
+   * Poster003TickerTotals comment for context.
+   */
+  onCountsChange?: (counts: { redCount: number; greenCount: number }) => void;
 }
 
 export default function Poster003Dots({
   vizState,
   dragging,
+  onCountsChange,
 }: Poster003DotsProps) {
   const [positions, setPositions] = useState<DotPosition[] | null>(
     cachedPositions,
-  );
-  const [textOverlay, setTextOverlay] = useState<string | null>(
-    cachedTextOverlay,
   );
   const [viewBox, setViewBox] = useState<string | null>(cachedViewBox);
   const [parseError, setParseError] = useState(false);
 
   // ─── One-time fetch + parse ─────────────────────────────────────
   useEffect(() => {
-    if (cachedPositions && cachedTextOverlay && cachedViewBox) return;
+    if (cachedPositions && cachedViewBox) return;
     let cancelled = false;
     const xhr = new XMLHttpRequest();
     xhr.open('GET', SVG_URL, true);
@@ -94,10 +95,8 @@ export default function Poster003Dots({
         const parsed = parseDotsSvg(xhr.responseText);
         if (parsed && parsed.positions.length === NUM_DOTS) {
           cachedPositions = parsed.positions;
-          cachedTextOverlay = parsed.textOverlay;
           cachedViewBox = parsed.viewBox;
           setPositions(parsed.positions);
-          setTextOverlay(parsed.textOverlay);
           setViewBox(parsed.viewBox);
         } else {
           setParseError(true);
@@ -134,6 +133,18 @@ export default function Poster003Dots({
       arr[DOT_ORDERING[i]] = true;
     }
     return arr;
+  }, [targetGreen]);
+
+  // Report the current counts to the parent (used to drive the
+  // live ticker totals). Identity of the callback is stabilised via
+  // a ref so we don't re-fire on parent re-render alone.
+  const onCountsChangeRef = useRef(onCountsChange);
+  onCountsChangeRef.current = onCountsChange;
+  useEffect(() => {
+    onCountsChangeRef.current?.({
+      redCount: NUM_DOTS - targetGreen,
+      greenCount: targetGreen,
+    });
   }, [targetGreen]);
 
   if (parseError) {
@@ -179,12 +190,6 @@ export default function Poster003Dots({
           />
         ))}
       </svg>
-      {textOverlay && (
-        <div
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          dangerouslySetInnerHTML={{ __html: textOverlay }}
-        />
-      )}
     </div>
   );
 }
