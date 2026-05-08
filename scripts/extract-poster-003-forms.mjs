@@ -53,6 +53,27 @@ const MAX_DEATHS = {
   solar:     0.3,
 };
 
+// Per-source label data. Hand-encoded by reading the burned-in
+// label positions from the S1 deaths SVG (label-group bboxes at
+// x≈600 / x≈1158 in two columns). Position is the LABEL'S TEXT
+// EDGE FACING THE FORM — the connector line starts here. Anchor
+// matches: 'end' for left-column labels (text extends leftward),
+// 'start' for right-column labels (text extends rightward).
+// formEdgeDirection picks which side of the form the connector
+// terminates on; the canvas component evaluates
+//   formEdgeX = centroid.x + formRadius * scale * dir.x
+// (and similarly for y).
+const LABELS = {
+  gas:       { name: 'GAS',       position: [600,  567], textAnchor: 'end',   formEdgeDirection: 'left'  },
+  hydro:     { name: 'HYDRO',     position: [600,  640], textAnchor: 'end',   formEdgeDirection: 'left'  },
+  oil:       { name: 'OIL',       position: [600,  763], textAnchor: 'end',   formEdgeDirection: 'left'  },
+  solar:     { name: 'SOLAR',     position: [600,  874], textAnchor: 'end',   formEdgeDirection: 'left'  },
+  coal:      { name: 'COAL',      position: [1158, 595], textAnchor: 'start', formEdgeDirection: 'right' },
+  bioenergy: { name: 'BIOENERGY', position: [1158, 745], textAnchor: 'start', formEdgeDirection: 'right' },
+  nuclear:   { name: 'NUCLEAR',   position: [1158, 843], textAnchor: 'start', formEdgeDirection: 'right' },
+  wind:      { name: 'WIND',      position: [1158, 873], textAnchor: 'start', formEdgeDirection: 'right' },
+};
+
 // ─── Inline parseD (kept in sync with client/src/lib/parseSvg.ts) ──
 
 function flattenCubic(x0, y0, x1, y1, x2, y2, x3, y3, out) {
@@ -198,6 +219,62 @@ function extractDStrings(text) {
   return out;
 }
 
+// Translate every absolute coordinate in a d-string by (dx, dy).
+// Re-emits the d-string with all coordinates parsed and offset.
+// The poster-003 form polylines are simple `M x y L x y L x y …`
+// or absolute-coordinate cubic paths; this handles both by walking
+// commands, treating absolute commands' coords as absolute and
+// leaving relative ones alone (the deaths polylines use only
+// absolute commands after the polyline-to-path conversion above).
+function translateDString(d, dx, dy) {
+  const re = /([A-Za-z])|(-?\d*\.?\d+(?:e-?\d+)?)/g;
+  const tk = [];
+  let m;
+  while ((m = re.exec(d)) !== null) tk.push(m[1] || m[2]);
+  const out = [];
+  let i = 0;
+  let cmd = '';
+  while (i < tk.length) {
+    const t = tk[i];
+    if (/[A-Za-z]/.test(t)) { cmd = t; out.push(t); i++; continue; }
+    const isAbs = cmd === cmd.toUpperCase();
+    const C = cmd.toUpperCase();
+    // Each command consumes a known number of coordinate pairs,
+    // and we translate each pair (or single-coord H/V) for absolute
+    // commands. For relative commands we copy as-is.
+    let nNums;
+    let pairwise = true;
+    if (C === 'M' || C === 'L' || C === 'T') nNums = 2;
+    else if (C === 'H' || C === 'V') { nNums = 1; pairwise = false; }
+    else if (C === 'C') nNums = 6;
+    else if (C === 'S' || C === 'Q') nNums = 4;
+    else if (C === 'A') nNums = 7;
+    else if (C === 'Z') { nNums = 0; }
+    else { nNums = 1; pairwise = false; }
+    if (nNums === 0) continue;
+    // Collect nNums numbers
+    const nums = [];
+    for (let k = 0; k < nNums && i < tk.length; k++) nums.push(parseFloat(tk[i++]));
+    if (isAbs) {
+      if (C === 'H') nums[0] += dx;
+      else if (C === 'V') nums[0] += dy;
+      else if (C === 'A') {
+        // A: rx ry x-axis-rotation large-arc-flag sweep-flag x y
+        nums[5] += dx; nums[6] += dy;
+      } else if (pairwise) {
+        for (let k = 0; k < nums.length; k += 2) {
+          nums[k] += dx; nums[k + 1] += dy;
+        }
+      }
+    }
+    // After the first M, subsequent implicit pairs are L (absolute)
+    // or l (relative). Handled by the cmd update below.
+    out.push(nums.map((n) => n.toFixed(3).replace(/\.?0+$/, '')).join(' '));
+    if (C === 'M') cmd = isAbs ? 'L' : 'l';
+  }
+  return out.join(' ');
+}
+
 function bboxOfDStrings(ds) {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const d of ds) {
@@ -266,7 +343,8 @@ const s1Nuclear = s1Forms.find(isNuclearGroup);
 const s1NonNuclear = s1Forms.filter((g) => !isNuclearGroup(g));
 
 if (!s1Nuclear) {
-  console.warn('Warning: no nuclear group found in S1 (this is OK — we use S3 for nuclear).');
+  console.error('Error: no nuclear group found in S1. Cannot determine canonical S1 nuclear position.');
+  process.exit(1);
 }
 if (s1NonNuclear.length !== 7) {
   console.error(`Error: expected 7 non-nuclear S1 form-groups, found ${s1NonNuclear.length}.`);
@@ -320,23 +398,48 @@ for (let i = 0; i < s1Entries.length; i++) {
   };
 }
 
-// Nuclear: from S3.
+// Nuclear: extract polylines from S3 (its max-deaths scenario, full
+// size) but TRANSLATE them so they're centred at the S1 nuclear
+// position. The canvas component renders all forms in the S1
+// viewBox; nuclear's polylines must therefore live in S1 coords.
 {
-  const paths = extractDStrings(s3Nuclear.text);
-  const bbox = bboxOfDStrings(paths);
+  // S1 nuclear position (where nuclear belongs on the S1 canvas).
+  const s1NucPaths = extractDStrings(s1Nuclear.text);
+  const s1NucBbox = bboxOfDStrings(s1NucPaths);
+  const s1Cx = (s1NucBbox.minX + s1NucBbox.maxX) / 2;
+  const s1Cy = (s1NucBbox.minY + s1NucBbox.maxY) / 2;
+
+  // S3 nuclear shape (drawn at full size for 6 deaths).
+  const s3Paths = extractDStrings(s3Nuclear.text);
+  const s3Bbox = bboxOfDStrings(s3Paths);
+  const s3Cx = (s3Bbox.minX + s3Bbox.maxX) / 2;
+  const s3Cy = (s3Bbox.minY + s3Bbox.maxY) / 2;
+
+  const dx = s1Cx - s3Cx;
+  const dy = s1Cy - s3Cy;
+  const translatedPaths = s3Paths.map((d) => translateDString(d, dx, dy));
+  const bbox = bboxOfDStrings(translatedPaths);
   const cx = (bbox.minX + bbox.maxX) / 2;
   const cy = (bbox.minY + bbox.maxY) / 2;
+
   console.log(
-    `\nNuclear (from S3): ` +
-    `bbox=[${bbox.minX.toFixed(1)}, ${bbox.minY.toFixed(1)}, ${bbox.maxX.toFixed(1)}, ${bbox.maxY.toFixed(1)}] ` +
-    `centroid=[${cx.toFixed(1)}, ${cy.toFixed(1)}]  paths=${paths.length}`,
+    `\nNuclear: S1 placement [${s1Cx.toFixed(1)}, ${s1Cy.toFixed(1)}] ` +
+    `← shape from S3, translated by (${dx.toFixed(1)}, ${dy.toFixed(1)})\n` +
+    `  final bbox=[${bbox.minX.toFixed(1)}, ${bbox.minY.toFixed(1)}, ${bbox.maxX.toFixed(1)}, ${bbox.maxY.toFixed(1)}] ` +
+    `centroid=[${cx.toFixed(1)}, ${cy.toFixed(1)}]  paths=${translatedPaths.length}`,
   );
   result.nuclear = {
-    paths,
+    paths: translatedPaths,
     bbox,
     centroid: [cx, cy],
     deaths: MAX_DEATHS.nuclear,
   };
+}
+
+// Inject label data into every source entry.
+for (const id of SOURCE_IDS) {
+  if (!(id in result)) continue;
+  result[id].label = LABELS[id];
 }
 
 // Reorder result keys to match SOURCE_IDS declaration order.
