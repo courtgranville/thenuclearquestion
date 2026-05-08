@@ -30,28 +30,54 @@ interface DotPosition {
 // Module-level cache so a re-mount doesn't re-fetch and re-parse.
 let cachedPositions: DotPosition[] | null = null;
 let cachedViewBox: string | null = null;
+let cachedAspect = 1;
 
 interface ParsedDots {
   positions: DotPosition[];
+  /** Tight viewBox cropped to the actual dot bbox + small padding. */
   viewBox: string;
+  /** Aspect ratio derived from the cropped viewBox. */
+  aspect: number;
 }
 
-// Pulls only the 699 circle positions and the viewBox. The SVG's
-// burned-in text labels (e.g. "699 / ESTIMATED DEATHS PER YEAR")
-// are deliberately discarded — the live ticker beneath the grid
-// replaces them.
+// Padding (in viewBox units) around the dot bbox in the cropped
+// viewBox. Leaves a little breathing room without re-introducing
+// the dead zone the source SVG had below the dots (where the
+// burned-in "699 / ESTIMATED DEATHS PER YEAR" text used to live).
+const VIEWBOX_PADDING = 6;
+
+// Pulls only the 699 circle positions and computes a tight viewBox
+// cropped to the actual dot bbox. The source SVG's viewBox has
+// ~34% empty space below the dots (where the burned-in number/
+// subtitle used to live) — we strip the text and tighten the
+// viewBox so the ticker can sit visually close to the dot mass.
 function parseDotsSvg(svgText: string): ParsedDots | null {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgText, 'image/svg+xml');
   const svg = doc.querySelector('svg');
   if (!svg) return null;
-  const viewBox = svg.getAttribute('viewBox') || '0 0 100 100';
   const circleEls = Array.from(svg.querySelectorAll('circle'));
+  if (circleEls.length === 0) return null;
   const positions: DotPosition[] = circleEls.map((c) => ({
     cx: parseFloat(c.getAttribute('cx') || '0'),
     cy: parseFloat(c.getAttribute('cy') || '0'),
   }));
-  return { positions, viewBox };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of positions) {
+    if (p.cx < minX) minX = p.cx;
+    if (p.cx > maxX) maxX = p.cx;
+    if (p.cy < minY) minY = p.cy;
+    if (p.cy > maxY) maxY = p.cy;
+  }
+  const x = minX - DOT_RADIUS - VIEWBOX_PADDING;
+  const y = minY - DOT_RADIUS - VIEWBOX_PADDING;
+  const w = (maxX - minX) + 2 * (DOT_RADIUS + VIEWBOX_PADDING);
+  const h = (maxY - minY) + 2 * (DOT_RADIUS + VIEWBOX_PADDING);
+  return {
+    positions,
+    viewBox: `${x} ${y} ${w} ${h}`,
+    aspect: w / h,
+  };
 }
 
 export interface Poster003DotsProps {
@@ -80,6 +106,7 @@ export default function Poster003Dots({
     cachedPositions,
   );
   const [viewBox, setViewBox] = useState<string | null>(cachedViewBox);
+  const [aspect, setAspect] = useState<number>(cachedAspect);
   const [parseError, setParseError] = useState(false);
 
   // ─── One-time fetch + parse ─────────────────────────────────────
@@ -89,6 +116,7 @@ export default function Poster003Dots({
     const xhr = new XMLHttpRequest();
     xhr.open('GET', SVG_URL, true);
     xhr.responseType = 'text';
+    xhr.responseType = 'text';
     xhr.onload = () => {
       if (cancelled) return;
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -96,8 +124,10 @@ export default function Poster003Dots({
         if (parsed && parsed.positions.length === NUM_DOTS) {
           cachedPositions = parsed.positions;
           cachedViewBox = parsed.viewBox;
+          cachedAspect = parsed.aspect;
           setPositions(parsed.positions);
           setViewBox(parsed.viewBox);
+          setAspect(parsed.aspect);
         } else {
           setParseError(true);
         }
@@ -161,7 +191,7 @@ export default function Poster003Dots({
     return (
       <div
         className="w-full mx-auto"
-        style={{ aspectRatio: '219.87 / 321.48', maxWidth: 600 }}
+        style={{ aspectRatio: aspect, maxWidth: 600 }}
       />
     );
   }
@@ -169,7 +199,7 @@ export default function Poster003Dots({
   return (
     <div
       className="relative w-full mx-auto"
-      style={{ aspectRatio: '219.87 / 321.48', maxWidth: 600 }}
+      style={{ aspectRatio: aspect, maxWidth: 600 }}
     >
       <svg
         viewBox={viewBox}

@@ -142,8 +142,11 @@ interface TickerTotalsProps {
 }
 
 function TickerTotals({ redCount, greenCount }: TickerTotalsProps) {
+  // The dots SVG is now cropped to the actual dot bbox (no dead
+  // zone below), so the ticker can sit visually close to the dot
+  // mass — gap roughly equal to one numeral line-height.
   return (
-    <div className="max-w-4xl mx-auto px-4 mt-6 flex gap-10 flex-wrap justify-center">
+    <div className="max-w-4xl mx-auto px-4 mt-1 flex gap-10 flex-wrap justify-center">
       <div className="text-center">
         <span
           className="block font-serif tabular-nums"
