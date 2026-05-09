@@ -28,9 +28,14 @@ import {
   INSTRUCTION_FADE_IN_DELAY_MS,
   INSTRUCTION_FADE_IN_MS,
   OPACITY_CROSSFADE_MS,
+  PULSE_BULGE_COLOR,
   PULSE_BULGE_HALF_LEN,
   PULSE_BULGE_WIDTH,
+  PULSE_CORE_COLOR,
   PULSE_CORE_RADIUS,
+  PULSE_GLOW_COLOR,
+  PULSE_GLOW_EDGE_COLOR,
+  PULSE_GLOW_MID_COLOR,
   PULSE_GLOW_RADIUS,
   type AnimState,
   type Link,
@@ -268,12 +273,20 @@ const SECTOR_BY_ID: Record<string, RawSector> = (() => {
   return out;
 })();
 
-// Each label nudges along the carrier→dot radial by (dot radius +
-// breathing-room buffer). Proportional to dot size so big sectors
-// like Domestic 94.4 TWh (r ≈ 25) get pushed further out than tiny
-// solid-fuel cluster dots (r < 2). The buffer is a tunable constant
-// — tighten if labels feel too far away from their dots.
-const SECTOR_LABEL_RADIAL_BUFFER_PX = 12;
+// For each label: shift it along the (dot → label-centroid) axis
+// just enough to ensure its nearest glyph anchor sits at least
+// SECTOR_LABEL_DOT_CLEARANCE_PX past the dot's outer edge. The
+// previous fixed-direction nudge along the carrier→dot radial moved
+// the wrong way for sectors whose print-natural label sits inboard
+// of (between hub and) the dot, leaving labels still on top of
+// their dots in the petroleum cluster. The dot-centric approach
+// works regardless of which side of the dot the print places the
+// label on.
+//
+// The clearance includes a rough per-glyph extent so the label's
+// rendered EDGE clears (not just the glyph anchor point).
+const SECTOR_LABEL_GLYPH_EXTENT_PX = 14;
+const SECTOR_LABEL_DOT_CLEARANCE_PX = 6;
 
 interface LabelTransform {
   ax: number;
@@ -292,20 +305,50 @@ const LABEL_TRANSFORMS: Record<string, LabelTransform> = (() => {
     const ax = glyphs[0].x;
     const ay = glyphs[0].y;
 
-    // Radial unit vector from parent carrier's anchor to the dot.
-    const carrierAnchor = FORMS[sec.carrier].anchor;
-    const rx = sec.cx - carrierAnchor[0];
-    const ry = sec.cy - carrierAnchor[1];
-    const rmag = Math.hypot(rx, ry) || 1;
-    const vx = rx / rmag;
-    const vy = ry / rmag;
+    // Walk the post-scale glyph anchors: track the nearest distance
+    // to the dot AND the centroid of all anchors (used as the shift
+    // direction).
+    let nearestAnchorDist = Infinity;
+    let cSumX = 0;
+    let cSumY = 0;
+    for (const g of glyphs) {
+      const gx = ax + SECTOR_LABEL_SCALE * (g.x - ax);
+      const gy = ay + SECTOR_LABEL_SCALE * (g.y - ay);
+      const d = Math.hypot(gx - sec.cx, gy - sec.cy);
+      if (d < nearestAnchorDist) nearestAnchorDist = d;
+      cSumX += gx;
+      cSumY += gy;
+    }
+    const cX = cSumX / glyphs.length;
+    const cY = cSumY / glyphs.length;
 
-    const offset = sec.r + SECTOR_LABEL_RADIAL_BUFFER_PX;
-    out[sectorId] = {
-      ax, ay,
-      dx: vx * offset,
-      dy: vy * offset,
-    };
+    // Required nearest-anchor distance for the label's rendered edge
+    // to clear the dot by the breathing-room buffer.
+    const desired =
+      sec.r + SECTOR_LABEL_GLYPH_EXTENT_PX + SECTOR_LABEL_DOT_CLEARANCE_PX;
+
+    let dx = 0;
+    let dy = 0;
+    const need = desired - nearestAnchorDist;
+    if (need > 0) {
+      // Shift along (dot → centroid) — moves the whole label away
+      // from the dot regardless of which side of the dot it sits on.
+      let dirX = cX - sec.cx;
+      let dirY = cY - sec.cy;
+      let dirMag = Math.hypot(dirX, dirY);
+      if (dirMag < 0.5) {
+        // Centroid coincides with the dot — fall back to the
+        // carrier→dot radial.
+        const ca = FORMS[sec.carrier].anchor;
+        dirX = sec.cx - ca[0];
+        dirY = sec.cy - ca[1];
+        dirMag = Math.hypot(dirX, dirY) || 1;
+      }
+      dx = (dirX / dirMag) * need;
+      dy = (dirY / dirMag) * need;
+    }
+
+    out[sectorId] = { ax, ay, dx, dy };
   }
   return out;
 })();
@@ -635,15 +678,17 @@ export default function Poster004CanvasViz() {
       }
 
       // ── Pulse-tips on canvas ──
-      // Three-layer composition per pulse:
-      //   1. Soft radial glow at the head — carrier colour at the
-      //      centre, fading to transparent at PULSE_GLOW_RADIUS.
-      //   2. White-hot core dot for a focal point.
-      //   3. Bell-curve bulge along the connector path centred on
-      //      the head, with cosine-shaped alpha so the colour reads
-      //      as the line glowing rather than a separate object.
+      // Pulses read as bright yellow-white electricity flowing
+      // through the connector lines — no carrier colour. Three
+      // layered elements per pulse:
+      //   1. Warm-yellow radial glow at the head.
+      //   2. White core dot for the focal point.
+      //   3. Warm-white bell-curve bulge along the connector path
+      //      centred on the head.
+      // The bulge is longer than the glow so the pulse reads as a
+      // sustained streak rather than a moving spot.
       if (anim.pulses.length > 0) {
-        const SAMPLES = 8;
+        const SAMPLES = 12;
         const samplePts: { x: number; y: number }[] = new Array(SAMPLES + 1);
         for (let i = 0; i <= SAMPLES; i++) samplePts[i] = { x: 0, y: 0 };
 
@@ -655,28 +700,28 @@ export default function Poster004CanvasViz() {
           const t = p.progress * len;
           const head = path.getPointAtLength(t);
 
-          // 1. Radial glow at the head.
+          // 1. Warm-yellow radial glow at the head.
           const glow = ctx.createRadialGradient(
             head.x, head.y, 0,
             head.x, head.y, PULSE_GLOW_RADIUS,
           );
-          glow.addColorStop(0,   p.color);
-          glow.addColorStop(0.4, p.color + '80'); // ≈ 50% alpha
-          glow.addColorStop(1,   p.color + '00'); // transparent
+          glow.addColorStop(0,   PULSE_GLOW_COLOR);
+          glow.addColorStop(0.4, PULSE_GLOW_MID_COLOR);
+          glow.addColorStop(1,   PULSE_GLOW_EDGE_COLOR);
           ctx.fillStyle = glow;
           ctx.beginPath();
           ctx.arc(head.x, head.y, PULSE_GLOW_RADIUS, 0, Math.PI * 2);
           ctx.fill();
 
-          // 2. White-hot core dot.
+          // 2. White core dot.
           ctx.globalAlpha = 0.95;
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = PULSE_CORE_COLOR;
           ctx.beginPath();
           ctx.arc(head.x, head.y, PULSE_CORE_RADIUS, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalAlpha = 1;
 
-          // 3. Bell-curve bulge along the connector path.
+          // 3. Warm-white bell-curve bulge along the connector path.
           const halfLen = PULSE_BULGE_HALF_LEN;
           for (let i = 0; i <= SAMPLES; i++) {
             const offset = ((i / SAMPLES) * 2 - 1) * halfLen;
@@ -686,7 +731,7 @@ export default function Poster004CanvasViz() {
             samplePts[i].y = pt.y;
           }
 
-          ctx.strokeStyle = p.color;
+          ctx.strokeStyle = PULSE_BULGE_COLOR;
           ctx.lineWidth = PULSE_BULGE_WIDTH;
           ctx.lineCap = 'round';
           ctx.lineJoin = 'round';

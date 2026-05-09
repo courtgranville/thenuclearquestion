@@ -63,18 +63,27 @@ export const INSTRUCTION_FADE_IN_MS   = 200;
 // Reduced-motion cascades collapse to a single 200 ms fade.
 const REDUCED_FADE_MS = 200;
 
-// Pulse render constants. Three layered elements compose the pulse:
-//   1. Soft radial glow at the head — carrier-coloured halo for the
-//      "luminous spot" quality.
-//   2. White-hot core dot at the head — gives the eye a focal point.
-//   3. Bell-curve bulge along the connector path centred on the
-//      head — reads as "the line is glowing here".
-// Same colour register as the connector beneath, but bright enough
-// to read as light moving along a wire.
+// Pulse render constants. Pulses read as bright yellow-white
+// electricity — no carrier colour. Three layered elements compose
+// the pulse:
+//   1. Warm-yellow radial glow at the head.
+//   2. White-hot core dot at the head — focal point.
+//   3. Warm-white bulge along the connector path centred on the
+//      head — reads as electricity flowing through the line.
+// The bulge is elongated so each pulse reads as a sustained streak
+// rather than a moving spot.
 export const PULSE_BULGE_WIDTH        = 2.5;
-export const PULSE_BULGE_HALF_LEN     = 8;    // 16 px total bulge length
-export const PULSE_GLOW_RADIUS        = 7;
-export const PULSE_CORE_RADIUS        = 1.2;
+export const PULSE_BULGE_HALF_LEN     = 14;   // 28 px total bulge length
+export const PULSE_GLOW_RADIUS        = 8;
+export const PULSE_CORE_RADIUS        = 1.4;
+// CSS colour strings used by the canvas pulse render. Tuned to read
+// as electrical arcing light — warm yellow at the head fading to
+// white through the bulge.
+export const PULSE_GLOW_COLOR         = 'rgba(255, 235, 130, 1)';
+export const PULSE_GLOW_MID_COLOR     = 'rgba(255, 240, 170, 0.55)';
+export const PULSE_GLOW_EDGE_COLOR    = 'rgba(255, 240, 170, 0)';
+export const PULSE_BULGE_COLOR        = 'rgba(255, 250, 220, 1)';
+export const PULSE_CORE_COLOR         = '#ffffff';
 
 export const CARRIER_COLOURS: Record<CarrierId, string> = {
   petroleum:   '#a51e22',
