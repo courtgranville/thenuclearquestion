@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { buildPolylines, type BBox } from '@/lib/parseSvg';
 import {
   resolveMotion,
@@ -132,10 +132,17 @@ function buildPath2D(pts: Float32Array, n: number): Path2D {
 }
 
 function pickSilhouetteIndices(lines: PreparedLine[]): number[] {
+  // Single largest-bbox-area polyline only. Multiple silhouettes
+  // (the prior 80%-of-max set) produced visible doubled outlines
+  // because the fill boundary and the outermost stroke didn't sit
+  // on the same path. With a single index, the fill boundary
+  // coincides exactly with the outermost stroke and the form reads
+  // clean.
   if (lines.length === 0) return [];
-  let maxArea = 0;
-  const areas: number[] = [];
-  for (const L of lines) {
+  let maxArea = -Infinity;
+  let maxIdx = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i];
     let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;
     for (let k = 0; k < L.n; k++) {
@@ -147,15 +154,9 @@ function pickSilhouetteIndices(lines: PreparedLine[]): number[] {
       if (y > maxY) maxY = y;
     }
     const a = (maxX - minX) * (maxY - minY);
-    areas.push(a);
-    if (a > maxArea) maxArea = a;
+    if (a > maxArea) { maxArea = a; maxIdx = i; }
   }
-  const threshold = maxArea * 0.8;
-  const out: number[] = [];
-  for (let i = 0; i < areas.length; i++) {
-    if (areas[i] >= threshold) out.push(i);
-  }
-  return out;
+  return [maxIdx];
 }
 
 const FORMS: Record<FormId, PreparedForm> = (() => {
@@ -398,6 +399,31 @@ export default function Poster004CanvasViz() {
   const sectorCircleRefs = useRef<Record<string, SVGCircleElement | null>>({});
   const sectorLabelRefs  = useRef<Record<string, SVGGElement | null>>({});
 
+  // Dev-only FPS counter (mirrors Poster001CanvasViz). Rendered as
+  // a small absolute-positioned chip in the top-right of the stage.
+  const [fps, setFps] = useState(0);
+  useEffect(() => {
+    if (import.meta.env.PROD) return;
+    let frames = 0;
+    let lastReport = performance.now();
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      frames++;
+      const now = performance.now();
+      if (now - lastReport >= 500) {
+        setFps(Math.round((frames * 1000) / (now - lastReport)));
+        frames = 0;
+        lastReport = now;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const stage = stageRef.current;
@@ -422,7 +448,11 @@ export default function Poster004CanvasViz() {
     }
     animRef.current.linkLengths = lengths;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    // Cap at 2.0 for retina sharpness — pixel count goes up ~78% vs
+    // 1.5, but the silhouette-singleton + alpha-guard work in this
+    // commit recovers the budget. Verify on the dev FPS counter
+    // before pushing further.
+    const DPR = Math.min(window.devicePixelRatio || 1, 2.0);
 
     const resize = () => {
       const r = stage.getBoundingClientRect();
@@ -509,7 +539,10 @@ export default function Poster004CanvasViz() {
         // that block the connector lines running underneath. Draw
         // BEFORE the texture strokes so the strokes still draw on
         // top. globalAlpha = formAlpha so the dim mask still works.
-        if (f.silhouetteIndices.length > 0) {
+        // Skip when the form is heavily dimmed — the connectors
+        // beneath are also at DIM_OPACITY, so occlusion isn't load-
+        // bearing and the fill cost adds no visible value.
+        if (f.silhouetteIndices.length > 0 && alpha > 0.1) {
           ctx.globalAlpha = alpha;
           ctx.fillStyle = PAGE_BG;
           ctx.beginPath();
@@ -880,6 +913,25 @@ export default function Poster004CanvasViz() {
 
   return (
     <div className="w-full relative" ref={containerRef}>
+      {!import.meta.env.PROD && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 10,
+            fontFamily: 'ui-monospace, monospace',
+            fontSize: 11,
+            padding: '2px 6px',
+            background: 'rgba(13,26,30,0.85)',
+            color: '#ece7df',
+            borderRadius: 3,
+            pointerEvents: 'none',
+          }}
+        >
+          {fps} fps
+        </div>
+      )}
       <div
         ref={stageRef}
         className="relative w-full mx-auto"
