@@ -393,6 +393,7 @@ export default function Poster004CanvasViz() {
   const connectorRefs    = useRef<Record<string, SVGPathElement | null>>({});
   const sectorCircleRefs = useRef<Record<string, SVGCircleElement | null>>({});
   const sectorLabelRefs  = useRef<Record<string, SVGGElement | null>>({});
+  const carrierLabelRefs = useRef<Record<string, SVGTextElement | null>>({});
 
   // Dev-only FPS counter (mirrors Poster001CanvasViz). Rendered as
   // a small absolute-positioned chip in the top-right of the stage.
@@ -480,6 +481,7 @@ export default function Poster004CanvasViz() {
     const lastSyncedSectorScale: Record<string, number> = {};
     const lastSyncedSectorBlip: Record<string, number> = {};
     const lastSyncedLabel: Record<string, number> = {};
+    const lastSyncedCarrierLabel: Record<string, number> = {};
     const t0 = performance.now();
 
     const frame = (now: number) => {
@@ -758,6 +760,16 @@ export default function Poster004CanvasViz() {
           lastSyncedLabel[id] = v;
           const gEl = sectorLabelRefs.current[id];
           if (gEl) gEl.style.opacity = String(v);
+        }
+      }
+
+      // Carrier-name label opacity.
+      for (const c of CARRIER_IDS) {
+        const v = anim.carrierLabelOpacity[c];
+        if (lastSyncedCarrierLabel[c] !== v) {
+          lastSyncedCarrierLabel[c] = v;
+          const el = carrierLabelRefs.current[c];
+          if (el) el.style.opacity = String(v);
         }
       }
 
@@ -1066,11 +1078,13 @@ export default function Poster004CanvasViz() {
             </text>
           </g>
 
-          {/* Carrier-name labels. */}
+          {/* Carrier-name labels. RAF loop drives opacity from
+              anim.carrierLabelOpacity per the engine's tweens. */}
           <g id="carrier-labels" pointerEvents="none">
             {CARRIER_LABELS.map((cl) => (
               <text
                 key={cl.id}
+                ref={(el) => { carrierLabelRefs.current[cl.id] = el; }}
                 x={cl.x}
                 y={cl.y}
                 textAnchor={cl.anchor}

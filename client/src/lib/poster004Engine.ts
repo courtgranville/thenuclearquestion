@@ -193,6 +193,10 @@ export interface AnimState {
   // drawProgress; both modulate the rendered connector / dot.
   connectorOpacity: Record<string, number>;
   labelOpacity: Record<string, number>;
+  // Carrier-name + TWh label opacity, one per carrier. Fades 0 → 1
+  // alongside its blob during CASCADE_FULL; tweens to 0 / 1 during
+  // CARRIER_FOCUS dim transitions.
+  carrierLabelOpacity: Record<CarrierId, number>;
   // Trail reveal (0 = invisible, 1 = fully drawn, sticky once 1).
   // Component writes stroke-dashoffset = pathLength * (1 - progress).
   connectorDrawProgress: Record<string, number>;
@@ -209,6 +213,7 @@ export interface AnimState {
   formAlphaTweens: Partial<Record<CarrierId | 'total', OpacityTween>>;
   connectorTweens: Record<string, OpacityTween>;
   labelTweens: Record<string, OpacityTween>;
+  carrierLabelTweens: Partial<Record<CarrierId, OpacityTween>>;
   scheduled: ScheduledEvent[];
   cascadeActive: boolean;
   cascadePending: Set<string>;
@@ -247,6 +252,7 @@ export function makeInitialAnimState(): AnimState {
     // until a pulse traces them.
     connectorOpacity: recordFromIds(ALL_CONNECTOR_IDS, 1),
     labelOpacity: recordFromIds(ALL_SECTOR_IDS, 0),
+    carrierLabelOpacity: emptyCarrierRecord(0),
     connectorDrawProgress: recordFromIds(ALL_CONNECTOR_IDS, 0),
     linkLengths: {},
     hubPulse: null,
@@ -256,6 +262,7 @@ export function makeInitialAnimState(): AnimState {
     formAlphaTweens: {},
     connectorTweens: {},
     labelTweens: {},
+    carrierLabelTweens: {},
     scheduled: [],
     cascadeActive: false,
     cascadePending: new Set(),
@@ -320,9 +327,12 @@ function startTween(
 
 export function reset(anim: AnimState): void {
   anim.hubPulseScale = 1;
-  for (const c of CARRIER_IDS) anim.carrierPulseScale[c] = 1;
+  for (const c of CARRIER_IDS) {
+    anim.carrierPulseScale[c] = 1;
+    anim.formAlpha[c] = 0;
+    anim.carrierLabelOpacity[c] = 0;
+  }
   anim.formAlpha.total = 1;
-  for (const c of CARRIER_IDS) anim.formAlpha[c] = 0;
   anim.pulses = [];
   for (const id of ALL_SECTOR_IDS) {
     anim.sectorScale[id] = 0;
@@ -336,9 +346,11 @@ export function reset(anim: AnimState): void {
   anim.hubPulse = null;
   anim.carrierPulses = {};
   anim.sectorBlips = {};
+  anim.sectorScaleTweens = {};
   anim.formAlphaTweens = {};
   anim.connectorTweens = {};
   anim.labelTweens = {};
+  anim.carrierLabelTweens = {};
   anim.scheduled = [];
   anim.cascadeActive = false;
   anim.cascadePending = new Set();
@@ -347,9 +359,12 @@ export function reset(anim: AnimState): void {
 
 export function snapToFull(anim: AnimState): void {
   anim.hubPulseScale = 1;
-  for (const c of CARRIER_IDS) anim.carrierPulseScale[c] = 1;
+  for (const c of CARRIER_IDS) {
+    anim.carrierPulseScale[c] = 1;
+    anim.formAlpha[c] = 1;
+    anim.carrierLabelOpacity[c] = 1;
+  }
   anim.formAlpha.total = 1;
-  for (const c of CARRIER_IDS) anim.formAlpha[c] = 1;
   anim.pulses = [];
   for (const id of ALL_SECTOR_IDS) {
     anim.sectorScale[id] = 1;
@@ -367,6 +382,7 @@ export function snapToFull(anim: AnimState): void {
   anim.formAlphaTweens = {};
   anim.connectorTweens = {};
   anim.labelTweens = {};
+  anim.carrierLabelTweens = {};
   anim.scheduled = [];
   anim.cascadeActive = false;
   anim.cascadePending = new Set();
@@ -447,6 +463,24 @@ function startCascade(
     }
   }
 
+  // Carrier-name labels. In CARRIER_FOCUS, dim non-branches to 0
+  // and ensure the focused carrier's label is at 1. In CASCADE_FULL,
+  // the per-arrival path in handlePulseArrival fades each label in
+  // alongside its blob — don't tween at startCascade time, but DO
+  // cancel any stale focus-dim tween so the per-arrival fade-in is
+  // unimpeded.
+  if (dimNonBranches) {
+    for (const c of CARRIER_IDS) {
+      const target = branchSet.has(c) ? 1 : 0;
+      startTween(
+        anim.carrierLabelTweens as Record<string, OpacityTween>,
+        c, anim.carrierLabelOpacity[c], target, now, labelDuration,
+      );
+    }
+  } else {
+    for (const c of CARRIER_IDS) delete anim.carrierLabelTweens[c];
+  }
+
   if (anim.reduced) {
     // Reduced motion: snap geometry; rely on the form/connector/label
     // tweens above for the visible fade. No pulse-tip travel and no
@@ -457,8 +491,8 @@ function startCascade(
     for (const id of ALL_CONNECTOR_IDS) {
       anim.connectorDrawProgress[id] = 1;
     }
-    // Branch sectors get labels = 1 too (the per-arrival tween path
-    // doesn't run under reduced motion).
+    // Branch sectors + carrier labels get tweened to 1 (the per-
+    // arrival path doesn't run under reduced motion).
     for (const sid of ALL_SECTOR_IDS) {
       const carrier = SECTOR_BY_ID[sid]?.carrier;
       if (!carrier) continue;
@@ -466,6 +500,14 @@ function startCascade(
         startTween(
           anim.labelTweens, sid,
           anim.labelOpacity[sid], 1, now, labelDuration,
+        );
+      }
+    }
+    for (const c of CARRIER_IDS) {
+      if (branchSet.has(c)) {
+        startTween(
+          anim.carrierLabelTweens as Record<string, OpacityTween>,
+          c, anim.carrierLabelOpacity[c], 1, now, labelDuration,
         );
       }
     }
@@ -535,6 +577,10 @@ export function endCarrierFocus(anim: AnimState, now: number): void {
     startTween(
       anim.formAlphaTweens as Record<string, OpacityTween>,
       c, anim.formAlpha[c], 1, now, dimDuration,
+    );
+    startTween(
+      anim.carrierLabelTweens as Record<string, OpacityTween>,
+      c, anim.carrierLabelOpacity[c], 1, now, labelDuration,
     );
   }
   for (const id of ALL_CONNECTOR_IDS) {
@@ -672,6 +718,16 @@ export function tickAnimation(
     if (anim.labelOpacity[k] !== v) { anim.labelOpacity[k] = v; changed = true; }
     if (tweenDone(tw, now)) delete anim.labelTweens[k];
   }
+  for (const k of Object.keys(anim.carrierLabelTweens) as CarrierId[]) {
+    const tw = anim.carrierLabelTweens[k];
+    if (!tw) continue;
+    const v = tweenValue(tw, now);
+    if (anim.carrierLabelOpacity[k] !== v) {
+      anim.carrierLabelOpacity[k] = v;
+      changed = true;
+    }
+    if (tweenDone(tw, now)) delete anim.carrierLabelTweens[k];
+  }
 
   // 7. Cascade-completion check.
   let cascadeFullComplete = false;
@@ -687,7 +743,8 @@ export function tickAnimation(
     Object.keys(anim.sectorScaleTweens).length === 0 &&
     Object.keys(anim.formAlphaTweens).length === 0 &&
     Object.keys(anim.connectorTweens).length === 0 &&
-    Object.keys(anim.labelTweens).length === 0
+    Object.keys(anim.labelTweens).length === 0 &&
+    Object.keys(anim.carrierLabelTweens).length === 0
   ) {
     anim.cascadeAlreadyReported = true;
     anim.cascadeActive = false;
@@ -753,7 +810,8 @@ function handlePulseArrival(
 ): void {
   if (p.sectorId === null) {
     // Hub→carrier arrival. Snap formAlpha (no-op on replay), kick the
-    // carrier physical-pulse, schedule its sector launch.
+    // carrier physical-pulse, schedule its sector launch, and fade
+    // in the carrier name + TWh label alongside the blob.
     anim.formAlpha[p.carrier] = 1;
     anim.carrierPulses[p.carrier] = {
       startTime: arrivalTime,
@@ -761,6 +819,11 @@ function handlePulseArrival(
       peakScale: CARRIER_PULSE_PEAK_SCALE,
     };
     anim.carrierPulseScale[p.carrier] = 1;
+    startTween(
+      anim.carrierLabelTweens as Record<string, OpacityTween>,
+      p.carrier, anim.carrierLabelOpacity[p.carrier], 1,
+      arrivalTime, LABEL_FADE_MS,
+    );
     anim.scheduled.push({
       time: arrivalTime + PULSE_LAUNCH_AT_MS,
       run: (a, t) => launchSectorPulses(a, p.carrier, t),
