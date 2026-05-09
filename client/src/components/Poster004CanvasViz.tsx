@@ -555,20 +555,16 @@ export default function Poster004CanvasViz() {
           maxWidth: `calc(85vh * ${SVG_VIEW_W} / ${SVG_VIEW_H})`,
         }}
       >
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
-        />
+        {/* Layer 1: connectors (lowest). Pointer-events disabled —
+            taps pass through to the upper SVG. */}
         <svg
           viewBox={`0 0 ${SVG_VIEW_W} ${SVG_VIEW_H}`}
           className="absolute inset-0 w-full h-full"
           preserveAspectRatio="xMidYMid meet"
-          role="img"
-          aria-label="UK final energy in 2024 by carrier and end-use sector — 1,542 TWh total"
-          onPointerDown={handleSvgBackground}
+          style={{ zIndex: 1, pointerEvents: 'none' }}
+          aria-hidden="true"
         >
-          {/* Connectors (under sector dots so dots sit on top). */}
-          <g id="connectors" pointerEvents="none">
+          <g id="connectors">
             {ALL_LINKS.map((l) => (
               <path
                 key={l.id}
@@ -579,11 +575,30 @@ export default function Poster004CanvasViz() {
                 stroke="#0d1a1e"
                 strokeWidth={0.6}
                 fill="none"
-                style={{ opacity: 0 }}
+                style={{ opacity: 1 }}
               />
             ))}
           </g>
+        </svg>
 
+        {/* Layer 2: forms + pulse-tips (middle). */}
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full block"
+          style={{ zIndex: 2, pointerEvents: 'none' }}
+        />
+
+        {/* Layer 3: sectors, labels, hub label, carrier labels,
+            hover instruction, hit-areas (top). */}
+        <svg
+          viewBox={`0 0 ${SVG_VIEW_W} ${SVG_VIEW_H}`}
+          className="absolute inset-0 w-full h-full"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label="UK final energy in 2024 by carrier and end-use sector — 1,542 TWh total"
+          onPointerDown={handleSvgBackground}
+          style={{ zIndex: 3 }}
+        >
           {/* Sector dots. */}
           <g id="sectors" pointerEvents="none">
             {SECTORS.map((s) => (
@@ -596,7 +611,7 @@ export default function Poster004CanvasViz() {
                 data-sector-id={s.id}
                 data-sector-carrier={s.carrier}
                 fill={CARRIER_COLOURS[s.carrier]}
-                style={{ opacity: 0 }}
+                style={{ opacity: 1 }}
                 transform={`translate(${s.cx} ${s.cy}) scale(0) translate(${-s.cx} ${-s.cy})`}
               />
             ))}
@@ -620,11 +635,12 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Hub label. */}
+          {/* Hub label — sits BELOW the central form, matching the
+              print's actual placement. Always visible, never tweens. */}
           <g id="hub-label" pointerEvents="none">
             <text
               x={FORMS.total.centroid[0]}
-              y={FORMS.total.centroid[1] - 4}
+              y={1010}
               textAnchor="middle"
               style={{
                 fontFamily: "'Playfair', Georgia, serif",
@@ -637,7 +653,7 @@ export default function Poster004CanvasViz() {
             </text>
             <text
               x={FORMS.total.centroid[0]}
-              y={FORMS.total.centroid[1] + 22}
+              y={1040}
               textAnchor="middle"
               style={{
                 fontFamily: "'Playfair', Georgia, serif",
@@ -684,23 +700,27 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Hover instruction: fades in 800 ms after mount, fades
-              out (and never returns) on first cascade dispatch. */}
+          {/* Hover instruction. Fades in 800 ms after mount, fades
+              out on first cascade dispatch, fades back in after
+              CASCADE_FULL completes if the user hasn't yet hovered
+              any carrier (handled in the reducer). */}
           <text
             x={FORMS.total.centroid[0]}
-            y={895}
+            y={1090}
             textAnchor="middle"
             pointerEvents="none"
             style={{
               fontFamily: "'Playfair', Georgia, serif",
-              fontSize: 13,
+              fontSize: 14,
               fontStyle: 'italic',
               fill: '#0d1a1e',
               opacity: state.hoverInstructionVisible ? 0.7 : 0,
               transition: `opacity ${INSTRUCTION_FADE_IN_MS}ms ease-out`,
             }}
           >
-            {coarsePointer ? 'Tap to begin' : 'Hover the centre'}
+            {coarsePointer
+              ? 'Tap the forms to explore the system'
+              : 'Hover the forms to see how the energy system flows'}
           </text>
 
           {/* Hit areas (transparent rects layered on top of forms). */}
