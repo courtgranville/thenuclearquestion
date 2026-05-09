@@ -75,6 +75,15 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       vx: 0, vy: 0, speed: 0,
       active: false,
     };
+    // Raw event-level tracking. The visual-effect path (ptr.x/y → smoothSpeed)
+    // double-smooths velocity, which attenuates brisk shakes from high-DPI or
+    // high-polling mice below the fission gate. We sample velocity directly
+    // from pointermove and feed that into the trigger so a fast shake always
+    // registers, no matter how much faster than threshold the user goes.
+    const rawLast = { x: 0, y: 0, dx: 0, dy: 0, t: 0 };
+    let rawSpeed = 0;     // peak normalised-units/sec, decays per frame
+    let rawReversals = 0; // pending reversal bumps, drained per frame
+
     const onPointerMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
       const nx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
@@ -82,6 +91,23 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       ptr.tx = Math.max(-1.4, Math.min(1.4, nx));
       ptr.ty = Math.max(-1.4, Math.min(1.4, ny));
       ptr.active = true;
+
+      const now = e.timeStamp || performance.now();
+      if (rawLast.t > 0) {
+        const rdt = Math.max(0.001, (now - rawLast.t) / 1000);
+        const rdx = nx - rawLast.x;
+        const rdy = ny - rawLast.y;
+        const rspd = Math.hypot(rdx, rdy) / rdt;
+        if (rspd > rawSpeed) rawSpeed = rspd;
+        const rdot = rdx * rawLast.dx + rdy * rawLast.dy;
+        // Reversal: direction flipped between events while moving briskly.
+        if (rdot < 0 && rspd > 0.8) rawReversals += 1;
+        rawLast.dx = rdx;
+        rawLast.dy = rdy;
+      }
+      rawLast.x = nx;
+      rawLast.y = ny;
+      rawLast.t = now;
     };
     window.addEventListener('pointermove', onPointerMove, { passive: true });
 
@@ -99,7 +125,7 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       const t = (now - t0) / 1000;
 
       // Resolve isotope-driven gates per frame (ref read, no re-mount).
-      const { fastSpeed: FAST_SPEED, requiredT: REQUIRED_T } =
+      const { fastSpeed: FAST_SPEED, requiredT: REQUIRED_T, shakeNeeded: SHAKE_NEEDED } =
         isotopeToGates(isotopeRef.current);
 
       // Ease cursor toward target; track velocity.
@@ -111,6 +137,13 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       ptr.speed = Math.hypot(ptr.vx, ptr.vy);
       smoothSpeed += (ptr.speed - smoothSpeed) * 0.18;
 
+      // Drain raw input signals captured between frames; decay raw peak speed
+      // (~100 ms half-life) so a single brisk flick doesn't latch indefinitely.
+      rawSpeed *= Math.pow(0.5, dt * 10);
+      const reversalsThisFrame = rawReversals;
+      rawReversals = 0;
+      const effectiveSpeed = Math.max(smoothSpeed, rawSpeed);
+
       ctx.clearRect(0, 0, W, H);
       if (!polylines.length || !bbox) {
         rafId = requestAnimationFrame(frame);
@@ -119,11 +152,11 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
 
       drawFrame({
         ctx, W, H, t, dt,
-        ptr, smoothSpeed,
+        ptr, smoothSpeed, effectiveSpeed, reversalsThisFrame,
         cursorAngleRef: { get: () => cursorAngle, set: v => { cursorAngle = v; } },
         polylines, bbox,
         fission,
-        FAST_SPEED, REQUIRED_T,
+        FAST_SPEED, REQUIRED_T, SHAKE_NEEDED,
         reduced: prefersReduced,
       });
 
@@ -162,12 +195,15 @@ interface DrawFrameArgs {
   t: number; dt: number;
   ptr: { x: number; y: number; vx: number; vy: number };
   smoothSpeed: number;
+  effectiveSpeed: number;
+  reversalsThisFrame: number;
   cursorAngleRef: { get: () => number; set: (v: number) => void };
   polylines: Polyline[];
   bbox: BBox;
   fission: FissionState;
   FAST_SPEED: number;
   REQUIRED_T: number;
+  SHAKE_NEEDED: number;
   reduced: boolean;
 }
 
@@ -204,14 +240,15 @@ function drawFrame(a: DrawFrameArgs): void {
   // ── Fission tension & state machine ────────────────────────────────────
   // Fission is a deliberate user-input easter egg, allowed even under
   // reduced-motion: the user must shake the cursor on purpose.
-  const isFast = smoothSpeed > a.FAST_SPEED;
+  // Speed gate uses effectiveSpeed (max of smoothed and raw event speed) so
+  // brisk shakes from high-DPI / high-polling mice register past the
+  // animation's smoothing. Reversals are sampled raw at the event level.
+  const isFast = a.effectiveSpeed > a.FAST_SPEED;
   if (fission.cooldown > 0) fission.cooldown -= dt;
   const cursorR = Math.hypot(ptr.x, ptr.y);
   const nearCentre = cursorR < TUNING.triggerRadius;
 
-  const dot = ptr.vx * fission.lastVx + ptr.vy * fission.lastVy;
-  const reversed = dot < 0 && smoothSpeed > a.FAST_SPEED * 0.7;
-  if (reversed) fission.shakeScore += 1;
+  fission.shakeScore += a.reversalsThisFrame;
   fission.shakeScore = Math.max(0, fission.shakeScore - dt * 2.5);
   fission.lastVx = ptr.vx;
   fission.lastVy = ptr.vy;
@@ -220,7 +257,7 @@ function drawFrame(a: DrawFrameArgs): void {
     if (isFast && nearCentre) fission.fastT += dt;
     else fission.fastT = Math.max(0, fission.fastT - dt * 1.2);
     const tA = Math.min(1, fission.fastT / a.REQUIRED_T);
-    const tB = Math.min(1, fission.shakeScore / TUNING.shakeNeeded);
+    const tB = Math.min(1, fission.shakeScore / a.SHAKE_NEEDED);
     fission.tension = Math.min(tA, tB);
     if (fission.tension >= 1) {
       fission.phase = 'splitting';

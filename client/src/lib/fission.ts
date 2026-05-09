@@ -14,7 +14,6 @@ export const TUNING = {
 
   // Fission gating
   triggerRadius: 0.85, // cursor must be within this normalised radius
-  shakeNeeded: 7,      // direction-reversals required to trigger
   fastSpeedBase: 2.0,
   requiredTBase: 2.2,
 
@@ -78,11 +77,14 @@ export function makeFissionState(): FissionState {
   };
 }
 
-/** Map isotope (0..1) → (FAST_SPEED, REQUIRED_T). U-235 stable, U-238 enriched (easier). */
-export function isotopeToGates(isotope: number): { fastSpeed: number; requiredT: number } {
+/** Map isotope (0..1) → (FAST_SPEED, REQUIRED_T, shakeNeeded). U-235 stable, U-238 enriched (much easier). */
+export function isotopeToGates(
+  isotope: number,
+): { fastSpeed: number; requiredT: number; shakeNeeded: number } {
   const k = Math.max(0, Math.min(1, isotope));
   return {
-    fastSpeed: 2.4 - k * 1.2, // 2.4 → 1.2
-    requiredT: 1.9 - k * 1.2, // 1.9s → 0.7s (0.5s faster than original)
+    fastSpeed: 2.4 - k * 1.4,   // 2.4 → 1.0
+    requiredT: 1.9 - k * 1.5,   // 1.9s → 0.4s
+    shakeNeeded: 8 - k * 4,     // 8 → 4 reversals
   };
 }
