@@ -12,8 +12,11 @@ import {
   SECTOR_LINKS,
   makeInitialAnimState,
   startHubCascade,
+  startCarrierFocus,
+  endCarrierFocus,
   tickAnimation,
   ABSORB_BLIP_PEAK_SCALE,
+  HOVER_DEBOUNCE_MS,
   PULSE_HEAD_RADIUS,
   PULSE_HALO_RADIUS,
   PULSE_HALO_ALPHA,
@@ -402,6 +405,74 @@ export default function Poster004CanvasViz() {
   // target. Replay only via the Reset → Play flow (commit 7).
   const hubHittable = state.phase === 'DEFAULT';
 
+  // Carrier focus: pointerEnter activates, pointerLeave schedules a
+  // HOVER_DEBOUNCE_MS exit timer that gets cancelled if any other
+  // carrier hover lands within the window — so cross-carrier hover
+  // crossfades smoothly without dropping back to FULL between.
+  const focusExitTimerRef = useRef<number | null>(null);
+  const cancelFocusExit = () => {
+    if (focusExitTimerRef.current !== null) {
+      window.clearTimeout(focusExitTimerRef.current);
+      focusExitTimerRef.current = null;
+    }
+  };
+
+  const activateCarrier = (carrier: CarrierId) => {
+    if (stateRef.current.phase !== 'FULL') return;
+    cancelFocusExit();
+    if (stateRef.current.focusCarrier === carrier) return;
+    const hasSeen = stateRef.current.hasSeenCarrier[carrier];
+    startCarrierFocus(animRef.current, carrier, hasSeen, performance.now());
+    dispatch({ type: 'ENTER_CARRIER_FOCUS', carrier });
+  };
+
+  const scheduleCarrierExit = () => {
+    if (stateRef.current.phase !== 'FULL') return;
+    if (stateRef.current.focusCarrier === null) return;
+    cancelFocusExit();
+    focusExitTimerRef.current = window.setTimeout(() => {
+      focusExitTimerRef.current = null;
+      if (stateRef.current.phase !== 'FULL') return;
+      if (stateRef.current.focusCarrier === null) return;
+      endCarrierFocus(animRef.current, performance.now());
+      dispatch({ type: 'EXIT_CARRIER_FOCUS' });
+    }, HOVER_DEBOUNCE_MS);
+  };
+
+  const handleCarrierEnter =
+    (carrier: CarrierId) => (e: React.PointerEvent<SVGRectElement>) => {
+      if (e.pointerType === 'touch') return; // taps land via onPointerDown
+      activateCarrier(carrier);
+    };
+
+  const handleCarrierLeave = (e: React.PointerEvent<SVGRectElement>) => {
+    if (e.pointerType === 'touch') return;
+    scheduleCarrierExit();
+  };
+
+  const handleCarrierTap =
+    (carrier: CarrierId) => (e: React.PointerEvent<SVGRectElement>) => {
+      if (e.pointerType !== 'touch') return;
+      e.stopPropagation();
+      activateCarrier(carrier);
+    };
+
+  // SVG-level pointerdown for "tap background to exit focus" on touch.
+  // Mouse uses pointerleave + debounce, not this path.
+  const handleSvgBackground = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.pointerType !== 'touch') return;
+    if (stateRef.current.phase !== 'FULL') return;
+    if (stateRef.current.focusCarrier === null) return;
+    cancelFocusExit();
+    endCarrierFocus(animRef.current, performance.now());
+    dispatch({ type: 'EXIT_CARRIER_FOCUS' });
+  };
+
+  useEffect(() => {
+    return () => cancelFocusExit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ─── Render ─────────────────────────────────────────────────────
 
   return (
@@ -424,6 +495,7 @@ export default function Poster004CanvasViz() {
           preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="UK final energy in 2024 by carrier and end-use sector — 1,542 TWh total"
+          onPointerDown={handleSvgBackground}
         >
           {/* Connectors (under sector dots so dots sit on top). */}
           <g id="connectors" pointerEvents="none">
@@ -562,6 +634,7 @@ export default function Poster004CanvasViz() {
             />
             {CARRIER_IDS.map((id) => {
               const r = CARRIER_HIT_RECTS[id];
+              const active = state.phase === 'FULL';
               return (
                 <rect
                   key={id}
@@ -571,7 +644,14 @@ export default function Poster004CanvasViz() {
                   width={r.w}
                   height={r.h}
                   fill="transparent"
-                  style={{ cursor: 'pointer' }}
+                  style={{
+                    cursor: active ? 'pointer' : 'default',
+                    touchAction: 'manipulation',
+                  }}
+                  pointerEvents={active ? 'auto' : 'none'}
+                  onPointerEnter={handleCarrierEnter(id)}
+                  onPointerLeave={handleCarrierLeave}
+                  onPointerDown={handleCarrierTap(id)}
                 />
               );
             })}
