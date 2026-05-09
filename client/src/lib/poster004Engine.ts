@@ -106,6 +106,8 @@ export interface PulseInFlight {
   duration: number;
   color: string;
   progress: number;      // 0..1, written by tickAnimation
+  focusReplay: boolean;  // sector pulses fired during CARRIER_FOCUS use
+                         // an absorb-blip instead of a snap-in
 }
 
 interface PhysicalPulse {
@@ -351,13 +353,11 @@ export function startCarrierFocus(
   now: number,
 ): void {
   // Cancel any in-flight pulses or scheduled launches from a prior
-  // focus — we're starting a fresh focus animation. (Note: this does
-  // NOT cancel CASCADE_FULL — the component only calls this from
-  // phase === 'FULL'.)
+  // focus — we're starting a fresh focus animation. (Note: this is
+  // only called from phase === 'FULL', so any leftover schedule is
+  // from a previous focus that's being replaced.)
   anim.pulses = [];
-  anim.scheduled = anim.scheduled.filter(
-    (e) => e.run !== launchHubPulses,
-  );
+  anim.scheduled = [];
   anim.carrierPulses = {};
   anim.sectorBlips = {};
 
@@ -420,9 +420,7 @@ export function endCarrierFocus(anim: AnimState, now: number): void {
   // Crossfade everything back: form alphas → 1, connectors → 1,
   // labels → 1. Cancel pulses + blips in flight.
   anim.pulses = [];
-  anim.scheduled = anim.scheduled.filter(
-    (e) => e.run !== launchHubPulses,
-  );
+  anim.scheduled = [];
   anim.carrierPulses = {};
   anim.sectorBlips = {};
 
@@ -605,6 +603,7 @@ function launchHubPulses(anim: AnimState, now: number): void {
       duration: pulseDuration(len),
       color: CARRIER_COLOURS[l.carrier],
       progress: 0,
+      focusReplay: false,
     });
   }
 }
@@ -627,14 +626,8 @@ function launchSectorPulses(
       duration: pulseDuration(len),
       color: CARRIER_COLOURS[carrier],
       progress: 0,
+      focusReplay: duringFocus,
     });
-  }
-  // Annotate the duringFocus path so handlePulseArrival can pick the
-  // right behaviour (blip vs. snap).
-  for (const p of anim.pulses) {
-    if (p.carrier === carrier && p.sectorId !== null) {
-      (p as PulseInFlight & { _focus?: boolean })._focus = duringFocus;
-    }
   }
 }
 
@@ -669,10 +662,7 @@ function handlePulseArrival(
   }
 
   // Carrier→sector arrival.
-  const focusReplay =
-    (p as PulseInFlight & { _focus?: boolean })._focus === true;
-
-  if (focusReplay) {
+  if (p.focusReplay) {
     // Sector dot is already at scale 1 in FULL/FOCUS — fire an
     // absorb-blip on top of it.
     anim.sectorBlips[p.sectorId] = {
