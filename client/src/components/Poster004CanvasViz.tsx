@@ -273,8 +273,12 @@ const SECTOR_BY_ID: Record<string, RawSector> = (() => {
   return out;
 })();
 
-// Buffer past the dot's outer edge before the label centroid lands.
-const SECTOR_LABEL_BUFFER_PX = 14;
+// Radial nudge applied to every sector label, on top of the print's
+// natural position. The print already places labels with the right
+// fan-out direction; this just pushes them further out along that
+// radial so they clear the dots at viewport size. Tune visually
+// between 18 and 30.
+const SECTOR_LABEL_RADIAL_OFFSET = 22;
 
 interface LabelTransform {
   ax: number;
@@ -290,19 +294,10 @@ const LABEL_TRANSFORMS: Record<string, LabelTransform> = (() => {
     const sec = SECTOR_BY_ID[sectorId];
     if (!sec) continue;
 
-    // Scale-around-first-glyph anchor.
     const ax = glyphs[0].x;
     const ay = glyphs[0].y;
 
-    // Current centroid post-scale.
-    let sumX = 0, sumY = 0;
-    for (const g of glyphs) { sumX += g.x; sumY += g.y; }
-    const meanX = sumX / glyphs.length;
-    const meanY = sumY / glyphs.length;
-    const curX = ax + SECTOR_LABEL_SCALE * (meanX - ax);
-    const curY = ay + SECTOR_LABEL_SCALE * (meanY - ay);
-
-    // Radial vector from parent carrier's anchor to the dot.
+    // Radial unit vector from parent carrier's anchor to the dot.
     const carrierAnchor = FORMS[sec.carrier].anchor;
     const rx = sec.cx - carrierAnchor[0];
     const ry = sec.cy - carrierAnchor[1];
@@ -310,16 +305,10 @@ const LABEL_TRANSFORMS: Record<string, LabelTransform> = (() => {
     const vx = rx / rmag;
     const vy = ry / rmag;
 
-    // Desired centroid: SECTOR_LABEL_BUFFER_PX past the dot's outer
-    // edge along the radial direction.
-    const reach = sec.r + SECTOR_LABEL_BUFFER_PX;
-    const desX = sec.cx + vx * reach;
-    const desY = sec.cy + vy * reach;
-
     out[sectorId] = {
       ax, ay,
-      dx: desX - curX,
-      dy: desY - curY,
+      dx: vx * SECTOR_LABEL_RADIAL_OFFSET,
+      dy: vy * SECTOR_LABEL_RADIAL_OFFSET,
     };
   }
   return out;

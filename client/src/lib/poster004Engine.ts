@@ -44,12 +44,15 @@ export const PULSE_TRAVEL_SPEED_PX_PER_MS = 0.20;
 export const HUB_TO_CARRIER_FOCUS_SPEED_MULTIPLIER = 2.0;
 export const ABSORB_BLIP_MS           = 320;
 export const ABSORB_BLIP_PEAK_SCALE   = 1.15;
-// Sector dots grow from scale 0 → 1 over SECTOR_GROW_MS the first
-// time their pulse arrives (i.e., when sectorScale was still 0).
+// Sector dots grow from scale 0 → 1 the first time their pulse
+// arrives (i.e., when sectorScale was still 0). Duration scales
+// with the dot's final radius so big sectors visibly take longer
+// than small ones — clamped at both ends.
 // Subsequent arrivals (replays from FULL or CARRIER_FOCUS) skip the
 // grow and fire the absorb-blip instead.
-export const SECTOR_GROW_MS           = 300;
-export const SECTOR_GROW_EASE         = 'cubicOut' as const;
+export const SECTOR_GROW_RATE_PX_PER_MS = 0.025;
+export const SECTOR_GROW_MIN_MS         = 250;
+export const SECTOR_GROW_MAX_MS         = 1200;
 export const LABEL_FADE_MS            = 300;
 export const OPACITY_CROSSFADE_MS     = 300;
 export const HOVER_DEBOUNCE_MS        = 300;
@@ -106,7 +109,7 @@ const data = linksData as unknown as {
     hub_to_carrier: RawHubLink[];
     carrier_to_sector: RawSectorLink[];
   };
-  sectors: Array<{ id: string; carrier: string }>;
+  sectors: Array<{ id: string; carrier: string; r: number }>;
 };
 
 export const HUB_LINKS: Link[] = data.links.hub_to_carrier.map((l) => ({
@@ -134,8 +137,17 @@ const ALL_CONNECTOR_IDS: string[] = [
   ...HUB_LINKS.map((l) => l.id),
   ...SECTOR_LINKS.map((l) => l.id),
 ];
-const SECTOR_BY_ID: Record<string, { carrier: CarrierId }> = {};
-for (const s of data.sectors) SECTOR_BY_ID[s.id] = { carrier: s.carrier as CarrierId };
+const SECTOR_BY_ID: Record<string, { carrier: CarrierId; r: number }> = {};
+for (const s of data.sectors) {
+  SECTOR_BY_ID[s.id] = { carrier: s.carrier as CarrierId, r: s.r };
+}
+
+function sectorGrowDuration(radius: number): number {
+  const raw = radius / SECTOR_GROW_RATE_PX_PER_MS;
+  if (raw < SECTOR_GROW_MIN_MS) return SECTOR_GROW_MIN_MS;
+  if (raw > SECTOR_GROW_MAX_MS) return SECTOR_GROW_MAX_MS;
+  return raw;
+}
 
 // ─── AnimState ───────────────────────────────────────────────────
 
@@ -764,14 +776,16 @@ function handlePulseArrival(
   }
 
   // Carrier→sector arrival. First-time arrival (sectorScale < 1)
-  // grows the dot from its current scale to 1 over SECTOR_GROW_MS;
-  // subsequent arrivals (sector already at scale 1 from a prior
-  // cascade or focus) fire the absorb-blip on the steady dot. Label
+  // grows the dot from its current scale to 1 over a duration that
+  // scales with the dot's final radius — big dots take ~1000 ms,
+  // small ones clamp to MIN. Subsequent arrivals (already at 1 from
+  // a prior cascade or focus) fire the absorb-blip instead. Label
   // fade-in runs on every arrival.
   if (anim.sectorScale[p.sectorId] < 1) {
+    const sec = SECTOR_BY_ID[p.sectorId];
     anim.sectorScaleTweens[p.sectorId] = {
       startTime: arrivalTime,
-      duration: SECTOR_GROW_MS,
+      duration: sec ? sectorGrowDuration(sec.r) : SECTOR_GROW_MIN_MS,
       from: anim.sectorScale[p.sectorId],
       to: 1,
     };
