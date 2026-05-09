@@ -1,11 +1,12 @@
 // Poster 004 reducer + state types.
 //
 // State split: this reducer owns ONLY the fields that the React tree
-// reads (phase, focusCarrier, hasSeenCarrier, hoverInstructionVisible).
-// All high-frequency animation values — per-form alphas, pulse
-// positions, per-carrier pulse-scale, per-sector blip phase, connector
-// and label opacities — live in the engine's AnimState (mutable ref),
-// outside React entirely.
+// reads (phase, focusCarrier, hasCompletedCascade, hasFocusedCarrier,
+// hoverInstructionVisible). All high-frequency animation values —
+// per-form alphas, pulse positions, per-carrier pulse-scale, per-sector
+// blip phase, connector and label opacities, connector draw-in
+// progress — live in the engine's AnimState (mutable ref), outside
+// React entirely.
 
 export type Phase = 'DEFAULT' | 'CASCADE_FULL' | 'FULL';
 
@@ -29,7 +30,12 @@ export const CARRIER_IDS: CarrierId[] = [
 export interface State {
   phase: Phase;
   focusCarrier: CarrierId | null;
-  hasSeenCarrier: Record<CarrierId, boolean>;
+  // True after the first full cascade has played to completion.
+  // Controls visibility of the "Play animation" button.
+  hasCompletedCascade: boolean;
+  // True after the user has focused at least one carrier.
+  // Controls whether the hover instruction reappears post-cascade.
+  hasFocusedCarrier: boolean;
   hoverInstructionVisible: boolean;
 }
 
@@ -43,35 +49,20 @@ export type Action =
   | { type: 'SHOW_HOVER_INSTRUCTION' }
   | { type: 'HIDE_HOVER_INSTRUCTION' };
 
-const emptySeen: Record<CarrierId, boolean> = {
-  petroleum: false,
-  naturalGas: false,
-  electricity: false,
-  bioenergy: false,
-  heat: false,
-  solidFuel: false,
-};
-
-const allSeen: Record<CarrierId, boolean> = {
-  petroleum: true,
-  naturalGas: true,
-  electricity: true,
-  bioenergy: true,
-  heat: true,
-  solidFuel: true,
-};
-
 export const initialState: State = {
   phase: 'DEFAULT',
   focusCarrier: null,
-  hasSeenCarrier: { ...emptySeen },
+  hasCompletedCascade: false,
+  hasFocusedCarrier: false,
   hoverInstructionVisible: false,
 };
 
 export function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'CASCADE_FULL_START': {
-      if (state.phase !== 'DEFAULT') return state;
+      // Cascade can fire from DEFAULT or FULL — replay is allowed.
+      // Only ignored if a cascade is already in flight.
+      if (state.phase === 'CASCADE_FULL') return state;
       return {
         ...state,
         phase: 'CASCADE_FULL',
@@ -82,13 +73,13 @@ export function reducer(state: State, action: Action): State {
 
     case 'CASCADE_FULL_COMPLETE': {
       if (state.phase !== 'CASCADE_FULL') return state;
-      // Cascade reveals every carrier — mark all as seen so the
-      // "Play animation" button can hide once the user has
-      // observed at least one full pass.
       return {
         ...state,
         phase: 'FULL',
-        hasSeenCarrier: { ...allSeen },
+        hasCompletedCascade: true,
+        // Re-show the instruction post-cascade if the user hasn't
+        // yet hovered any carrier — invites carrier exploration.
+        hoverInstructionVisible: !state.hasFocusedCarrier,
       };
     }
 
@@ -98,10 +89,8 @@ export function reducer(state: State, action: Action): State {
       return {
         ...state,
         focusCarrier: action.carrier,
-        hasSeenCarrier: {
-          ...state.hasSeenCarrier,
-          [action.carrier]: true,
-        },
+        hasFocusedCarrier: true,
+        hoverInstructionVisible: false,
       };
     }
 
@@ -115,7 +104,8 @@ export function reducer(state: State, action: Action): State {
         ...state,
         phase: 'FULL',
         focusCarrier: null,
-        hasSeenCarrier: { ...allSeen },
+        hasCompletedCascade: true,
+        hasFocusedCarrier: true,
         hoverInstructionVisible: false,
       };
     }
@@ -125,13 +115,15 @@ export function reducer(state: State, action: Action): State {
         ...state,
         phase: 'DEFAULT',
         focusCarrier: null,
-        hasSeenCarrier: { ...emptySeen },
+        hasCompletedCascade: false,
+        hasFocusedCarrier: false,
         hoverInstructionVisible: false,
       };
     }
 
     case 'SHOW_HOVER_INSTRUCTION': {
-      if (state.phase !== 'DEFAULT') return state;
+      if (state.phase === 'CASCADE_FULL') return state;
+      if (state.hasFocusedCarrier) return state;
       if (state.hoverInstructionVisible) return state;
       return { ...state, hoverInstructionVisible: true };
     }

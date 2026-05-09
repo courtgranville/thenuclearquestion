@@ -196,11 +196,20 @@ export default function Poster004CanvasViz() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    // Populate link lengths from the live SVG paths.
+    // Populate link lengths from the live SVG paths AND set
+    // stroke-dasharray on every connector so that stroke-dashoffset
+    // can drive the per-frame trail reveal.
     const lengths: Record<string, number> = {};
     for (const l of ALL_LINKS) {
       const el = connectorRefs.current[l.id];
-      if (el) lengths[l.id] = el.getTotalLength();
+      if (el) {
+        const len = el.getTotalLength();
+        lengths[l.id] = len;
+        // Use a single full-length dash; offset by len initially so
+        // the path is invisible until drawProgress > 0.
+        el.style.strokeDasharray = `${len}`;
+        el.style.strokeDashoffset = `${len}`;
+      }
     }
     animRef.current.linkLengths = lengths;
 
@@ -228,10 +237,11 @@ export default function Poster004CanvasViz() {
     ro.observe(stage);
 
     let rafId = 0;
-    let lastSyncedConnector: Record<string, number> = {};
-    let lastSyncedSectorScale: Record<string, number> = {};
-    let lastSyncedSectorBlip: Record<string, number> = {};
-    let lastSyncedLabel: Record<string, number> = {};
+    const lastSyncedConnector: Record<string, number> = {};
+    const lastSyncedDrawProgress: Record<string, number> = {};
+    const lastSyncedSectorScale: Record<string, number> = {};
+    const lastSyncedSectorBlip: Record<string, number> = {};
+    const lastSyncedLabel: Record<string, number> = {};
 
     const frame = (now: number) => {
       const result = tickAnimation(animRef.current, now);
@@ -339,7 +349,7 @@ export default function Poster004CanvasViz() {
       }
 
       // ── Sync SVG element styles from anim state (no React re-render) ──
-      // Connector + dot (shared opacity).
+      // Connector + dot (shared dim mask via opacity).
       for (const id in anim.connectorOpacity) {
         const v = anim.connectorOpacity[id];
         if (lastSyncedConnector[id] !== v) {
@@ -349,6 +359,19 @@ export default function Poster004CanvasViz() {
           // Sector dot shares opacity with its connector.
           const dEl = sectorCircleRefs.current[id];
           if (dEl) dEl.style.opacity = String(v);
+        }
+      }
+
+      // Connector trail draw-in via stroke-dashoffset.
+      for (const id in anim.connectorDrawProgress) {
+        const v = anim.connectorDrawProgress[id];
+        if (lastSyncedDrawProgress[id] !== v) {
+          lastSyncedDrawProgress[id] = v;
+          const cEl = connectorRefs.current[id];
+          const len = anim.linkLengths[id];
+          if (cEl && len) {
+            cEl.style.strokeDashoffset = String(len * (1 - v));
+          }
         }
       }
 
@@ -396,18 +419,19 @@ export default function Poster004CanvasViz() {
   // ─── Pointer handlers ──────────────────────────────────────────
 
   const handleHubPointer = (e: React.PointerEvent<SVGRectElement>) => {
-    if (stateRef.current.phase !== 'DEFAULT') return;
+    if (stateRef.current.phase === 'CASCADE_FULL') return;
     // Block pointerEnter on touch — onPointerDown handles taps so
     // a stray "enter" from a scroll gesture doesn't kick off the
     // cascade unintentionally.
     if (e.type === 'pointerenter' && e.pointerType === 'touch') return;
+    cancelFocusExit();
     startHubCascade(animRef.current, performance.now());
     dispatch({ type: 'CASCADE_FULL_START' });
   };
 
-  // After the cascade has played, the hub form is no longer a hover
-  // target. Replay only via the Reset → Play flow (commit 7).
-  const hubHittable = state.phase === 'DEFAULT';
+  // Hub stays hoverable in DEFAULT and FULL — every hover replays the
+  // cascade. Only blocked while a cascade is already playing.
+  const hubHittable = state.phase !== 'CASCADE_FULL';
 
   // Carrier focus: pointerEnter activates, pointerLeave schedules a
   // HOVER_DEBOUNCE_MS exit timer that gets cancelled if any other
@@ -425,8 +449,7 @@ export default function Poster004CanvasViz() {
     if (stateRef.current.phase !== 'FULL') return;
     cancelFocusExit();
     if (stateRef.current.focusCarrier === carrier) return;
-    const hasSeen = stateRef.current.hasSeenCarrier[carrier];
-    startCarrierFocus(animRef.current, carrier, hasSeen, performance.now());
+    startCarrierFocus(animRef.current, carrier, false, performance.now());
     dispatch({ type: 'ENTER_CARRIER_FOCUS', carrier });
   };
 
@@ -518,8 +541,7 @@ export default function Poster004CanvasViz() {
     dispatch({ type: 'RESET' });
   };
 
-  const allSeen = CARRIER_IDS.every((c) => state.hasSeenCarrier[c]);
-  const showPlay = !allSeen;
+  const showPlay = !state.hasCompletedCascade;
 
   // ─── Render ─────────────────────────────────────────────────────
 

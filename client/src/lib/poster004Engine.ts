@@ -5,9 +5,23 @@
 // tickAnimation each frame; the engine schedules its own internal
 // chain of cascade events via the .scheduled queue.
 //
+// Single shared cascade primitive — startCascade(branches, dim, now).
+//   • startHubCascade fires all six branches with no dimming.
+//   • startCarrierFocus fires one branch and dims the other five.
+// In both cases pulses originate from the hub: hub physical-pulses,
+// then hub→carrier pulses fan out, each carrier physical-pulses on
+// arrival, and finally carrier→sector pulses absorb into the dots.
+//
+// Connector lines reveal via stroke-dasharray + stroke-dashoffset
+// keyed off connectorDrawProgress[id] (the component reads this and
+// writes the dashoffset attribute). Each in-flight pulse drives its
+// connector's drawProgress = max(prev, pulse.progress). Once 1, the
+// connector stays drawn-in for every subsequent replay.
+//
 // Reduced motion: every entrypoint checks anim.reduced (set at
 // makeInitialAnimState time from prefers-reduced-motion) and collapses
-// to a single 200 ms opacity fade with no chained timings or pulses.
+// the visible state to a single 200 ms opacity fade with no chained
+// timings or pulse-tip travel.
 
 import linksData from '@/assets/poster-004-forms.json';
 import { CARRIER_IDS, type CarrierId } from './poster004State';
@@ -94,6 +108,8 @@ const ALL_CONNECTOR_IDS: string[] = [
   ...HUB_LINKS.map((l) => l.id),
   ...SECTOR_LINKS.map((l) => l.id),
 ];
+const SECTOR_BY_ID: Record<string, { carrier: CarrierId }> = {};
+for (const s of data.sectors) SECTOR_BY_ID[s.id] = { carrier: s.carrier as CarrierId };
 
 // ─── AnimState ───────────────────────────────────────────────────
 
@@ -106,8 +122,6 @@ export interface PulseInFlight {
   duration: number;
   color: string;
   progress: number;      // 0..1, written by tickAnimation
-  focusReplay: boolean;  // sector pulses fired during CARRIER_FOCUS use
-                         // an absorb-blip instead of a snap-in
 }
 
 interface PhysicalPulse {
@@ -141,8 +155,13 @@ export interface AnimState {
   pulses: PulseInFlight[];
   sectorScale: Record<string, number>;
   sectorBlip: Record<string, number>;
+  // Dim mask (1 = bright, DIM_OPACITY = dimmed). Independent from
+  // drawProgress; both modulate the rendered connector / dot.
   connectorOpacity: Record<string, number>;
   labelOpacity: Record<string, number>;
+  // Trail reveal (0 = invisible, 1 = fully drawn, sticky once 1).
+  // Component writes stroke-dashoffset = pathLength * (1 - progress).
+  connectorDrawProgress: Record<string, number>;
 
   // Internal scheduling.
   linkLengths: Record<string, number>;   // populated by the component
@@ -153,7 +172,7 @@ export interface AnimState {
   connectorTweens: Record<string, OpacityTween>;
   labelTweens: Record<string, OpacityTween>;
   scheduled: ScheduledEvent[];
-  cascadeFullActive: boolean;
+  cascadeActive: boolean;
   cascadePending: Set<string>;
   cascadeAlreadyReported: boolean;
   reduced: boolean;
@@ -186,8 +205,11 @@ export function makeInitialAnimState(): AnimState {
     pulses: [],
     sectorScale: recordFromIds(ALL_SECTOR_IDS, 0),
     sectorBlip: recordFromIds(ALL_SECTOR_IDS, 0),
-    connectorOpacity: recordFromIds(ALL_CONNECTOR_IDS, 0),
+    // Connectors default bright — drawProgress + dashoffset hide them
+    // until a pulse traces them.
+    connectorOpacity: recordFromIds(ALL_CONNECTOR_IDS, 1),
     labelOpacity: recordFromIds(ALL_SECTOR_IDS, 0),
+    connectorDrawProgress: recordFromIds(ALL_CONNECTOR_IDS, 0),
     linkLengths: {},
     hubPulse: null,
     carrierPulses: {},
@@ -196,7 +218,7 @@ export function makeInitialAnimState(): AnimState {
     connectorTweens: {},
     labelTweens: {},
     scheduled: [],
-    cascadeFullActive: false,
+    cascadeActive: false,
     cascadePending: new Set(),
     cascadeAlreadyReported: false,
     reduced,
@@ -248,6 +270,10 @@ function startTween(
   startTime: number,
   duration: number,
 ): void {
+  if (current === to) {
+    delete store[key];
+    return;
+  }
   store[key] = { startTime, duration, from: current, to };
 }
 
@@ -264,7 +290,10 @@ export function reset(anim: AnimState): void {
     anim.sectorBlip[id] = 0;
     anim.labelOpacity[id] = 0;
   }
-  for (const id of ALL_CONNECTOR_IDS) anim.connectorOpacity[id] = 0;
+  for (const id of ALL_CONNECTOR_IDS) {
+    anim.connectorOpacity[id] = 1;
+    anim.connectorDrawProgress[id] = 0;
+  }
   anim.hubPulse = null;
   anim.carrierPulses = {};
   anim.sectorBlips = {};
@@ -272,7 +301,7 @@ export function reset(anim: AnimState): void {
   anim.connectorTweens = {};
   anim.labelTweens = {};
   anim.scheduled = [];
-  anim.cascadeFullActive = false;
+  anim.cascadeActive = false;
   anim.cascadePending = new Set();
   anim.cascadeAlreadyReported = false;
 }
@@ -288,7 +317,10 @@ export function snapToFull(anim: AnimState): void {
     anim.sectorBlip[id] = 0;
     anim.labelOpacity[id] = 1;
   }
-  for (const id of ALL_CONNECTOR_IDS) anim.connectorOpacity[id] = 1;
+  for (const id of ALL_CONNECTOR_IDS) {
+    anim.connectorOpacity[id] = 1;
+    anim.connectorDrawProgress[id] = 1;
+  }
   anim.hubPulse = null;
   anim.carrierPulses = {};
   anim.sectorBlips = {};
@@ -296,33 +328,109 @@ export function snapToFull(anim: AnimState): void {
   anim.connectorTweens = {};
   anim.labelTweens = {};
   anim.scheduled = [];
-  anim.cascadeFullActive = false;
+  anim.cascadeActive = false;
   anim.cascadePending = new Set();
   anim.cascadeAlreadyReported = false;
 }
 
-export function startHubCascade(anim: AnimState, now: number): void {
-  reset(anim);
-  anim.cascadeFullActive = true;
+// ─── Shared cascade primitive ────────────────────────────────────
+//
+// Plays a hub→branches→sectors cascade with optional dimming of
+// non-branch carriers. Used for both startHubCascade (all branches,
+// no dim) and startCarrierFocus (one branch, dim the rest).
+
+function startCascade(
+  anim: AnimState,
+  branches: CarrierId[],
+  dimNonBranches: boolean,
+  now: number,
+): void {
+  // Cancel anything in flight from a prior cascade or focus.
+  anim.pulses = [];
+  anim.scheduled = [];
+  anim.carrierPulses = {};
+  anim.sectorBlips = {};
+
+  anim.cascadeActive = true;
   anim.cascadeAlreadyReported = false;
 
-  if (anim.reduced) {
-    // Snap geometry to its FULL state but tween every visible
-    // opacity from 0 → 1 over a single REDUCED_FADE_MS so the
-    // transition is perceptible without any chained motion.
-    for (const id of ALL_SECTOR_IDS) anim.sectorScale[id] = 1;
-    for (const c of CARRIER_IDS) {
+  const branchSet = new Set(branches);
+  const dimDuration = anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS;
+  const labelDuration = anim.reduced ? REDUCED_FADE_MS : LABEL_FADE_MS;
+
+  // Form alphas: branches → 1, non-branches → DIM_OPACITY (if dim) or 1.
+  // Non-branches at 1 means "everything visible at full" — used by
+  // startHubCascade where the cascade is showing all six.
+  for (const c of CARRIER_IDS) {
+    const target = branchSet.has(c) ? 1 : (dimNonBranches ? DIM_OPACITY : 1);
+    startTween(
+      anim.formAlphaTweens as Record<string, OpacityTween>,
+      c, anim.formAlpha[c], target, now, dimDuration,
+    );
+  }
+
+  // Connector dim mask. Branch connectors → 1, non-branch → DIM (or 1).
+  // The TRAIL reveal (drawProgress) is independent and handled per-pulse.
+  for (const l of HUB_LINKS) {
+    const target = branchSet.has(l.carrier) ? 1 : (dimNonBranches ? DIM_OPACITY : 1);
+    startTween(
+      anim.connectorTweens, l.id,
+      anim.connectorOpacity[l.id], target, now, dimDuration,
+    );
+  }
+  for (const l of SECTOR_LINKS) {
+    const target = branchSet.has(l.carrier) ? 1 : (dimNonBranches ? DIM_OPACITY : 1);
+    startTween(
+      anim.connectorTweens, l.id,
+      anim.connectorOpacity[l.id], target, now, dimDuration,
+    );
+  }
+
+  // Sector labels: branch → 1, non-branch → 0 (if dim) or 1.
+  for (const l of SECTOR_LINKS) {
+    if (!l.sectorId) continue;
+    const onBranch = branchSet.has(l.carrier);
+    // For branch sectors we let the per-arrival labelTween fade them in
+    // — sets up the cascade reveal naturally.  Non-branch labels tween
+    // to 0 (or stay at 1 if no dim).
+    if (onBranch) {
+      // Cancel any non-branch dim tween that might be in-flight; the
+      // arrival callback will set a fresh fade-in.
+      delete anim.labelTweens[l.sectorId];
+    } else {
+      const target = dimNonBranches ? 0 : 1;
       startTween(
-        anim.formAlphaTweens as Record<string, OpacityTween>,
-        c, 0, 1, now, REDUCED_FADE_MS,
+        anim.labelTweens, l.sectorId,
+        anim.labelOpacity[l.sectorId], target, now, labelDuration,
       );
     }
-    for (const id of ALL_CONNECTOR_IDS) {
-      startTween(anim.connectorTweens, id, 0, 1, now, REDUCED_FADE_MS);
-    }
+  }
+
+  if (anim.reduced) {
+    // Reduced motion: snap geometry; rely on the form/connector/label
+    // tweens above for the visible fade. No pulse-tip travel and no
+    // chained timing — completion fires once the fades settle.
     for (const id of ALL_SECTOR_IDS) {
-      startTween(anim.labelTweens, id, 0, 1, now, REDUCED_FADE_MS);
+      anim.sectorScale[id] = 1;
     }
+    for (const id of ALL_CONNECTOR_IDS) {
+      anim.connectorDrawProgress[id] = 1;
+    }
+    // Branch sectors get labels = 1 too (the per-arrival tween path
+    // doesn't run under reduced motion).
+    for (const sid of ALL_SECTOR_IDS) {
+      const carrier = SECTOR_BY_ID[sid]?.carrier;
+      if (!carrier) continue;
+      if (branchSet.has(carrier)) {
+        startTween(
+          anim.labelTweens, sid,
+          anim.labelOpacity[sid], 1, now, labelDuration,
+        );
+      }
+    }
+    // No pulses ever fire under reduced motion — drain pending set so
+    // the completion check passes once the tweens settle.
+    anim.cascadePending = new Set();
     return;
   }
 
@@ -333,17 +441,25 @@ export function startHubCascade(anim: AnimState, now: number): void {
     peakScale: HUB_PULSE_PEAK_SCALE,
   };
 
-  // At PULSE_LAUNCH_AT_MS into the hub pulse, fire six hub→carrier pulses.
-  const launchTime = now + PULSE_LAUNCH_AT_MS;
+  // At PULSE_LAUNCH_AT_MS into the hub pulse, fire one hub→carrier
+  // pulse per branch.
   anim.scheduled.push({
-    time: launchTime,
-    run: (a, t) => launchHubPulses(a, t),
+    time: now + PULSE_LAUNCH_AT_MS,
+    run: (a, t) => launchHubPulses(a, branches, t),
   });
 
-  // cascadePending starts populated with every sector — it's drained
-  // as each carrier→sector pulse arrives. Avoids races where a few
-  // sub-cascades have completed but others are still pending launch.
-  anim.cascadePending = new Set(ALL_SECTOR_IDS);
+  // cascadePending tracks the sector ids whose pulses still need to
+  // arrive before the cascade is considered done. Only branch sectors
+  // are tracked — non-branches don't fire pulses in this cascade.
+  const pending = new Set<string>();
+  for (const l of SECTOR_LINKS) {
+    if (l.sectorId && branchSet.has(l.carrier)) pending.add(l.sectorId);
+  }
+  anim.cascadePending = pending;
+}
+
+export function startHubCascade(anim: AnimState, now: number): void {
+  startCascade(anim, CARRIER_IDS.slice(), /* dim */ false, now);
 }
 
 export function startCarrierFocus(
@@ -352,97 +468,39 @@ export function startCarrierFocus(
   _hasSeen: boolean,
   now: number,
 ): void {
-  // Cancel any in-flight pulses or scheduled launches from a prior
-  // focus — we're starting a fresh focus animation. (Note: this is
-  // only called from phase === 'FULL', so any leftover schedule is
-  // from a previous focus that's being replaced.)
-  anim.pulses = [];
-  anim.scheduled = [];
-  anim.carrierPulses = {};
-  anim.sectorBlips = {};
-
-  // Tween form alphas: focused → 1, others → DIM_OPACITY.
-  for (const c of CARRIER_IDS) {
-    const target = c === carrier ? 1 : DIM_OPACITY;
-    startTween(
-      anim.formAlphaTweens as Record<string, OpacityTween>,
-      c, anim.formAlpha[c], target, now,
-      anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS,
-    );
-  }
-
-  // Hub→carrier connectors: focused → 1, others → DIM_OPACITY.
-  for (const l of HUB_LINKS) {
-    const target = l.carrier === carrier ? 1 : DIM_OPACITY;
-    startTween(
-      anim.connectorTweens, l.id,
-      anim.connectorOpacity[l.id], target, now,
-      anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS,
-    );
-  }
-
-  // Carrier→sector connectors: focused branch → 1, others → DIM_OPACITY.
-  for (const l of SECTOR_LINKS) {
-    const target = l.carrier === carrier ? 1 : DIM_OPACITY;
-    startTween(
-      anim.connectorTweens, l.id,
-      anim.connectorOpacity[l.id], target, now,
-      anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS,
-    );
-  }
-
-  // Sector labels: focused branch → 1, others → 0.
-  for (const l of SECTOR_LINKS) {
-    const target = l.carrier === carrier ? 1 : 0;
-    if (!l.sectorId) continue;
-    startTween(
-      anim.labelTweens, l.sectorId,
-      anim.labelOpacity[l.sectorId], target, now,
-      anim.reduced ? REDUCED_FADE_MS : LABEL_FADE_MS,
-    );
-  }
-
-  if (anim.reduced) return;
-
-  // Focused carrier physical-pulses; at peak, sector pulses launch.
-  anim.carrierPulses[carrier] = {
-    startTime: now,
-    duration: CARRIER_PHYSICAL_PULSE_MS,
-    peakScale: CARRIER_PULSE_PEAK_SCALE,
-  };
-  anim.scheduled.push({
-    time: now + PULSE_LAUNCH_AT_MS,
-    run: (a, t) => launchSectorPulses(a, carrier, t, /* duringFocus */ true),
-  });
+  startCascade(anim, [carrier], /* dim */ true, now);
 }
 
 export function endCarrierFocus(anim: AnimState, now: number): void {
   // Crossfade everything back: form alphas → 1, connectors → 1,
-  // labels → 1. Cancel pulses + blips in flight.
+  // labels → 1. Cancel pulses + blips in flight (cascade itself
+  // ends naturally when its scheduled tail completes).
   anim.pulses = [];
   anim.scheduled = [];
   anim.carrierPulses = {};
   anim.sectorBlips = {};
+  anim.cascadeActive = false;
+  anim.cascadePending = new Set();
+
+  const dimDuration = anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS;
+  const labelDuration = anim.reduced ? REDUCED_FADE_MS : LABEL_FADE_MS;
 
   for (const c of CARRIER_IDS) {
     startTween(
       anim.formAlphaTweens as Record<string, OpacityTween>,
-      c, anim.formAlpha[c], 1, now,
-      anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS,
+      c, anim.formAlpha[c], 1, now, dimDuration,
     );
   }
   for (const id of ALL_CONNECTOR_IDS) {
     startTween(
       anim.connectorTweens, id,
-      anim.connectorOpacity[id], 1, now,
-      anim.reduced ? REDUCED_FADE_MS : OPACITY_CROSSFADE_MS,
+      anim.connectorOpacity[id], 1, now, dimDuration,
     );
   }
   for (const id of ALL_SECTOR_IDS) {
     startTween(
       anim.labelTweens, id,
-      anim.labelOpacity[id], 1, now,
-      anim.reduced ? REDUCED_FADE_MS : LABEL_FADE_MS,
+      anim.labelOpacity[id], 1, now, labelDuration,
     );
   }
 }
@@ -495,18 +553,23 @@ export function tickAnimation(
     }
   }
 
-  // 4. Pulse-tip progress + arrivals.
+  // 4. Pulse-tip progress + arrivals + connector trail draw-in.
   if (anim.pulses.length > 0) {
     const survivors: PulseInFlight[] = [];
     for (const p of anim.pulses) {
       const t = (now - p.startTime) / p.duration;
       if (t >= 1) {
         p.progress = 1;
+        // Lock the trail at 1 — sticky once drawn.
+        anim.connectorDrawProgress[p.pathId] = 1;
         const arrivalT = p.startTime + p.duration;
         handlePulseArrival(anim, p, arrivalT);
         changed = true;
       } else if (t > 0) {
         if (p.progress !== t) { p.progress = t; changed = true; }
+        // Trail follows the pulse — only grows, never shrinks.
+        const prev = anim.connectorDrawProgress[p.pathId] ?? 0;
+        if (t > prev) anim.connectorDrawProgress[p.pathId] = t;
         survivors.push(p);
       } else {
         survivors.push(p);
@@ -515,7 +578,7 @@ export function tickAnimation(
     anim.pulses = survivors;
   }
 
-  // 5. Sector blips (CARRIER_FOCUS replays).
+  // 5. Sector blips.
   for (const id of Object.keys(anim.sectorBlips)) {
     const b = anim.sectorBlips[id];
     const v = blipAt(b, now);
@@ -553,35 +616,20 @@ export function tickAnimation(
   // 7. Cascade-completion check.
   let cascadeFullComplete = false;
   if (
-    anim.cascadeFullActive &&
+    anim.cascadeActive &&
     !anim.cascadeAlreadyReported &&
     anim.scheduled.length === 0 &&
     anim.pulses.length === 0 &&
     anim.hubPulse === null &&
     Object.keys(anim.carrierPulses).length === 0 &&
     anim.cascadePending.size === 0 &&
+    Object.keys(anim.sectorBlips).length === 0 &&
     Object.keys(anim.formAlphaTweens).length === 0 &&
     Object.keys(anim.connectorTweens).length === 0 &&
     Object.keys(anim.labelTweens).length === 0
   ) {
     anim.cascadeAlreadyReported = true;
-    anim.cascadeFullActive = false;
-    cascadeFullComplete = true;
-    changed = true;
-  }
-
-  // The reduced-motion path has no pulses or pending sectors to
-  // drain; complete once all reduced-fade tweens finish.
-  if (
-    anim.reduced &&
-    anim.cascadeFullActive &&
-    !anim.cascadeAlreadyReported &&
-    Object.keys(anim.formAlphaTweens).length === 0 &&
-    Object.keys(anim.connectorTweens).length === 0 &&
-    Object.keys(anim.labelTweens).length === 0
-  ) {
-    anim.cascadeAlreadyReported = true;
-    anim.cascadeFullActive = false;
+    anim.cascadeActive = false;
     cascadeFullComplete = true;
     changed = true;
   }
@@ -591,8 +639,14 @@ export function tickAnimation(
 
 // ─── Internal scheduling callbacks ───────────────────────────────
 
-function launchHubPulses(anim: AnimState, now: number): void {
+function launchHubPulses(
+  anim: AnimState,
+  branches: CarrierId[],
+  now: number,
+): void {
+  const branchSet = new Set(branches);
   for (const l of HUB_LINKS) {
+    if (!branchSet.has(l.carrier)) continue;
     const len = anim.linkLengths[l.id];
     anim.pulses.push({
       id: `pulse-${anim.pulseCounter++}`,
@@ -603,7 +657,6 @@ function launchHubPulses(anim: AnimState, now: number): void {
       duration: pulseDuration(len),
       color: CARRIER_COLOURS[l.carrier],
       progress: 0,
-      focusReplay: false,
     });
   }
 }
@@ -612,7 +665,6 @@ function launchSectorPulses(
   anim: AnimState,
   carrier: CarrierId,
   now: number,
-  duringFocus: boolean,
 ): void {
   const links = SECTOR_LINKS_BY_CARRIER[carrier];
   for (const l of links) {
@@ -626,7 +678,6 @@ function launchSectorPulses(
       duration: pulseDuration(len),
       color: CARRIER_COLOURS[carrier],
       progress: 0,
-      focusReplay: duringFocus,
     });
   }
 }
@@ -637,7 +688,8 @@ function handlePulseArrival(
   arrivalTime: number,
 ): void {
   if (p.sectorId === null) {
-    // Hub→carrier arrival.
+    // Hub→carrier arrival. Snap formAlpha (no-op on replay), kick the
+    // carrier physical-pulse, schedule its sector launch.
     anim.formAlpha[p.carrier] = 1;
     anim.carrierPulses[p.carrier] = {
       startTime: arrivalTime,
@@ -645,40 +697,22 @@ function handlePulseArrival(
       peakScale: CARRIER_PULSE_PEAK_SCALE,
     };
     anim.carrierPulseScale[p.carrier] = 1;
-
-    // Reveal the hub→carrier connector itself.
-    startTween(
-      anim.connectorTweens, p.pathId,
-      anim.connectorOpacity[p.pathId], 1,
-      arrivalTime, OPACITY_CROSSFADE_MS,
-    );
-
-    // Schedule this carrier's sector launch at arrival + 120 ms peak.
     anim.scheduled.push({
       time: arrivalTime + PULSE_LAUNCH_AT_MS,
-      run: (a, t) => launchSectorPulses(a, p.carrier, t, /* duringFocus */ false),
+      run: (a, t) => launchSectorPulses(a, p.carrier, t),
     });
     return;
   }
 
-  // Carrier→sector arrival.
-  if (p.focusReplay) {
-    // Sector dot is already at scale 1 in FULL/FOCUS — fire an
-    // absorb-blip on top of it.
-    anim.sectorBlips[p.sectorId] = {
-      startTime: arrivalTime,
-      duration: ABSORB_BLIP_MS,
-    };
-    return;
-  }
-
-  // CASCADE_FULL arrival.
+  // Carrier→sector arrival. Snap dot scale to 1 (no-op on replay) and
+  // fire an absorb-blip + label fade-in. Same behaviour for first
+  // cascade and for replays — the only difference is whether the dot
+  // was already at scale 1 / label already at opacity 1.
   anim.sectorScale[p.sectorId] = 1;
-  startTween(
-    anim.connectorTweens, p.sectorId,
-    anim.connectorOpacity[p.sectorId], 1,
-    arrivalTime, OPACITY_CROSSFADE_MS,
-  );
+  anim.sectorBlips[p.sectorId] = {
+    startTime: arrivalTime,
+    duration: ABSORB_BLIP_MS,
+  };
   startTween(
     anim.labelTweens, p.sectorId,
     anim.labelOpacity[p.sectorId], 1,
