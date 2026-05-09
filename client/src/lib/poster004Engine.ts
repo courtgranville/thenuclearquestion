@@ -57,6 +57,12 @@ export const PULSE_HALO_ALPHA         = 0.25;
 export const PULSE_STROKE_ALPHA       = 0.85;
 export const PULSE_STROKE_WIDTH       = 3.5;
 
+// Electric-arc render: white-hot core on top of the carrier-coloured
+// head, with a subtle shimmer driven by sin(now * 0.05).
+export const PULSE_CORE_RADIUS_RATIO  = 0.45;
+export const PULSE_CORE_ALPHA         = 0.9;
+export const PULSE_SHIMMER_AMPLITUDE  = 0.15;
+
 export const CARRIER_COLOURS: Record<CarrierId, string> = {
   petroleum:   '#a51e22',
   naturalGas:  '#1c3867',

@@ -21,9 +21,13 @@ import {
   HOVER_DEBOUNCE_MS,
   INSTRUCTION_FADE_IN_DELAY_MS,
   INSTRUCTION_FADE_IN_MS,
+  OPACITY_CROSSFADE_MS,
+  PULSE_CORE_ALPHA,
+  PULSE_CORE_RADIUS_RATIO,
   PULSE_HEAD_RADIUS,
   PULSE_HALO_RADIUS,
   PULSE_HALO_ALPHA,
+  PULSE_SHIMMER_AMPLITUDE,
   PULSE_STROKE_ALPHA,
   PULSE_STROKE_WIDTH,
   PULSE_TAIL_PX,
@@ -91,6 +95,38 @@ interface PreparedForm {
   anchor: [number, number];
   colour: string;
   twh: number;
+  // Indices of the polylines that form the outer silhouette — drawn
+  // as an opaque page-background fill before the texture strokes so
+  // connector lines beneath the canvas don't show through the form's
+  // interior gaps.
+  silhouetteIndices: number[];
+}
+
+function pickSilhouetteIndices(polylines: Polyline[]): number[] {
+  if (polylines.length === 0) return [];
+  let maxArea = 0;
+  const areas: number[] = [];
+  for (const L of polylines) {
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
+    for (let k = 0; k < L.n; k++) {
+      const x = L.pts[k * 2];
+      const y = L.pts[k * 2 + 1];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const a = (maxX - minX) * (maxY - minY);
+    areas.push(a);
+    if (a > maxArea) maxArea = a;
+  }
+  const threshold = maxArea * 0.8;
+  const out: number[] = [];
+  for (let i = 0; i < areas.length; i++) {
+    if (areas[i] >= threshold) out.push(i);
+  }
+  return out;
 }
 
 const FORMS: Record<FormId, PreparedForm> = (() => {
@@ -106,10 +142,16 @@ const FORMS: Record<FormId, PreparedForm> = (() => {
       anchor: raw.anchor ?? raw.centroid,
       colour: raw.colour ?? '#0d1a1e',
       twh: raw.twh,
+      silhouetteIndices: pickSilhouetteIndices(polylines),
     };
   }
   return out;
 })();
+
+// Page background colour — used to fill form silhouettes so the
+// connectors that run beneath the canvas don't show through the
+// stroke gaps. Matches CLAUDE.md's locked palette.
+const PAGE_BG = '#ECE7DF';
 
 const ALL_LINKS: Link[] = [...HUB_LINKS, ...SECTOR_LINKS];
 const SECTORS = DATA.sectors;
@@ -335,6 +377,29 @@ export default function Poster004CanvasViz() {
           ctx.scale(scale, scale);
           ctx.translate(-f.anchor[0], -f.anchor[1]);
         }
+
+        // Silhouette fill — page-background-coloured opaque path(s)
+        // that block the connector lines running underneath. Draw
+        // BEFORE the texture strokes so the strokes still draw on
+        // top. globalAlpha = formAlpha so the dim mask still works.
+        if (f.silhouetteIndices.length > 0) {
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = PAGE_BG;
+          ctx.beginPath();
+          for (const idx of f.silhouetteIndices) {
+            const L = f.polylines[idx];
+            const pts = L.pts;
+            const n = L.n;
+            if (n < 2) continue;
+            ctx.moveTo(pts[0], pts[1]);
+            for (let k = 1; k < n; k++) {
+              ctx.lineTo(pts[k * 2], pts[k * 2 + 1]);
+            }
+            ctx.closePath();
+          }
+          ctx.fill();
+        }
+
         ctx.strokeStyle = f.colour;
 
         const N = f.polylines.length;
@@ -384,9 +449,11 @@ export default function Poster004CanvasViz() {
           ctx.arc(head.x, head.y, PULSE_HALO_RADIUS, 0, Math.PI * 2);
           ctx.fill();
 
-          // Trail (gradient stroke from tail to head)
+          // Trail — three-stop gradient so most of the length stays
+          // faint and the colour concentrates near the head.
           const grad = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
           grad.addColorStop(0, 'rgba(0,0,0,0)');
+          grad.addColorStop(0.7, p.color + '4D'); // ≈ 30% alpha
           grad.addColorStop(1, p.color);
           ctx.strokeStyle = grad;
           ctx.globalAlpha = PULSE_STROKE_ALPHA;
@@ -396,11 +463,24 @@ export default function Poster004CanvasViz() {
           ctx.lineTo(head.x, head.y);
           ctx.stroke();
 
-          // Head
+          // Head — solid carrier-coloured disc.
           ctx.globalAlpha = 1;
           ctx.fillStyle = p.color;
           ctx.beginPath();
           ctx.arc(head.x, head.y, PULSE_HEAD_RADIUS, 0, Math.PI * 2);
+          ctx.fill();
+
+          // White-hot core on top — reads as an electric arc rather
+          // than a coloured ball. Radius shimmers per-frame.
+          const shimmer =
+            (1 - PULSE_SHIMMER_AMPLITUDE) +
+            PULSE_SHIMMER_AMPLITUDE * Math.sin(now * 0.05);
+          const coreR =
+            PULSE_HEAD_RADIUS * PULSE_CORE_RADIUS_RATIO * shimmer;
+          ctx.globalAlpha = PULSE_CORE_ALPHA;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(head.x, head.y, coreR, 0, Math.PI * 2);
           ctx.fill();
         }
         ctx.globalAlpha = 1;
