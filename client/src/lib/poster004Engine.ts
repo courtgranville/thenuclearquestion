@@ -27,16 +27,19 @@ import linksData from '@/assets/poster-004-forms.json';
 import { CARRIER_IDS, type CarrierId } from './poster004State';
 
 // ─── Timing & visual constants ───────────────────────────────────
-export const HUB_PHYSICAL_PULSE_MS    = 240;
-export const CARRIER_PHYSICAL_PULSE_MS = 240;
+// Cascade end-to-end target ~3 s — slowed from the original ~1.8 s
+// so the eye can follow the construction. Tune to taste; everything
+// scales together.
+export const HUB_PHYSICAL_PULSE_MS    = 360;
+export const CARRIER_PHYSICAL_PULSE_MS = 360;
 export const HUB_PULSE_PEAK_SCALE     = 1.15;
 export const CARRIER_PULSE_PEAK_SCALE = 1.12;
-export const PULSE_LAUNCH_AT_MS       = 120;
-export const PULSE_TRAVEL_SPEED_PX_PER_MS = 0.32;
-export const ABSORB_BLIP_MS           = 220;
+export const PULSE_LAUNCH_AT_MS       = 180;
+export const PULSE_TRAVEL_SPEED_PX_PER_MS = 0.20;
+export const ABSORB_BLIP_MS           = 320;
 export const ABSORB_BLIP_PEAK_SCALE   = 1.15;
-export const LABEL_FADE_MS            = 200;
-export const OPACITY_CROSSFADE_MS     = 200;
+export const LABEL_FADE_MS            = 300;
+export const OPACITY_CROSSFADE_MS     = 300;
 export const HOVER_DEBOUNCE_MS        = 300;
 export const DIM_OPACITY              = 0.05;
 export const INSTRUCTION_FADE_IN_DELAY_MS = 800;

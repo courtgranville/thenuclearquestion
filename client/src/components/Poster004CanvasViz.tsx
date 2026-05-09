@@ -79,9 +79,6 @@ interface RawData {
 
 const DATA = formsData as unknown as RawData;
 
-const SVG_VIEW_W = 1967.58;
-const SVG_VIEW_H = 1674.75;
-
 // Per-carrier identifiers in fixed order (for stable mount).
 type FormId = CarrierId | 'total';
 const FORM_IDS: FormId[] = ['total', ...CARRIER_IDS];
@@ -172,6 +169,64 @@ const CARRIER_HIT_RECTS: Record<CarrierId, HitRect> = {
 const HUB_HIT_RECT = hitRectFor(FORMS.total.bbox);
 
 // ─────────────────────────────────────────────────────────────────
+// Tight content viewBox — replaces the original print-export
+// 0 0 1967.58 1674.75 which had the content offset 128 px left and
+// 45 px up from the viewBox centre. Computed at module load from
+// every renderable element with 5% padding.
+// ─────────────────────────────────────────────────────────────────
+
+const VIEWBOX = (() => {
+  let minX = Infinity, minY = Infinity;
+  let maxX = -Infinity, maxY = -Infinity;
+  const expand = (x: number, y: number) => {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  };
+  // Form polyline bboxes.
+  for (const id of FORM_IDS) {
+    const b = FORMS[id].bbox;
+    expand(b.minX, b.minY);
+    expand(b.maxX, b.maxY);
+  }
+  // Sector circles (cx ± r).
+  for (const s of SECTORS) {
+    expand(s.cx - s.r, s.cy - s.r);
+    expand(s.cx + s.r, s.cy + s.r);
+  }
+  // Sector label glyph anchors. Approximate label extent by adding a
+  // small box around each anchor — enough to keep typical 6-letter
+  // words inside the viewBox.
+  const LABEL_W = 90;
+  const LABEL_H = 20;
+  for (const glyphs of Object.values(SECTOR_LABELS)) {
+    for (const g of glyphs) {
+      expand(g.x - LABEL_W, g.y - LABEL_H);
+      expand(g.x + LABEL_W, g.y + LABEL_H);
+    }
+  }
+  // Carrier-name label boxes.
+  for (const cl of CARRIER_LABELS) {
+    expand(cl.x - 80, cl.y - 12);
+    expand(cl.x + 80, cl.y + 35);
+  }
+  // Hub label and hover instruction sit below the form.
+  expand(FORMS.total.centroid[0] - 140, 1010 - 10);
+  expand(FORMS.total.centroid[0] + 140, 1100 + 10);
+
+  // 5% pad on each side.
+  const w = maxX - minX;
+  const h = maxY - minY;
+  const padX = w * 0.05;
+  const padY = h * 0.05;
+  return {
+    x: minX - padX,
+    y: minY - padY,
+    w: w + padX * 2,
+    h: h + padY * 2,
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────
 // Component
 // ─────────────────────────────────────────────────────────────────
 
@@ -223,12 +278,16 @@ export default function Poster004CanvasViz() {
       canvas.height = Math.max(1, Math.floor(cssH * DPR));
       canvas.style.width = cssW + 'px';
       canvas.style.height = cssH + 'px';
-      const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
-      const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
-      const offsetY = (cssH - SVG_VIEW_H * scale) / 2;
+      // Fit the viewBox (which is offset by VIEWBOX.x / VIEWBOX.y in
+      // SVG units) into the canvas with letterboxing matching SVG's
+      // preserveAspectRatio="xMidYMid meet".
+      const scale = Math.min(cssW / VIEWBOX.w, cssH / VIEWBOX.h);
+      const offsetX = (cssW - VIEWBOX.w * scale) / 2;
+      const offsetY = (cssH - VIEWBOX.h * scale) / 2;
       ctx.setTransform(
         scale * DPR, 0, 0, scale * DPR,
-        offsetX * DPR, offsetY * DPR,
+        (offsetX - VIEWBOX.x * scale) * DPR,
+        (offsetY - VIEWBOX.y * scale) * DPR,
       );
     };
     resize();
@@ -551,14 +610,17 @@ export default function Poster004CanvasViz() {
         ref={stageRef}
         className="relative w-full mx-auto"
         style={{
-          aspectRatio: `${SVG_VIEW_W} / ${SVG_VIEW_H}`,
-          maxWidth: `calc(85vh * ${SVG_VIEW_W} / ${SVG_VIEW_H})`,
+          aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}`,
+          // Cap by viewport width AND height so the diagram still
+          // sits above the buttons + caveat on a 13" viewport. The
+          // 1400px ceiling prevents absurd sizing on ultrawides.
+          maxWidth: `min(95vw, calc(75vh * ${VIEWBOX.w} / ${VIEWBOX.h}), 1400px)`,
         }}
       >
         {/* Layer 1: connectors (lowest). Pointer-events disabled —
             taps pass through to the upper SVG. */}
         <svg
-          viewBox={`0 0 ${SVG_VIEW_W} ${SVG_VIEW_H}`}
+          viewBox={`${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`}
           className="absolute inset-0 w-full h-full"
           preserveAspectRatio="xMidYMid meet"
           style={{ zIndex: 1, pointerEvents: 'none' }}
@@ -591,7 +653,7 @@ export default function Poster004CanvasViz() {
         {/* Layer 3: sectors, labels, hub label, carrier labels,
             hover instruction, hit-areas (top). */}
         <svg
-          viewBox={`0 0 ${SVG_VIEW_W} ${SVG_VIEW_H}`}
+          viewBox={`${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`}
           className="absolute inset-0 w-full h-full"
           preserveAspectRatio="xMidYMid meet"
           role="img"
