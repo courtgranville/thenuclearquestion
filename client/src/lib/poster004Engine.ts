@@ -63,25 +63,14 @@ export const INSTRUCTION_FADE_IN_MS   = 200;
 // Reduced-motion cascades collapse to a single 200 ms fade.
 const REDUCED_FADE_MS = 200;
 
-// Pulse render constants (used by the component, exported here for
-// co-location with timing).
-export const PULSE_TAIL_PX            = 14;
-export const PULSE_HALO_RADIUS        = 7;
-export const PULSE_HALO_ALPHA         = 0.25;
-export const PULSE_STROKE_ALPHA       = 0.85;
-export const PULSE_STROKE_WIDTH       = 3.5;
-
-// Lens-shaped pulse head — vesica oriented along the path's tangent
-// at the head position. Sharp points front and back, rotated to
-// follow the connector. White-hot core is a smaller lens of the same
-// orientation, scaled by PULSE_CORE_RADIUS_RATIO.
-export const PULSE_LENGTH             = 14;
-export const PULSE_WIDTH              = 4;
-export const PULSE_CORE_ALPHA         = 0.9;
-export const PULSE_CORE_RADIUS_RATIO  = 0.55;
-// Subtle shimmer driven by sin(now * 0.05) — multiplies the core
-// lens dimensions per-frame so the head reads as alive.
-export const PULSE_SHIMMER_AMPLITUDE  = 0.15;
+// Pulse render constants. The pulse reads as the connector line
+// bulging at one point — same colour and stroke register as the
+// connector, just thicker over a short span centred on the pulse
+// position. The component samples N points along the connector
+// path centred on the pulse and strokes short segments between
+// them with bell-curve alpha (peak at centre, fading at the edges).
+export const PULSE_BULGE_WIDTH        = 1.8;  // ≈ 3× connector stroke
+export const PULSE_BULGE_HALF_LEN     = 6;    // 12 px total bulge length
 
 export const CARRIER_COLOURS: Record<CarrierId, string> = {
   petroleum:   '#a51e22',

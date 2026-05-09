@@ -28,16 +28,8 @@ import {
   INSTRUCTION_FADE_IN_DELAY_MS,
   INSTRUCTION_FADE_IN_MS,
   OPACITY_CROSSFADE_MS,
-  PULSE_CORE_ALPHA,
-  PULSE_CORE_RADIUS_RATIO,
-  PULSE_HALO_RADIUS,
-  PULSE_HALO_ALPHA,
-  PULSE_LENGTH,
-  PULSE_SHIMMER_AMPLITUDE,
-  PULSE_STROKE_ALPHA,
-  PULSE_STROKE_WIDTH,
-  PULSE_TAIL_PX,
-  PULSE_WIDTH,
+  PULSE_BULGE_HALF_LEN,
+  PULSE_BULGE_WIDTH,
   type AnimState,
   type Link,
 } from '@/lib/poster004Engine';
@@ -638,77 +630,48 @@ export default function Poster004CanvasViz() {
       }
 
       // ── Pulse-tips on canvas ──
-      // Drawn after forms so they sit on top. Each pulse looks up its
-      // SVG <path> element and reads progress × length via
-      // getPointAtLength.
+      // Drawn after forms so they sit on top. Each pulse reads as a
+      // brief thickening of its connector line: 8 samples are taken
+      // along the path centred on the pulse position (±halfLen) and
+      // short segments between them are stroked with a cosine
+      // bell-curve alpha — peak in the middle, fading at both ends.
+      // Same colour and register as the connector itself; no halo,
+      // no head, no core.
       if (anim.pulses.length > 0) {
-        ctx.globalAlpha = 1;
+        const SAMPLES = 8;
+        ctx.lineWidth = PULSE_BULGE_WIDTH;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        const samplePts: { x: number; y: number }[] = new Array(SAMPLES + 1);
+        for (let i = 0; i <= SAMPLES; i++) samplePts[i] = { x: 0, y: 0 };
+
         for (const p of anim.pulses) {
           const path = connectorRefs.current[p.pathId];
           const len = anim.linkLengths[p.pathId];
           if (!path || !len) continue;
-          const head = path.getPointAtLength(p.progress * len);
-          const tailDist = Math.max(0, p.progress * len - PULSE_TAIL_PX);
-          const tail = path.getPointAtLength(tailDist);
 
-          // Halo — broad soft glow underneath the lens silhouette.
-          ctx.globalAlpha = PULSE_HALO_ALPHA;
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.arc(head.x, head.y, PULSE_HALO_RADIUS, 0, Math.PI * 2);
-          ctx.fill();
+          const t = p.progress * len;
+          const halfLen = PULSE_BULGE_HALF_LEN;
+          for (let i = 0; i <= SAMPLES; i++) {
+            const offset = ((i / SAMPLES) * 2 - 1) * halfLen;
+            const d = Math.max(0, Math.min(len, t + offset));
+            const pt = path.getPointAtLength(d);
+            samplePts[i].x = pt.x;
+            samplePts[i].y = pt.y;
+          }
 
-          // Trail — three-stop gradient so most of the length stays
-          // faint and the colour concentrates near the head.
-          const grad = ctx.createLinearGradient(tail.x, tail.y, head.x, head.y);
-          grad.addColorStop(0, 'rgba(0,0,0,0)');
-          grad.addColorStop(0.7, p.color + '4D'); // ≈ 30% alpha
-          grad.addColorStop(1, p.color);
-          ctx.strokeStyle = grad;
-          ctx.globalAlpha = PULSE_STROKE_ALPHA;
-          ctx.lineWidth = PULSE_STROKE_WIDTH;
-          ctx.beginPath();
-          ctx.moveTo(tail.x, tail.y);
-          ctx.lineTo(head.x, head.y);
-          ctx.stroke();
-
-          // Lens head — vesica with sharp points front and back,
-          // oriented along the path's tangent (atan2 of the
-          // head→tail vector). Reads as an electric pulse rather
-          // than a coloured ball.
-          const angle = Math.atan2(head.y - tail.y, head.x - tail.x);
-          ctx.save();
-          ctx.translate(head.x, head.y);
-          ctx.rotate(angle);
-
-          const L = PULSE_LENGTH;
-          const W = PULSE_WIDTH;
-          ctx.globalAlpha = 1;
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.moveTo(-L / 2, 0);
-          ctx.bezierCurveTo(-L / 2,  W,  L / 2,  W,  L / 2, 0);
-          ctx.bezierCurveTo( L / 2, -W, -L / 2, -W, -L / 2, 0);
-          ctx.closePath();
-          ctx.fill();
-
-          // White-hot core — smaller lens, same rotation, with a
-          // subtle per-frame shimmer.
-          const shimmer =
-            (1 - PULSE_SHIMMER_AMPLITUDE) +
-            PULSE_SHIMMER_AMPLITUDE * Math.sin(now * 0.05);
-          const cL = L * PULSE_CORE_RADIUS_RATIO * shimmer;
-          const cW = W * PULSE_CORE_RADIUS_RATIO * shimmer;
-          ctx.globalAlpha = PULSE_CORE_ALPHA;
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.moveTo(-cL / 2, 0);
-          ctx.bezierCurveTo(-cL / 2,  cW,  cL / 2,  cW,  cL / 2, 0);
-          ctx.bezierCurveTo( cL / 2, -cW, -cL / 2, -cW, -cL / 2, 0);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.restore();
+          ctx.strokeStyle = p.color;
+          for (let i = 0; i < SAMPLES; i++) {
+            // Map midpoint of segment i to [-1, 1] across the bulge.
+            const tMid = ((i + 0.5) / SAMPLES) * 2 - 1;
+            const alpha = Math.cos((tMid * Math.PI) / 2); // bell, peak 1
+            if (alpha <= 0.01) continue;
+            ctx.globalAlpha = alpha;
+            ctx.beginPath();
+            ctx.moveTo(samplePts[i].x, samplePts[i].y);
+            ctx.lineTo(samplePts[i + 1].x, samplePts[i + 1].y);
+            ctx.stroke();
+          }
         }
         ctx.globalAlpha = 1;
         ctx.lineWidth = 0.5;
