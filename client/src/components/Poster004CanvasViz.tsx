@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { buildPolylines, type BBox, type Polyline } from '@/lib/parseSvg';
 import {
   CARRIER_IDS,
@@ -11,12 +11,16 @@ import {
   HUB_LINKS,
   SECTOR_LINKS,
   makeInitialAnimState,
+  reset as resetEngine,
+  snapToFull,
   startHubCascade,
   startCarrierFocus,
   endCarrierFocus,
   tickAnimation,
   ABSORB_BLIP_PEAK_SCALE,
   HOVER_DEBOUNCE_MS,
+  INSTRUCTION_FADE_IN_DELAY_MS,
+  INSTRUCTION_FADE_IN_MS,
   PULSE_HEAD_RADIUS,
   PULSE_HALO_RADIUS,
   PULSE_HALO_ALPHA,
@@ -473,6 +477,50 @@ export default function Poster004CanvasViz() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // First-paint hover instruction. Fades in INSTRUCTION_FADE_IN_DELAY_MS
+  // after mount; fades out (and never returns) on first cascade dispatch
+  // — the reducer drops hoverInstructionVisible inside CASCADE_FULL_START.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      dispatch({ type: 'SHOW_HOVER_INSTRUCTION' });
+    }, INSTRUCTION_FADE_IN_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  // Coarse-pointer detection for instruction copy.
+  const coarsePointer = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(pointer: coarse)').matches,
+    [],
+  );
+
+  // ─── Buttons ────────────────────────────────────────────────────
+
+  const handlePlay = () => {
+    cancelFocusExit();
+    resetEngine(animRef.current);
+    dispatch({ type: 'RESET' });
+    startHubCascade(animRef.current, performance.now());
+    dispatch({ type: 'CASCADE_FULL_START' });
+  };
+
+  const handleSnap = () => {
+    cancelFocusExit();
+    snapToFull(animRef.current);
+    dispatch({ type: 'SNAP_TO_FULL' });
+  };
+
+  const handleReset = () => {
+    cancelFocusExit();
+    resetEngine(animRef.current);
+    dispatch({ type: 'RESET' });
+  };
+
+  const allSeen = CARRIER_IDS.every((c) => state.hasSeenCarrier[c]);
+  const showPlay = !allSeen;
+
   // ─── Render ─────────────────────────────────────────────────────
 
   return (
@@ -614,8 +662,26 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Hit areas (transparent rects layered on top of forms).
-              No pointer handlers in commit 4 — wiring lands in 5/6. */}
+          {/* Hover instruction: fades in 800 ms after mount, fades
+              out (and never returns) on first cascade dispatch. */}
+          <text
+            x={FORMS.total.centroid[0]}
+            y={895}
+            textAnchor="middle"
+            pointerEvents="none"
+            style={{
+              fontFamily: "'Playfair', Georgia, serif",
+              fontSize: 13,
+              fontStyle: 'italic',
+              fill: '#0d1a1e',
+              opacity: state.hoverInstructionVisible ? 0.7 : 0,
+              transition: `opacity ${INSTRUCTION_FADE_IN_MS}ms ease-out`,
+            }}
+          >
+            {coarsePointer ? 'Tap to begin' : 'Hover the centre'}
+          </text>
+
+          {/* Hit areas (transparent rects layered on top of forms). */}
           <g id="hit-areas">
             <rect
               data-hit="hub"
@@ -658,6 +724,56 @@ export default function Poster004CanvasViz() {
           </g>
         </svg>
       </div>
+
+      {/* Buttons. Three muted text-link buttons separated by middots. */}
+      <div
+        className="mt-6 flex justify-center items-center gap-2 text-sm text-muted-foreground"
+        style={{ fontFamily: "'Playfair', Georgia, serif" }}
+      >
+        {showPlay && (
+          <>
+            <button
+              type="button"
+              onClick={handlePlay}
+              className="px-1 py-0.5 rounded-sm hover:text-foreground transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
+            >
+              Play animation
+            </button>
+            <span aria-hidden="true">·</span>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={handleSnap}
+          className="px-1 py-0.5 rounded-sm hover:text-foreground transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
+        >
+          View as poster
+        </button>
+        <span aria-hidden="true">·</span>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="px-1 py-0.5 rounded-sm hover:text-foreground transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
+        >
+          Reset
+        </button>
+      </div>
+
+      {/* Honesty caveat — verbatim from the printed poster. */}
+      <p
+        className="mt-5 mx-auto max-w-2xl text-center text-foreground/70 leading-relaxed"
+        style={{
+          fontFamily: "'Playfair', Georgia, serif",
+          fontWeight: 300,
+          fontSize: 15,
+        }}
+      >
+        <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>
+          Electricity is just 18% of UK final energy.
+        </span>{' '}
+        Decarbonising how it&rsquo;s made only cleans this slice. Everything
+        else needs to be electrified before it can be decarbonised at all.
+      </p>
     </div>
   );
 }
