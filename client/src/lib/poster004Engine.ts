@@ -36,6 +36,12 @@ export const HUB_PULSE_PEAK_SCALE     = 1.15;
 export const CARRIER_PULSE_PEAK_SCALE = 1.12;
 export const PULSE_LAUNCH_AT_MS       = 180;
 export const PULSE_TRAVEL_SPEED_PX_PER_MS = 0.20;
+// In CARRIER_FOCUS the hub→carrier segment is preamble — the user's
+// attention is on the destination carrier and its sectors, not on
+// watching the pulse trundle out from the centre. Carrier→sector
+// speed stays at base. CASCADE_FULL ignores this multiplier (initial
+// reveal is paced for first-time discovery).
+export const HUB_TO_CARRIER_FOCUS_SPEED_MULTIPLIER = 2.0;
 export const ABSORB_BLIP_MS           = 320;
 export const ABSORB_BLIP_PEAK_SCALE   = 1.15;
 export const LABEL_FADE_MS            = 300;
@@ -122,11 +128,14 @@ for (const s of data.sectors) SECTOR_BY_ID[s.id] = { carrier: s.carrier as Carri
 
 // ─── AnimState ───────────────────────────────────────────────────
 
+export type PulseSegment = 'hub-to-carrier' | 'carrier-to-sector';
+
 export interface PulseInFlight {
   id: string;
   pathId: string;        // matches Link.id; component looks up SVG <path>
   carrier: CarrierId;
   sectorId: string | null;
+  segment: PulseSegment;
   startTime: number;
   duration: number;
   color: string;
@@ -451,10 +460,14 @@ function startCascade(
   };
 
   // At PULSE_LAUNCH_AT_MS into the hub pulse, fire one hub→carrier
-  // pulse per branch.
+  // pulse per branch. In CARRIER_FOCUS the hub-segment runs at
+  // HUB_TO_CARRIER_FOCUS_SPEED_MULTIPLIER × base speed (preamble);
+  // CASCADE_FULL keeps base speed for first-time discovery pacing.
+  const hubSpeedMultiplier =
+    dimNonBranches ? HUB_TO_CARRIER_FOCUS_SPEED_MULTIPLIER : 1;
   anim.scheduled.push({
     time: now + PULSE_LAUNCH_AT_MS,
-    run: (a, t) => launchHubPulses(a, branches, t),
+    run: (a, t) => launchHubPulses(a, branches, t, hubSpeedMultiplier),
   });
 
   // cascadePending tracks the sector ids whose pulses still need to
@@ -652,6 +665,7 @@ function launchHubPulses(
   anim: AnimState,
   branches: CarrierId[],
   now: number,
+  speedMultiplier: number,
 ): void {
   const branchSet = new Set(branches);
   for (const l of HUB_LINKS) {
@@ -662,8 +676,9 @@ function launchHubPulses(
       pathId: l.id,
       carrier: l.carrier,
       sectorId: null,
+      segment: 'hub-to-carrier',
       startTime: now,
-      duration: pulseDuration(len),
+      duration: pulseDuration(len) / speedMultiplier,
       color: CARRIER_COLOURS[l.carrier],
       progress: 0,
     });
@@ -683,6 +698,7 @@ function launchSectorPulses(
       pathId: l.id,
       carrier,
       sectorId: l.sectorId,
+      segment: 'carrier-to-sector',
       startTime: now,
       duration: pulseDuration(len),
       color: CARRIER_COLOURS[carrier],
