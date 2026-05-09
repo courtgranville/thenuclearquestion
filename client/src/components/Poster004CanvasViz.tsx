@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react';
-import { buildPolylines, type BBox, type Polyline } from '@/lib/parseSvg';
+import { buildPolylines, type BBox } from '@/lib/parseSvg';
+import {
+  resolveMotion,
+  depthWeight,
+  TUNING,
+  type FormMotion,
+} from '@/lib/posterMotion';
 import {
   CARRIER_IDS,
   initialState,
@@ -88,14 +94,26 @@ const DATA = formsData as unknown as RawData;
 type FormId = CarrierId | 'total';
 const FORM_IDS: FormId[] = ['total', ...CARRIER_IDS];
 
+// Mirror Poster001CanvasViz's PreparedLine shape: outline lines
+// (where depthWeight === 0) get a pre-built Path2D as a perf hint;
+// interior lines keep raw points for per-frame flow displacement.
+interface PreparedLine {
+  path: Path2D | null;
+  pts: Float32Array;
+  n: number;
+  depth: number;
+  dw: number;
+}
+
 interface PreparedForm {
   id: FormId;
-  polylines: Polyline[];
+  lines: PreparedLine[];
   bbox: BBox;
   centroid: [number, number];
   anchor: [number, number];
   colour: string;
   twh: number;
+  motion: FormMotion;
   // Indices of the polylines that form the outer silhouette — drawn
   // as an opaque page-background fill before the texture strokes so
   // connector lines beneath the canvas don't show through the form's
@@ -103,11 +121,21 @@ interface PreparedForm {
   silhouetteIndices: number[];
 }
 
-function pickSilhouetteIndices(polylines: Polyline[]): number[] {
-  if (polylines.length === 0) return [];
+function buildPath2D(pts: Float32Array, n: number): Path2D {
+  const p = new Path2D();
+  if (n < 2) return p;
+  p.moveTo(pts[0], pts[1]);
+  for (let k = 1; k < n; k++) {
+    p.lineTo(pts[k * 2], pts[k * 2 + 1]);
+  }
+  return p;
+}
+
+function pickSilhouetteIndices(lines: PreparedLine[]): number[] {
+  if (lines.length === 0) return [];
   let maxArea = 0;
   const areas: number[] = [];
-  for (const L of polylines) {
+  for (const L of lines) {
     let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;
     for (let k = 0; k < L.n; k++) {
@@ -135,15 +163,31 @@ const FORMS: Record<FormId, PreparedForm> = (() => {
   for (const id of FORM_IDS) {
     const raw = DATA[id];
     const { polylines, bbox } = buildPolylines(raw.form_paths);
+    const N = polylines.length;
+    const lines: PreparedLine[] = polylines.map((L, li) => {
+      const depth = N > 1 ? li / (N - 1) : 0;
+      const dw = depthWeight(depth);
+      return {
+        path: dw === 0 ? buildPath2D(L.pts, L.n) : null,
+        pts: L.pts,
+        n: L.n,
+        depth,
+        dw,
+      };
+    });
     out[id] = {
       id,
-      polylines,
+      lines,
       bbox,
       centroid: raw.centroid,
       anchor: raw.anchor ?? raw.centroid,
       colour: raw.colour ?? '#0d1a1e',
       twh: raw.twh,
-      silhouetteIndices: pickSilhouetteIndices(polylines),
+      // TWh stands in for the magnitude parameter that emissions
+      // plays in poster 001. Hub (1542) extrapolates slightly past
+      // the eMax of poster 001's calibration (970); accepted.
+      motion: resolveMotion(raw.twh),
+      silhouetteIndices: pickSilhouetteIndices(lines),
     };
   }
   return out;
@@ -422,6 +466,7 @@ export default function Poster004CanvasViz() {
     const lastSyncedSectorScale: Record<string, number> = {};
     const lastSyncedSectorBlip: Record<string, number> = {};
     const lastSyncedLabel: Record<string, number> = {};
+    const t0 = performance.now();
 
     const frame = (now: number) => {
       const result = tickAnimation(animRef.current, now);
@@ -437,6 +482,20 @@ export default function Poster004CanvasViz() {
       ctx.restore();
 
       // ── Forms ──
+      // Pulled into closure-locals so the hot loop hits them without
+      // property-access overhead. Mirror Poster001CanvasViz exactly.
+      const t = (now - t0) / 1000;
+      const k1 = TUNING.flowK1;
+      const w1 = TUNING.flowW1;
+      const k2 = TUNING.flowK2;
+      const w2 = TUNING.flowW2;
+      const a2w = TUNING.flowAmp2Weight;
+      const t1off = w1 * t;
+      const t1offY = w1 * t * 1.3;
+      const t2off = w2 * t * 1.7;
+      const t2offY = w2 * t * 0.7;
+      const NUM_BUCKETS = 8;
+
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.lineWidth = 0.5;
@@ -466,7 +525,7 @@ export default function Poster004CanvasViz() {
           ctx.fillStyle = PAGE_BG;
           ctx.beginPath();
           for (const idx of f.silhouetteIndices) {
-            const L = f.polylines[idx];
+            const L = f.lines[idx];
             const pts = L.pts;
             const n = L.n;
             if (n < 2) continue;
@@ -481,29 +540,78 @@ export default function Poster004CanvasViz() {
 
         ctx.strokeStyle = f.colour;
 
-        const N = f.polylines.length;
-        const NUM_BUCKETS = 8;
+        const flowAmp = f.motion.flowAmp;
+        const N = f.lines.length;
+
+        // Bucket-batched strokes — outlines (line.path !== null) go
+        // through unchanged, interiors get a per-point flow
+        // displacement at amplitude flowAmp × line.dw.
         for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
           const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
-          ctx.globalAlpha = alpha * (0.45 + 0.55 * (1 - bucketDepthMid));
+          ctx.globalAlpha = alpha * (0.5 + 0.5 * (1 - bucketDepthMid));
           ctx.beginPath();
+
           for (let li = 0; li < N; li++) {
+            const line = f.lines[li];
             const lineBucket = Math.min(
               NUM_BUCKETS - 1,
-              Math.floor((N > 1 ? li / (N - 1) : 0) * NUM_BUCKETS),
+              Math.floor(line.depth * NUM_BUCKETS),
             );
             if (lineBucket !== bucket) continue;
-            const L = f.polylines[li];
-            const pts = L.pts;
-            const n = L.n;
+
+            // Outline line — no displacement.
+            if (line.path !== null) {
+              const pts = line.pts;
+              const n = line.n;
+              if (n < 2) continue;
+              ctx.moveTo(pts[0], pts[1]);
+              for (let kk = 1; kk < n; kk++) {
+                ctx.lineTo(pts[kk * 2], pts[kk * 2 + 1]);
+              }
+              continue;
+            }
+
+            // Interior line — per-point flow displacement.
+            const pts = line.pts;
+            const n = line.n;
             if (n < 2) continue;
-            ctx.moveTo(pts[0], pts[1]);
-            for (let k = 1; k < n; k++) {
-              ctx.lineTo(pts[k * 2], pts[k * 2 + 1]);
+            const a = flowAmp * line.dw;
+
+            {
+              const x = pts[0];
+              const y = pts[1];
+              const ax1 = k1 * x + t1off;
+              const ay1 = k1 * y + t1offY;
+              const ax2 = k2 * x + t2off;
+              const ay2 = k2 * y + t2offY;
+              const dx =
+                Math.sin(ax1) * Math.cos(ay1) +
+                a2w * Math.sin(ax2) * Math.cos(ay2);
+              const dy =
+                -Math.cos(ax1) * Math.sin(ay1) -
+                a2w * Math.cos(ax2) * Math.sin(ay2);
+              ctx.moveTo(x + a * dx, y + a * dy);
+            }
+            for (let kk = 1; kk < n; kk++) {
+              const x = pts[kk * 2];
+              const y = pts[kk * 2 + 1];
+              const ax1 = k1 * x + t1off;
+              const ay1 = k1 * y + t1offY;
+              const ax2 = k2 * x + t2off;
+              const ay2 = k2 * y + t2offY;
+              const dx =
+                Math.sin(ax1) * Math.cos(ay1) +
+                a2w * Math.sin(ax2) * Math.cos(ay2);
+              const dy =
+                -Math.cos(ax1) * Math.sin(ay1) -
+                a2w * Math.cos(ax2) * Math.sin(ay2);
+              ctx.lineTo(x + a * dx, y + a * dy);
             }
           }
+
           ctx.stroke();
         }
+
         ctx.restore();
       }
 
