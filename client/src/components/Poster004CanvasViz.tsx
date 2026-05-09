@@ -11,6 +11,7 @@ import {
   HUB_LINKS,
   SECTOR_LINKS,
   makeInitialAnimState,
+  startHubCascade,
   tickAnimation,
   ABSORB_BLIP_PEAK_SCALE,
   PULSE_HEAD_RADIUS,
@@ -172,8 +173,9 @@ export default function Poster004CanvasViz() {
   const stageRef     = useRef<HTMLDivElement | null>(null);
   const canvasRef    = useRef<HTMLCanvasElement | null>(null);
   const animRef      = useRef<AnimState>(makeInitialAnimState());
-  const [, dispatch] = useReducer(reducer, initialState);
-  void dispatch; // unused in commit 4 scaffold; pointer wiring in commit 5
+  const [state, dispatch] = useReducer(reducer, initialState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   // SVG element refs — populated in JSX render via callback refs.
   const connectorRefs    = useRef<Record<string, SVGPathElement | null>>({});
@@ -225,7 +227,10 @@ export default function Poster004CanvasViz() {
     let lastSyncedLabel: Record<string, number> = {};
 
     const frame = (now: number) => {
-      tickAnimation(animRef.current, now);
+      const result = tickAnimation(animRef.current, now);
+      if (result.cascadeFullComplete) {
+        dispatch({ type: 'CASCADE_FULL_COMPLETE' });
+      }
       const anim = animRef.current;
 
       // ── Canvas clear ──
@@ -381,6 +386,22 @@ export default function Poster004CanvasViz() {
     };
   }, []);
 
+  // ─── Pointer handlers ──────────────────────────────────────────
+
+  const handleHubPointer = (e: React.PointerEvent<SVGRectElement>) => {
+    if (stateRef.current.phase !== 'DEFAULT') return;
+    // Block pointerEnter on touch — onPointerDown handles taps so
+    // a stray "enter" from a scroll gesture doesn't kick off the
+    // cascade unintentionally.
+    if (e.type === 'pointerenter' && e.pointerType === 'touch') return;
+    startHubCascade(animRef.current, performance.now());
+    dispatch({ type: 'CASCADE_FULL_START' });
+  };
+
+  // After the cascade has played, the hub form is no longer a hover
+  // target. Replay only via the Reset → Play flow (commit 7).
+  const hubHittable = state.phase === 'DEFAULT';
+
   // ─── Render ─────────────────────────────────────────────────────
 
   return (
@@ -531,7 +552,13 @@ export default function Poster004CanvasViz() {
               width={HUB_HIT_RECT.w}
               height={HUB_HIT_RECT.h}
               fill="transparent"
-              style={{ cursor: 'pointer' }}
+              style={{
+                cursor: hubHittable ? 'pointer' : 'default',
+                touchAction: 'manipulation',
+              }}
+              pointerEvents={hubHittable ? 'auto' : 'none'}
+              onPointerEnter={handleHubPointer}
+              onPointerDown={handleHubPointer}
             />
             {CARRIER_IDS.map((id) => {
               const r = CARRIER_HIT_RECTS[id];
