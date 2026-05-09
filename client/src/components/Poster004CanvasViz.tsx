@@ -30,6 +30,8 @@ import {
   OPACITY_CROSSFADE_MS,
   PULSE_BULGE_HALF_LEN,
   PULSE_BULGE_WIDTH,
+  PULSE_CORE_RADIUS,
+  PULSE_GLOW_RADIUS,
   type AnimState,
   type Link,
 } from '@/lib/poster004Engine';
@@ -266,12 +268,12 @@ const SECTOR_BY_ID: Record<string, RawSector> = (() => {
   return out;
 })();
 
-// Radial nudge applied to every sector label, on top of the print's
-// natural position. The print already places labels with the right
-// fan-out direction; this just pushes them further out along that
-// radial so they clear the dots at viewport size. Tune visually
-// between 18 and 30.
-const SECTOR_LABEL_RADIAL_OFFSET = 22;
+// Each label nudges along the carrier→dot radial by (dot radius +
+// breathing-room buffer). Proportional to dot size so big sectors
+// like Domestic 94.4 TWh (r ≈ 25) get pushed further out than tiny
+// solid-fuel cluster dots (r < 2). The buffer is a tunable constant
+// — tighten if labels feel too far away from their dots.
+const SECTOR_LABEL_RADIAL_BUFFER_PX = 12;
 
 interface LabelTransform {
   ax: number;
@@ -298,10 +300,11 @@ const LABEL_TRANSFORMS: Record<string, LabelTransform> = (() => {
     const vx = rx / rmag;
     const vy = ry / rmag;
 
+    const offset = sec.r + SECTOR_LABEL_RADIAL_BUFFER_PX;
     out[sectorId] = {
       ax, ay,
-      dx: vx * SECTOR_LABEL_RADIAL_OFFSET,
-      dy: vy * SECTOR_LABEL_RADIAL_OFFSET,
+      dx: vx * offset,
+      dy: vy * offset,
     };
   }
   return out;
@@ -630,18 +633,15 @@ export default function Poster004CanvasViz() {
       }
 
       // ── Pulse-tips on canvas ──
-      // Drawn after forms so they sit on top. Each pulse reads as a
-      // brief thickening of its connector line: 8 samples are taken
-      // along the path centred on the pulse position (±halfLen) and
-      // short segments between them are stroked with a cosine
-      // bell-curve alpha — peak in the middle, fading at both ends.
-      // Same colour and register as the connector itself; no halo,
-      // no head, no core.
+      // Three-layer composition per pulse:
+      //   1. Soft radial glow at the head — carrier colour at the
+      //      centre, fading to transparent at PULSE_GLOW_RADIUS.
+      //   2. White-hot core dot for a focal point.
+      //   3. Bell-curve bulge along the connector path centred on
+      //      the head, with cosine-shaped alpha so the colour reads
+      //      as the line glowing rather than a separate object.
       if (anim.pulses.length > 0) {
         const SAMPLES = 8;
-        ctx.lineWidth = PULSE_BULGE_WIDTH;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
         const samplePts: { x: number; y: number }[] = new Array(SAMPLES + 1);
         for (let i = 0; i <= SAMPLES; i++) samplePts[i] = { x: 0, y: 0 };
 
@@ -651,6 +651,30 @@ export default function Poster004CanvasViz() {
           if (!path || !len) continue;
 
           const t = p.progress * len;
+          const head = path.getPointAtLength(t);
+
+          // 1. Radial glow at the head.
+          const glow = ctx.createRadialGradient(
+            head.x, head.y, 0,
+            head.x, head.y, PULSE_GLOW_RADIUS,
+          );
+          glow.addColorStop(0,   p.color);
+          glow.addColorStop(0.4, p.color + '80'); // ≈ 50% alpha
+          glow.addColorStop(1,   p.color + '00'); // transparent
+          ctx.fillStyle = glow;
+          ctx.beginPath();
+          ctx.arc(head.x, head.y, PULSE_GLOW_RADIUS, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 2. White-hot core dot.
+          ctx.globalAlpha = 0.95;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(head.x, head.y, PULSE_CORE_RADIUS, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          // 3. Bell-curve bulge along the connector path.
           const halfLen = PULSE_BULGE_HALF_LEN;
           for (let i = 0; i <= SAMPLES; i++) {
             const offset = ((i / SAMPLES) * 2 - 1) * halfLen;
@@ -661,8 +685,10 @@ export default function Poster004CanvasViz() {
           }
 
           ctx.strokeStyle = p.color;
+          ctx.lineWidth = PULSE_BULGE_WIDTH;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
           for (let i = 0; i < SAMPLES; i++) {
-            // Map midpoint of segment i to [-1, 1] across the bulge.
             const tMid = ((i + 0.5) / SAMPLES) * 2 - 1;
             const alpha = Math.cos((tMid * Math.PI) / 2); // bell, peak 1
             if (alpha <= 0.01) continue;

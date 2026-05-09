@@ -63,14 +63,18 @@ export const INSTRUCTION_FADE_IN_MS   = 200;
 // Reduced-motion cascades collapse to a single 200 ms fade.
 const REDUCED_FADE_MS = 200;
 
-// Pulse render constants. The pulse reads as the connector line
-// bulging at one point — same colour and stroke register as the
-// connector, just thicker over a short span centred on the pulse
-// position. The component samples N points along the connector
-// path centred on the pulse and strokes short segments between
-// them with bell-curve alpha (peak at centre, fading at the edges).
-export const PULSE_BULGE_WIDTH        = 1.8;  // ≈ 3× connector stroke
-export const PULSE_BULGE_HALF_LEN     = 6;    // 12 px total bulge length
+// Pulse render constants. Three layered elements compose the pulse:
+//   1. Soft radial glow at the head — carrier-coloured halo for the
+//      "luminous spot" quality.
+//   2. White-hot core dot at the head — gives the eye a focal point.
+//   3. Bell-curve bulge along the connector path centred on the
+//      head — reads as "the line is glowing here".
+// Same colour register as the connector beneath, but bright enough
+// to read as light moving along a wire.
+export const PULSE_BULGE_WIDTH        = 2.5;
+export const PULSE_BULGE_HALF_LEN     = 8;    // 16 px total bulge length
+export const PULSE_GLOW_RADIUS        = 7;
+export const PULSE_CORE_RADIUS        = 1.2;
 
 export const CARRIER_COLOURS: Record<CarrierId, string> = {
   petroleum:   '#a51e22',
