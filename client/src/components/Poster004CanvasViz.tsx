@@ -217,6 +217,70 @@ const CARRIER_HIT_RECTS: Record<CarrierId, HitRect> = {
 const HUB_HIT_RECT = hitRectFor(FORMS.total.bbox);
 
 // ─────────────────────────────────────────────────────────────────
+// Per-sector label transforms — push each label radially outward
+// from its parent carrier so the dot's outer edge clears before the
+// label glyphs begin. Computed once at module scope.
+// ─────────────────────────────────────────────────────────────────
+
+const SECTOR_BY_ID: Record<string, RawSector> = (() => {
+  const out: Record<string, RawSector> = {};
+  for (const s of SECTORS) out[s.id] = s;
+  return out;
+})();
+
+// Buffer past the dot's outer edge before the label centroid lands.
+const SECTOR_LABEL_BUFFER_PX = 14;
+
+interface LabelTransform {
+  ax: number;
+  ay: number;
+  dx: number;
+  dy: number;
+}
+
+const LABEL_TRANSFORMS: Record<string, LabelTransform> = (() => {
+  const out: Record<string, LabelTransform> = {};
+  for (const [sectorId, glyphs] of Object.entries(SECTOR_LABELS)) {
+    if (glyphs.length === 0) continue;
+    const sec = SECTOR_BY_ID[sectorId];
+    if (!sec) continue;
+
+    // Scale-around-first-glyph anchor.
+    const ax = glyphs[0].x;
+    const ay = glyphs[0].y;
+
+    // Current centroid post-scale.
+    let sumX = 0, sumY = 0;
+    for (const g of glyphs) { sumX += g.x; sumY += g.y; }
+    const meanX = sumX / glyphs.length;
+    const meanY = sumY / glyphs.length;
+    const curX = ax + SECTOR_LABEL_SCALE * (meanX - ax);
+    const curY = ay + SECTOR_LABEL_SCALE * (meanY - ay);
+
+    // Radial vector from parent carrier's anchor to the dot.
+    const carrierAnchor = FORMS[sec.carrier].anchor;
+    const rx = sec.cx - carrierAnchor[0];
+    const ry = sec.cy - carrierAnchor[1];
+    const rmag = Math.hypot(rx, ry) || 1;
+    const vx = rx / rmag;
+    const vy = ry / rmag;
+
+    // Desired centroid: SECTOR_LABEL_BUFFER_PX past the dot's outer
+    // edge along the radial direction.
+    const reach = sec.r + SECTOR_LABEL_BUFFER_PX;
+    const desX = sec.cx + vx * reach;
+    const desY = sec.cy + vy * reach;
+
+    out[sectorId] = {
+      ax, ay,
+      dx: desX - curX,
+      dy: desY - curY,
+    };
+  }
+  return out;
+})();
+
+// ─────────────────────────────────────────────────────────────────
 // Tight content viewBox — replaces the original print-export
 // 0 0 1967.58 1674.75 which had the content offset 128 px left and
 // 45 px up from the viewBox centre. Computed at module load from
@@ -241,19 +305,19 @@ const VIEWBOX = (() => {
     expand(s.cx - s.r, s.cy - s.r);
     expand(s.cx + s.r, s.cy + s.r);
   }
-  // Sector label glyph anchors. Approximate per-glyph extent and
-  // apply the same 1.3× scale-around-first-glyph transform that the
-  // <g> uses at render time, so the bbox covers where the labels
-  // actually land.
+  // Sector label glyph anchors. Apply the same combined transform
+  // (radial translate + 1.3× scale-around-first-glyph) that the <g>
+  // uses at render time so the bbox covers where the labels actually
+  // land.
   const LABEL_W = 90 * SECTOR_LABEL_SCALE;
   const LABEL_H = 20 * SECTOR_LABEL_SCALE;
-  for (const glyphs of Object.values(SECTOR_LABELS)) {
+  for (const [sectorId, glyphs] of Object.entries(SECTOR_LABELS)) {
     if (glyphs.length === 0) continue;
-    const ax = glyphs[0].x;
-    const ay = glyphs[0].y;
+    const t = LABEL_TRANSFORMS[sectorId];
+    if (!t) continue;
     for (const g of glyphs) {
-      const sx = ax + SECTOR_LABEL_SCALE * (g.x - ax);
-      const sy = ay + SECTOR_LABEL_SCALE * (g.y - ay);
+      const sx = t.ax + SECTOR_LABEL_SCALE * (g.x - t.ax) + t.dx;
+      const sy = t.ay + SECTOR_LABEL_SCALE * (g.y - t.ay) + t.dy;
       expand(sx - LABEL_W, sy - LABEL_H);
       expand(sx + LABEL_W, sy + LABEL_H);
     }
@@ -263,9 +327,10 @@ const VIEWBOX = (() => {
     expand(cl.x - 80, cl.y - 12);
     expand(cl.x + 80, cl.y + 35);
   }
-  // Hub label and hover instruction sit below the form.
-  expand(FORMS.total.centroid[0] - 140, 1010 - 10);
-  expand(FORMS.total.centroid[0] + 140, 1100 + 10);
+  // Hub label sits below the form (instruction is now an HTML
+  // element outside the SVG).
+  expand(FORMS.total.centroid[0] - 200, 1010 - 12);
+  expand(FORMS.total.centroid[0] + 200, 1052 + 16);
 
   // 2.5% pad on each side — tightened so content fills more of the
   // rendered viewBox.
@@ -772,22 +837,28 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Sector labels. Each label is scaled 1.3× outward from
-              its first glyph's anchor so the print's small label
-              type reads comfortably at viewport size. The lone
-              unmatched solidFuel/Chemicals dot has no entry in
+          {/* Sector labels. Each label is pushed radially outward
+              from its parent carrier (so the dot's outer edge clears
+              before the glyphs begin) AND scaled 1.3× around its
+              first-glyph anchor for readability. The lone unmatched
+              solidFuel/Chemicals dot has no entry in
               DATA.labels.sectors and renders without a label —
               accepted as-is for v1. */}
           <g id="sector-labels" pointerEvents="none" fill="#0d1a1e">
             {Object.entries(SECTOR_LABELS).map(([sectorId, glyphs]) => {
-              const ax = glyphs[0]?.x ?? 0;
-              const ay = glyphs[0]?.y ?? 0;
+              const t = LABEL_TRANSFORMS[sectorId];
+              if (!t) return null;
               return (
                 <g
                   key={sectorId}
                   ref={(el) => { sectorLabelRefs.current[sectorId] = el; }}
                   data-sector-label={sectorId}
-                  transform={`translate(${ax} ${ay}) scale(${SECTOR_LABEL_SCALE}) translate(${-ax} ${-ay})`}
+                  transform={
+                    `translate(${t.dx} ${t.dy}) ` +
+                    `translate(${t.ax} ${t.ay}) ` +
+                    `scale(${SECTOR_LABEL_SCALE}) ` +
+                    `translate(${-t.ax} ${-t.ay})`
+                  }
                   style={{ opacity: 0 }}
                 >
                   {glyphs.map((g, i) => (
@@ -872,29 +943,6 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Hover instruction. Fades in 800 ms after mount, fades
-              out on first cascade dispatch, fades back in after
-              CASCADE_FULL completes if the user hasn't yet hovered
-              any carrier (handled in the reducer). */}
-          <text
-            x={FORMS.total.centroid[0]}
-            y={1110}
-            textAnchor="middle"
-            pointerEvents="none"
-            style={{
-              fontFamily: "'Playfair', Georgia, serif",
-              fontSize: 20,
-              fontStyle: 'italic',
-              fill: '#0d1a1e',
-              opacity: state.hoverInstructionVisible ? 0.7 : 0,
-              transition: `opacity ${INSTRUCTION_FADE_IN_MS}ms ease-out`,
-            }}
-          >
-            {coarsePointer
-              ? 'Tap the forms to explore the system'
-              : 'Hover the forms to see how the energy system flows'}
-          </text>
-
           {/* Hit areas (transparent rects layered on top of forms). */}
           <g id="hit-areas">
             <rect
@@ -939,9 +987,29 @@ export default function Poster004CanvasViz() {
         </svg>
       </div>
 
+      {/* Hover instruction — sits as plain HTML below the diagram so
+          it can never overlap any visualisation content. Same fade
+          behaviour driven by state.hoverInstructionVisible. Layout
+          space is preserved when invisible (opacity, not display). */}
+      <p
+        aria-live="polite"
+        className="mt-4 text-center italic text-foreground/70"
+        style={{
+          fontFamily: "'Playfair', Georgia, serif",
+          fontSize: 18,
+          opacity: state.hoverInstructionVisible ? 1 : 0,
+          transition: `opacity ${INSTRUCTION_FADE_IN_MS}ms ease-out`,
+          minHeight: '1.5em',
+        }}
+      >
+        {coarsePointer
+          ? 'Tap the forms to explore the system'
+          : 'Hover the forms to see how the energy system flows'}
+      </p>
+
       {/* Buttons. Three muted text-link buttons separated by middots. */}
       <div
-        className="mt-6 flex justify-center items-center gap-2 text-sm text-muted-foreground"
+        className="mt-3 flex justify-center items-center gap-2 text-sm text-muted-foreground"
         style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         {showPlay && (
