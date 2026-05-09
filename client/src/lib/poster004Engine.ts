@@ -44,6 +44,12 @@ export const PULSE_TRAVEL_SPEED_PX_PER_MS = 0.20;
 export const HUB_TO_CARRIER_FOCUS_SPEED_MULTIPLIER = 2.0;
 export const ABSORB_BLIP_MS           = 320;
 export const ABSORB_BLIP_PEAK_SCALE   = 1.15;
+// Sector dots grow from scale 0 → 1 over SECTOR_GROW_MS the first
+// time their pulse arrives (i.e., when sectorScale was still 0).
+// Subsequent arrivals (replays from FULL or CARRIER_FOCUS) skip the
+// grow and fire the absorb-blip instead.
+export const SECTOR_GROW_MS           = 300;
+export const SECTOR_GROW_EASE         = 'cubicOut' as const;
 export const LABEL_FADE_MS            = 300;
 export const OPACITY_CROSSFADE_MS     = 300;
 export const HOVER_DEBOUNCE_MS        = 300;
@@ -186,6 +192,10 @@ export interface AnimState {
   hubPulse: PhysicalPulse | null;
   carrierPulses: Partial<Record<CarrierId, PhysicalPulse>>;
   sectorBlips: Record<string, BlipState>;
+  // First-arrival grow-from-zero tweens for sector dots (pulse
+  // arrives → 0 → 1 over SECTOR_GROW_MS). Reused-arrival pulses
+  // populate sectorBlips instead.
+  sectorScaleTweens: Record<string, OpacityTween>;
   formAlphaTweens: Partial<Record<CarrierId | 'total', OpacityTween>>;
   connectorTweens: Record<string, OpacityTween>;
   labelTweens: Record<string, OpacityTween>;
@@ -232,6 +242,7 @@ export function makeInitialAnimState(): AnimState {
     hubPulse: null,
     carrierPulses: {},
     sectorBlips: {},
+    sectorScaleTweens: {},
     formAlphaTweens: {},
     connectorTweens: {},
     labelTweens: {},
@@ -342,6 +353,7 @@ export function snapToFull(anim: AnimState): void {
   anim.hubPulse = null;
   anim.carrierPulses = {};
   anim.sectorBlips = {};
+  anim.sectorScaleTweens = {};
   anim.formAlphaTweens = {};
   anim.connectorTweens = {};
   anim.labelTweens = {};
@@ -368,6 +380,7 @@ function startCascade(
   anim.scheduled = [];
   anim.carrierPulses = {};
   anim.sectorBlips = {};
+  anim.sectorScaleTweens = {};
 
   anim.cascadeActive = true;
   anim.cascadeAlreadyReported = false;
@@ -501,6 +514,7 @@ export function endCarrierFocus(anim: AnimState, now: number): void {
   anim.scheduled = [];
   anim.carrierPulses = {};
   anim.sectorBlips = {};
+  anim.sectorScaleTweens = {};
   anim.cascadeActive = false;
   anim.cascadePending = new Set();
 
@@ -600,7 +614,21 @@ export function tickAnimation(
     anim.pulses = survivors;
   }
 
-  // 5. Sector blips.
+  // 5a. Sector first-arrival grow tweens (0 → 1, cubic ease-out).
+  for (const id of Object.keys(anim.sectorScaleTweens)) {
+    const tw = anim.sectorScaleTweens[id];
+    const v = tweenValue(tw, now);
+    if (anim.sectorScale[id] !== v) {
+      anim.sectorScale[id] = v;
+      changed = true;
+    }
+    if (tweenDone(tw, now)) {
+      anim.sectorScale[id] = tw.to;
+      delete anim.sectorScaleTweens[id];
+    }
+  }
+
+  // 5b. Sector blips.
   for (const id of Object.keys(anim.sectorBlips)) {
     const b = anim.sectorBlips[id];
     const v = blipAt(b, now);
@@ -646,6 +674,7 @@ export function tickAnimation(
     Object.keys(anim.carrierPulses).length === 0 &&
     anim.cascadePending.size === 0 &&
     Object.keys(anim.sectorBlips).length === 0 &&
+    Object.keys(anim.sectorScaleTweens).length === 0 &&
     Object.keys(anim.formAlphaTweens).length === 0 &&
     Object.keys(anim.connectorTweens).length === 0 &&
     Object.keys(anim.labelTweens).length === 0
@@ -729,15 +758,24 @@ function handlePulseArrival(
     return;
   }
 
-  // Carrier→sector arrival. Snap dot scale to 1 (no-op on replay) and
-  // fire an absorb-blip + label fade-in. Same behaviour for first
-  // cascade and for replays — the only difference is whether the dot
-  // was already at scale 1 / label already at opacity 1.
-  anim.sectorScale[p.sectorId] = 1;
-  anim.sectorBlips[p.sectorId] = {
-    startTime: arrivalTime,
-    duration: ABSORB_BLIP_MS,
-  };
+  // Carrier→sector arrival. First-time arrival (sectorScale < 1)
+  // grows the dot from its current scale to 1 over SECTOR_GROW_MS;
+  // subsequent arrivals (sector already at scale 1 from a prior
+  // cascade or focus) fire the absorb-blip on the steady dot. Label
+  // fade-in runs on every arrival.
+  if (anim.sectorScale[p.sectorId] < 1) {
+    anim.sectorScaleTweens[p.sectorId] = {
+      startTime: arrivalTime,
+      duration: SECTOR_GROW_MS,
+      from: anim.sectorScale[p.sectorId],
+      to: 1,
+    };
+  } else {
+    anim.sectorBlips[p.sectorId] = {
+      startTime: arrivalTime,
+      duration: ABSORB_BLIP_MS,
+    };
+  }
   startTween(
     anim.labelTweens, p.sectorId,
     anim.labelOpacity[p.sectorId], 1,
