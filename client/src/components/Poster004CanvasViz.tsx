@@ -24,13 +24,14 @@ import {
   OPACITY_CROSSFADE_MS,
   PULSE_CORE_ALPHA,
   PULSE_CORE_RADIUS_RATIO,
-  PULSE_HEAD_RADIUS,
   PULSE_HALO_RADIUS,
   PULSE_HALO_ALPHA,
+  PULSE_LENGTH,
   PULSE_SHIMMER_AMPLITUDE,
   PULSE_STROKE_ALPHA,
   PULSE_STROKE_WIDTH,
   PULSE_TAIL_PX,
+  PULSE_WIDTH,
   type AnimState,
   type Link,
 } from '@/lib/poster004Engine';
@@ -520,7 +521,7 @@ export default function Poster004CanvasViz() {
           const tailDist = Math.max(0, p.progress * len - PULSE_TAIL_PX);
           const tail = path.getPointAtLength(tailDist);
 
-          // Halo
+          // Halo — broad soft glow underneath the lens silhouette.
           ctx.globalAlpha = PULSE_HALO_ALPHA;
           ctx.fillStyle = p.color;
           ctx.beginPath();
@@ -541,25 +542,43 @@ export default function Poster004CanvasViz() {
           ctx.lineTo(head.x, head.y);
           ctx.stroke();
 
-          // Head — solid carrier-coloured disc.
+          // Lens head — vesica with sharp points front and back,
+          // oriented along the path's tangent (atan2 of the
+          // head→tail vector). Reads as an electric pulse rather
+          // than a coloured ball.
+          const angle = Math.atan2(head.y - tail.y, head.x - tail.x);
+          ctx.save();
+          ctx.translate(head.x, head.y);
+          ctx.rotate(angle);
+
+          const L = PULSE_LENGTH;
+          const W = PULSE_WIDTH;
           ctx.globalAlpha = 1;
           ctx.fillStyle = p.color;
           ctx.beginPath();
-          ctx.arc(head.x, head.y, PULSE_HEAD_RADIUS, 0, Math.PI * 2);
+          ctx.moveTo(-L / 2, 0);
+          ctx.bezierCurveTo(-L / 2,  W,  L / 2,  W,  L / 2, 0);
+          ctx.bezierCurveTo( L / 2, -W, -L / 2, -W, -L / 2, 0);
+          ctx.closePath();
           ctx.fill();
 
-          // White-hot core on top — reads as an electric arc rather
-          // than a coloured ball. Radius shimmers per-frame.
+          // White-hot core — smaller lens, same rotation, with a
+          // subtle per-frame shimmer.
           const shimmer =
             (1 - PULSE_SHIMMER_AMPLITUDE) +
             PULSE_SHIMMER_AMPLITUDE * Math.sin(now * 0.05);
-          const coreR =
-            PULSE_HEAD_RADIUS * PULSE_CORE_RADIUS_RATIO * shimmer;
+          const cL = L * PULSE_CORE_RADIUS_RATIO * shimmer;
+          const cW = W * PULSE_CORE_RADIUS_RATIO * shimmer;
           ctx.globalAlpha = PULSE_CORE_ALPHA;
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
-          ctx.arc(head.x, head.y, coreR, 0, Math.PI * 2);
+          ctx.moveTo(-cL / 2, 0);
+          ctx.bezierCurveTo(-cL / 2,  cW,  cL / 2,  cW,  cL / 2, 0);
+          ctx.bezierCurveTo( cL / 2, -cW, -cL / 2, -cW, -cL / 2, 0);
+          ctx.closePath();
           ctx.fill();
+
+          ctx.restore();
         }
         ctx.globalAlpha = 1;
         ctx.lineWidth = 0.5;

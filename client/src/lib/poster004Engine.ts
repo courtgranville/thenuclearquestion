@@ -63,16 +63,21 @@ const REDUCED_FADE_MS = 200;
 // Pulse render constants (used by the component, exported here for
 // co-location with timing).
 export const PULSE_TAIL_PX            = 14;
-export const PULSE_HEAD_RADIUS        = 4;
 export const PULSE_HALO_RADIUS        = 7;
 export const PULSE_HALO_ALPHA         = 0.25;
 export const PULSE_STROKE_ALPHA       = 0.85;
 export const PULSE_STROKE_WIDTH       = 3.5;
 
-// Electric-arc render: white-hot core on top of the carrier-coloured
-// head, with a subtle shimmer driven by sin(now * 0.05).
-export const PULSE_CORE_RADIUS_RATIO  = 0.45;
+// Lens-shaped pulse head — vesica oriented along the path's tangent
+// at the head position. Sharp points front and back, rotated to
+// follow the connector. White-hot core is a smaller lens of the same
+// orientation, scaled by PULSE_CORE_RADIUS_RATIO.
+export const PULSE_LENGTH             = 14;
+export const PULSE_WIDTH              = 4;
 export const PULSE_CORE_ALPHA         = 0.9;
+export const PULSE_CORE_RADIUS_RATIO  = 0.55;
+// Subtle shimmer driven by sin(now * 0.05) — multiplies the core
+// lens dimensions per-frame so the head reads as alive.
 export const PULSE_SHIMMER_AMPLITUDE  = 0.15;
 
 export const CARRIER_COLOURS: Record<CarrierId, string> = {
