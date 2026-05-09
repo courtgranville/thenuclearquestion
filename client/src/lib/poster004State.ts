@@ -37,6 +37,10 @@ export interface State {
   // Controls whether the hover instruction reappears post-cascade.
   hasFocusedCarrier: boolean;
   hoverInstructionVisible: boolean;
+  // Hub label "1,542 TWh / UK final energy, 2024" sits below the
+  // central form. Visible at DEFAULT (and during CASCADE_FULL); fades
+  // out when the cascade completes; returns on RESET.
+  hubLabelVisible: boolean;
 }
 
 export type Action =
@@ -55,6 +59,7 @@ export const initialState: State = {
   hasCompletedCascade: false,
   hasFocusedCarrier: false,
   hoverInstructionVisible: false,
+  hubLabelVisible: true,
 };
 
 export function reducer(state: State, action: Action): State {
@@ -80,6 +85,10 @@ export function reducer(state: State, action: Action): State {
         // Re-show the instruction post-cascade if the user hasn't
         // yet hovered any carrier — invites carrier exploration.
         hoverInstructionVisible: !state.hasFocusedCarrier,
+        // Hub label fades out alongside the cascade completing — the
+        // diagram now communicates the value via every visible
+        // sector dot, the centre headline is no longer needed.
+        hubLabelVisible: false,
       };
     }
 
@@ -107,6 +116,7 @@ export function reducer(state: State, action: Action): State {
         hasCompletedCascade: true,
         hasFocusedCarrier: true,
         hoverInstructionVisible: false,
+        hubLabelVisible: false,
       };
     }
 
@@ -118,6 +128,7 @@ export function reducer(state: State, action: Action): State {
         hasCompletedCascade: false,
         hasFocusedCarrier: false,
         hoverInstructionVisible: false,
+        hubLabelVisible: true,
       };
     }
 

@@ -153,6 +153,12 @@ const FORMS: Record<FormId, PreparedForm> = (() => {
 // stroke gaps. Matches CLAUDE.md's locked palette.
 const PAGE_BG = '#ECE7DF';
 
+// Sector labels are outlined glyph paths from the print SVG. They're
+// scaled outward from each label's first-glyph anchor so the small
+// print type reads comfortably at viewport size. The scale flows
+// into the viewBox bbox calculation below.
+const SECTOR_LABEL_SCALE = 1.3;
+
 const ALL_LINKS: Link[] = [...HUB_LINKS, ...SECTOR_LINKS];
 const SECTORS = DATA.sectors;
 const SECTOR_LABELS = DATA.labels.sectors;
@@ -235,15 +241,21 @@ const VIEWBOX = (() => {
     expand(s.cx - s.r, s.cy - s.r);
     expand(s.cx + s.r, s.cy + s.r);
   }
-  // Sector label glyph anchors. Approximate label extent by adding a
-  // small box around each anchor — enough to keep typical 6-letter
-  // words inside the viewBox.
-  const LABEL_W = 90;
-  const LABEL_H = 20;
+  // Sector label glyph anchors. Approximate per-glyph extent and
+  // apply the same 1.3× scale-around-first-glyph transform that the
+  // <g> uses at render time, so the bbox covers where the labels
+  // actually land.
+  const LABEL_W = 90 * SECTOR_LABEL_SCALE;
+  const LABEL_H = 20 * SECTOR_LABEL_SCALE;
   for (const glyphs of Object.values(SECTOR_LABELS)) {
+    if (glyphs.length === 0) continue;
+    const ax = glyphs[0].x;
+    const ay = glyphs[0].y;
     for (const g of glyphs) {
-      expand(g.x - LABEL_W, g.y - LABEL_H);
-      expand(g.x + LABEL_W, g.y + LABEL_H);
+      const sx = ax + SECTOR_LABEL_SCALE * (g.x - ax);
+      const sy = ay + SECTOR_LABEL_SCALE * (g.y - ay);
+      expand(sx - LABEL_W, sy - LABEL_H);
+      expand(sx + LABEL_W, sy + LABEL_H);
     }
   }
   // Carrier-name label boxes.
@@ -255,11 +267,12 @@ const VIEWBOX = (() => {
   expand(FORMS.total.centroid[0] - 140, 1010 - 10);
   expand(FORMS.total.centroid[0] + 140, 1100 + 10);
 
-  // 5% pad on each side.
+  // 2.5% pad on each side — tightened so content fills more of the
+  // rendered viewBox.
   const w = maxX - minX;
   const h = maxY - minY;
-  const padX = w * 0.05;
-  const padY = h * 0.05;
+  const padX = w * 0.025;
+  const padY = h * 0.025;
   return {
     x: minX - padX,
     y: minY - padY,
@@ -691,10 +704,10 @@ export default function Poster004CanvasViz() {
         className="relative w-full mx-auto"
         style={{
           aspectRatio: `${VIEWBOX.w} / ${VIEWBOX.h}`,
-          // Cap by viewport width AND height so the diagram still
-          // sits above the buttons + caveat on a 13" viewport. The
-          // 1400px ceiling prevents absurd sizing on ultrawides.
-          maxWidth: `min(95vw, calc(75vh * ${VIEWBOX.w} / ${VIEWBOX.h}), 1400px)`,
+          // 90vh lets the diagram dominate the vertical space; the
+          // buttons and caveat below scroll into view if needed.
+          // 1800 px ceiling gives plenty of headroom on ultrawides.
+          maxWidth: `min(95vw, calc(90vh * ${VIEWBOX.w} / ${VIEWBOX.h}), 1800px)`,
         }}
       >
         {/* Layer 1: connectors (lowest). Pointer-events disabled —
@@ -759,34 +772,51 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Sector labels. The lone unmatched solidFuel/Chemicals
-              dot has no entry in DATA.labels.sectors and is rendered
-              without a label — accepted as-is for v1. */}
+          {/* Sector labels. Each label is scaled 1.3× outward from
+              its first glyph's anchor so the print's small label
+              type reads comfortably at viewport size. The lone
+              unmatched solidFuel/Chemicals dot has no entry in
+              DATA.labels.sectors and renders without a label —
+              accepted as-is for v1. */}
           <g id="sector-labels" pointerEvents="none" fill="#0d1a1e">
-            {Object.entries(SECTOR_LABELS).map(([sectorId, glyphs]) => (
-              <g
-                key={sectorId}
-                ref={(el) => { sectorLabelRefs.current[sectorId] = el; }}
-                data-sector-label={sectorId}
-                style={{ opacity: 0 }}
-              >
-                {glyphs.map((g, i) => (
-                  <path key={i} d={g.d} />
-                ))}
-              </g>
-            ))}
+            {Object.entries(SECTOR_LABELS).map(([sectorId, glyphs]) => {
+              const ax = glyphs[0]?.x ?? 0;
+              const ay = glyphs[0]?.y ?? 0;
+              return (
+                <g
+                  key={sectorId}
+                  ref={(el) => { sectorLabelRefs.current[sectorId] = el; }}
+                  data-sector-label={sectorId}
+                  transform={`translate(${ax} ${ay}) scale(${SECTOR_LABEL_SCALE}) translate(${-ax} ${-ay})`}
+                  style={{ opacity: 0 }}
+                >
+                  {glyphs.map((g, i) => (
+                    <path key={i} d={g.d} />
+                  ))}
+                </g>
+              );
+            })}
           </g>
 
           {/* Hub label — sits BELOW the central form, matching the
-              print's actual placement. Always visible, never tweens. */}
-          <g id="hub-label" pointerEvents="none">
+              print's actual placement. Visible at DEFAULT and
+              during CASCADE_FULL, fades out on completion, returns
+              on RESET. */}
+          <g
+            id="hub-label"
+            pointerEvents="none"
+            style={{
+              opacity: state.hubLabelVisible ? 1 : 0,
+              transition: `opacity ${OPACITY_CROSSFADE_MS}ms ease-out`,
+            }}
+          >
             <text
               x={FORMS.total.centroid[0]}
               y={1010}
               textAnchor="middle"
               style={{
                 fontFamily: "'Playfair', Georgia, serif",
-                fontSize: 32,
+                fontSize: 44,
                 fontWeight: 600,
                 fill: '#0d1a1e',
               }}
@@ -795,11 +825,11 @@ export default function Poster004CanvasViz() {
             </text>
             <text
               x={FORMS.total.centroid[0]}
-              y={1040}
+              y={1052}
               textAnchor="middle"
               style={{
                 fontFamily: "'Playfair', Georgia, serif",
-                fontSize: 15,
+                fontSize: 22,
                 fontStyle: 'italic',
                 fill: '#0d1a1e',
               }}
@@ -819,7 +849,7 @@ export default function Poster004CanvasViz() {
                 data-carrier-label={cl.id}
                 style={{
                   fontFamily: "'Playfair', Georgia, serif",
-                  fontSize: 18,
+                  fontSize: 24,
                   fontWeight: 600,
                   fill: CARRIER_COLOURS[cl.id],
                   opacity: 0,
@@ -830,7 +860,7 @@ export default function Poster004CanvasViz() {
                   x={cl.x}
                   dy="1.25em"
                   style={{
-                    fontSize: 13,
+                    fontSize: 17,
                     fontWeight: 400,
                     fontStyle: 'italic',
                     fill: '#0d1a1e',
@@ -848,12 +878,12 @@ export default function Poster004CanvasViz() {
               any carrier (handled in the reducer). */}
           <text
             x={FORMS.total.centroid[0]}
-            y={1090}
+            y={1110}
             textAnchor="middle"
             pointerEvents="none"
             style={{
               fontFamily: "'Playfair', Georgia, serif",
-              fontSize: 14,
+              fontSize: 20,
               fontStyle: 'italic',
               fill: '#0d1a1e',
               opacity: state.hoverInstructionVisible ? 0.7 : 0,
