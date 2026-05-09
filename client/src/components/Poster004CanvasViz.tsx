@@ -198,12 +198,6 @@ const FORMS: Record<FormId, PreparedForm> = (() => {
 // stroke gaps. Matches CLAUDE.md's locked palette.
 const PAGE_BG = '#ECE7DF';
 
-// Sector labels are outlined glyph paths from the print SVG. They're
-// scaled outward from each label's first-glyph anchor so the small
-// print type reads comfortably at viewport size. The scale flows
-// into the viewBox bbox calculation below.
-const SECTOR_LABEL_SCALE = 1.3;
-
 const ALL_LINKS: Link[] = [...HUB_LINKS, ...SECTOR_LINKS];
 const SECTORS = DATA.sectors;
 const SECTOR_LABELS = DATA.labels.sectors;
@@ -261,95 +255,13 @@ const CARRIER_HIT_RECTS: Record<CarrierId, HitRect> = {
 };
 const HUB_HIT_RECT = hitRectFor(FORMS.total.bbox);
 
-// ─────────────────────────────────────────────────────────────────
-// Per-sector label transforms — push each label radially outward
-// from its parent carrier so the dot's outer edge clears before the
-// label glyphs begin. Computed once at module scope.
-// ─────────────────────────────────────────────────────────────────
+// Sector labels render at their print SVG coordinates verbatim —
+// the print designer's deliberate placement is preserved without
+// scale or translate.
 
 const SECTOR_BY_ID: Record<string, RawSector> = (() => {
   const out: Record<string, RawSector> = {};
   for (const s of SECTORS) out[s.id] = s;
-  return out;
-})();
-
-// For each label: shift it along the (dot → label-centroid) axis
-// just enough to ensure its nearest glyph anchor sits at least
-// SECTOR_LABEL_DOT_CLEARANCE_PX past the dot's outer edge. The
-// previous fixed-direction nudge along the carrier→dot radial moved
-// the wrong way for sectors whose print-natural label sits inboard
-// of (between hub and) the dot, leaving labels still on top of
-// their dots in the petroleum cluster. The dot-centric approach
-// works regardless of which side of the dot the print places the
-// label on.
-//
-// The clearance includes a rough per-glyph extent so the label's
-// rendered EDGE clears (not just the glyph anchor point).
-const SECTOR_LABEL_GLYPH_EXTENT_PX = 14;
-const SECTOR_LABEL_DOT_CLEARANCE_PX = 6;
-
-interface LabelTransform {
-  ax: number;
-  ay: number;
-  dx: number;
-  dy: number;
-}
-
-const LABEL_TRANSFORMS: Record<string, LabelTransform> = (() => {
-  const out: Record<string, LabelTransform> = {};
-  for (const [sectorId, glyphs] of Object.entries(SECTOR_LABELS)) {
-    if (glyphs.length === 0) continue;
-    const sec = SECTOR_BY_ID[sectorId];
-    if (!sec) continue;
-
-    const ax = glyphs[0].x;
-    const ay = glyphs[0].y;
-
-    // Walk the post-scale glyph anchors: track the nearest distance
-    // to the dot AND the centroid of all anchors (used as the shift
-    // direction).
-    let nearestAnchorDist = Infinity;
-    let cSumX = 0;
-    let cSumY = 0;
-    for (const g of glyphs) {
-      const gx = ax + SECTOR_LABEL_SCALE * (g.x - ax);
-      const gy = ay + SECTOR_LABEL_SCALE * (g.y - ay);
-      const d = Math.hypot(gx - sec.cx, gy - sec.cy);
-      if (d < nearestAnchorDist) nearestAnchorDist = d;
-      cSumX += gx;
-      cSumY += gy;
-    }
-    const cX = cSumX / glyphs.length;
-    const cY = cSumY / glyphs.length;
-
-    // Required nearest-anchor distance for the label's rendered edge
-    // to clear the dot by the breathing-room buffer.
-    const desired =
-      sec.r + SECTOR_LABEL_GLYPH_EXTENT_PX + SECTOR_LABEL_DOT_CLEARANCE_PX;
-
-    let dx = 0;
-    let dy = 0;
-    const need = desired - nearestAnchorDist;
-    if (need > 0) {
-      // Shift along (dot → centroid) — moves the whole label away
-      // from the dot regardless of which side of the dot it sits on.
-      let dirX = cX - sec.cx;
-      let dirY = cY - sec.cy;
-      let dirMag = Math.hypot(dirX, dirY);
-      if (dirMag < 0.5) {
-        // Centroid coincides with the dot — fall back to the
-        // carrier→dot radial.
-        const ca = FORMS[sec.carrier].anchor;
-        dirX = sec.cx - ca[0];
-        dirY = sec.cy - ca[1];
-        dirMag = Math.hypot(dirX, dirY) || 1;
-      }
-      dx = (dirX / dirMag) * need;
-      dy = (dirY / dirMag) * need;
-    }
-
-    out[sectorId] = { ax, ay, dx, dy };
-  }
   return out;
 })();
 
@@ -378,21 +290,16 @@ const VIEWBOX = (() => {
     expand(s.cx - s.r, s.cy - s.r);
     expand(s.cx + s.r, s.cy + s.r);
   }
-  // Sector label glyph anchors. Apply the same combined transform
-  // (radial translate + 1.3× scale-around-first-glyph) that the <g>
-  // uses at render time so the bbox covers where the labels actually
-  // land.
-  const LABEL_W = 90 * SECTOR_LABEL_SCALE;
-  const LABEL_H = 20 * SECTOR_LABEL_SCALE;
-  for (const [sectorId, glyphs] of Object.entries(SECTOR_LABELS)) {
-    if (glyphs.length === 0) continue;
-    const t = LABEL_TRANSFORMS[sectorId];
-    if (!t) continue;
+  // Sector label glyph anchors. Render verbatim from the print SVG
+  // — no scale, no translate. Each glyph's path d-string draws the
+  // character around its anchor; LABEL_GLYPH_EXTENT bounds the
+  // typical character width / height so the bbox includes the
+  // rendered edge.
+  const LABEL_GLYPH_EXTENT = 14;
+  for (const glyphs of Object.values(SECTOR_LABELS)) {
     for (const g of glyphs) {
-      const sx = t.ax + SECTOR_LABEL_SCALE * (g.x - t.ax) + t.dx;
-      const sy = t.ay + SECTOR_LABEL_SCALE * (g.y - t.ay) + t.dy;
-      expand(sx - LABEL_W, sy - LABEL_H);
-      expand(sx + LABEL_W, sy + LABEL_H);
+      expand(g.x - LABEL_GLYPH_EXTENT, g.y - LABEL_GLYPH_EXTENT);
+      expand(g.x + LABEL_GLYPH_EXTENT, g.y + LABEL_GLYPH_EXTENT);
     }
   }
   // Carrier-name label boxes.
@@ -1051,36 +958,25 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Sector labels. Each label is pushed radially outward
-              from its parent carrier (so the dot's outer edge clears
-              before the glyphs begin) AND scaled 1.3× around its
-              first-glyph anchor for readability. The lone unmatched
-              solidFuel/Chemicals dot has no entry in
-              DATA.labels.sectors and renders without a label —
-              accepted as-is for v1. */}
+          {/* Sector labels — outlined glyph paths from the print
+              SVG, rendered at their print coordinates verbatim.
+              The print designer's placement is the source of truth.
+              The lone unmatched solidFuel/Chemicals dot has no
+              entry in DATA.labels.sectors and renders without a
+              label — accepted as-is for v1. */}
           <g id="sector-labels" pointerEvents="none" fill="#0d1a1e">
-            {Object.entries(SECTOR_LABELS).map(([sectorId, glyphs]) => {
-              const t = LABEL_TRANSFORMS[sectorId];
-              if (!t) return null;
-              return (
-                <g
-                  key={sectorId}
-                  ref={(el) => { sectorLabelRefs.current[sectorId] = el; }}
-                  data-sector-label={sectorId}
-                  transform={
-                    `translate(${t.dx} ${t.dy}) ` +
-                    `translate(${t.ax} ${t.ay}) ` +
-                    `scale(${SECTOR_LABEL_SCALE}) ` +
-                    `translate(${-t.ax} ${-t.ay})`
-                  }
-                  style={{ opacity: 0 }}
-                >
-                  {glyphs.map((g, i) => (
-                    <path key={i} d={g.d} />
-                  ))}
-                </g>
-              );
-            })}
+            {Object.entries(SECTOR_LABELS).map(([sectorId, glyphs]) => (
+              <g
+                key={sectorId}
+                ref={(el) => { sectorLabelRefs.current[sectorId] = el; }}
+                data-sector-label={sectorId}
+                style={{ opacity: 0 }}
+              >
+                {glyphs.map((g, i) => (
+                  <path key={i} d={g.d} />
+                ))}
+              </g>
+            ))}
           </g>
 
           {/* Hub label — sits BELOW the central form, matching the
