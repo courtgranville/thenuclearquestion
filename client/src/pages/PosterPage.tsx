@@ -8,7 +8,7 @@ import Poster001Viz from "@/components/Poster001Viz";
 import Poster002Viz from "@/components/Poster002Viz";
 import Poster002CanvasViz from "@/components/Poster002CanvasViz";
 import Poster003Viz from "@/components/Poster003Viz";
-import Poster004Viz from "@/components/Poster004Viz";
+import Poster004CanvasViz from "@/components/Poster004CanvasViz";
 import Poster005Viz from "@/components/Poster005Viz";
 import Poster006Viz from "@/components/Poster006Viz";
 import { posters, posterSources } from "@/lib/posterData";
@@ -239,7 +239,7 @@ export default function PosterPage() {
               {poster.id === "001" && <Poster001Viz />}
               {poster.id === "002" && <Poster002CanvasViz />}
               {poster.id === "003" && <Poster003Viz />}
-              {poster.id === "004" && <Poster004Viz />}
+              {poster.id === "004" && <Poster004CanvasViz />}
               {poster.id === "005" && <Poster005Viz />}
               {poster.id === "006" && <Poster006Viz />}
             </div>
