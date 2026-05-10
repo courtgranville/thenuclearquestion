@@ -51,7 +51,6 @@ const TOP_PAD = 14;           // padding inside the plot above the first tick
 const BOTTOM_PAD = 22;        // padding below the last tick
 const RIGHT_PAD = 18;
 const STROKE_BASE = 2.2;      // line stroke-width (print is 0.5; web needs more for legibility)
-const STROKE_HOVER = 4;       // line stroke-width on hover
 const CAP_STROKE = 1.5;       // cap-mark stroke-width
 
 const STATUS_ORDER: ReactorStatus[] = [
@@ -120,18 +119,6 @@ function injectStyleOnce() {
       cursor: pointer;
       will-change: opacity;
     }
-    .poster005-timeline g.col-group.is-focused line.bar-line {
-      stroke-width: ${STROKE_HOVER};
-      transition: stroke-width 120ms ease-out;
-    }
-    .poster005-timeline g.col-group.is-focused line.cap-line {
-      stroke-width: ${CAP_STROKE * 1.8};
-      transition: stroke-width 120ms ease-out;
-    }
-    .poster005-timeline g.col-group.is-focused circle.cancel-dot {
-      r: 6;
-      transition: r 120ms ease-out;
-    }
     .poster005-timeline g.col-group.is-dimmed {
       opacity: 0.06;
     }
@@ -139,9 +126,10 @@ function injectStyleOnce() {
       fill: transparent;
       pointer-events: all;
     }
-    /* Line stroke-width tweak doesn't move neighbours because each
-       column is independently positioned and lines don't take up
-       flow width — no jitter risk. */
+    /* Court round-14: hover only dims, no stroke-width or radius
+       changes. The focused column stays at its natural appearance
+       so there's zero perceived movement when scrubbing across
+       columns — everything else dims to 0.06. */
   `;
   document.head.appendChild(style);
 }

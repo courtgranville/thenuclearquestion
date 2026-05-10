@@ -74,10 +74,14 @@ const CONNECTOR_ANCHOR: Record<ReactorStatus, { x: number; y: number }> = {
 
 // SVG-unit y range to include per quadrant. Hub-form top is around
 // y=345 (the smallest hub bbox top is retired/cancelled at y=345);
-// leaf row at y=800.993. Plus a bit of padding above the hub and
-// below the leaves.
-const QUAD_VIEW_Y_TOP = 335;
-const QUAD_VIEW_Y_BOTTOM = 815;
+// leaf row at y=800.993. Leaves can carry radii up to ~24 so their
+// bottom edge sits at y≈825; the viewBox needs to extend past that
+// or the largest circles clip. Timeline gridlines start at y=835
+// so we stop at 832 — 1 px below the gridlines, 8 px below the
+// largest possible leaf bottom (Court round-14: 'circles seem to
+// be getting cut off so you need to increase the bbox slightly').
+const QUAD_VIEW_Y_TOP = 332;
+const QUAD_VIEW_Y_BOTTOM = 832;
 const QUAD_VIEW_H = QUAD_VIEW_Y_BOTTOM - QUAD_VIEW_Y_TOP;
 
 // Width (in SVG units) every quadrant uses. The widest content is
