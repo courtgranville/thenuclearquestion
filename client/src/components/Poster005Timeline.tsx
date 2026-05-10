@@ -1,65 +1,48 @@
 // ─────────────────────────────────────────────────────────────────
 // Poster005Timeline.tsx — full-width reactor timeline 1953–2030.
 //
-// Renders as a fresh inline SVG drawn from the typed manifest. Each
-// reactor is a vertical column at its print-canonical timelineColumnX.
-// The y-axis runs from 1953 (top) to 2030 (bottom) with horizontal
-// gridlines every decade (1960, 1970, ... , 2030 — matching the
-// print).
+// REWRITE per Court's Round 1 brief, structural fix 1:
+// inject the same canonical 005-dendrogram-clean_336edeac.svg that
+// Poster005Dendrogram uses, but crop the viewBox to ONLY the timeline
+// strip (y ≈ 820..1005). That strip contains:
 //
-// Bar style by status (per brief):
-//   - retired:           solid red→green segment (construction→operating)
-//                        with end-caps. Red top = constructionStart;
-//                        red→green transition = commercialOperation;
-//                        green bottom = shutdown.
-//   - operating:         same shape, green bottom anchored to 2030
-//                        (the chart's planning horizon).
-//   - underConstruction: dashed navy line constructionStart→2030.
-//   - cancelled:         single dot at cancellationYear (no bar).
+//   - 8 horizontal gridlines (y=835.316..993.758)
+//   - decade year labels on both edges (1960..2030, y=837.982..997.088)
+//   - 72 row-* groups each carrying data-unit + data-phase, with
+//     red/green vertical bars for retired/operating, dashed navy for
+//     under-construction, and a single dot for cancelled
 //
-// Each reactor's geometry is wrapped in a <g data-unit data-phase>
-// so the cross-view hover + filter dim machinery reads it the same
-// way as Poster005Map and Poster005Dendrogram.
+// All of that geometry is the print verbatim; no re-derivation.
 //
-// MOBILE FLAG (per brief):
-//   The brief asks me to flag the mobile layout decision before
-//   shipping. v1 ships the desktop layout with horizontal overflow-
-//   scroll on narrow viewports — bars don't compress, so on a
-//   320 px phone the timeline becomes a swipeable strip. The
-//   alternatives (90° rotation; expand-on-tap reveal) are bigger
-//   structural calls; recommend deciding after seeing v1 in Chrome
-//   responsive mode.
+// Hover/filter wiring: the row-* groups already carry data-unit and
+// data-phase. Container-delegated pointerover/out finds the row
+// ancestor and updates poster005Store.hoveredReactor. CSS classes
+// drive opacity (dim) and transform: scale (focus) — both GPU-
+// composited, no layout reflow, no jitter (the previous from-manifest
+// implementation changed stroke-width on hover which triggered
+// repaints).
+//
+// Year labels: source font-size is 10, which becomes hard to read at
+// the cropped strip's effective height. Post-injection bumps every
+// year-label <text> to font-size 16. No re-derivation.
+//
+// Tooltip (Court report #6): a small floating popover near the cursor
+// with reactor name, status label, and capacity. Style mirrors
+// Poster006Sellafield's hover callout — cream card, status-coloured
+// left border, small Playfair.
 // ─────────────────────────────────────────────────────────────────
 
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
   REACTORS,
   REACTOR_BY_ID,
   STATUS_COLOUR,
-  type Reactor,
+  STATUS_LABEL,
   type ReactorStatus,
 } from '@/lib/poster005Data';
 import { poster005Store } from '@/lib/poster005Store';
 
-// Reactor column x-coords come from the manifest. Compute the chart's
-// x-extent + per-year y-mapping in module scope so they're stable
-// across re-renders.
-const X_MIN = Math.min(...REACTORS.map((r) => r.timelineColumnX)) - 30;
-const X_MAX = Math.max(...REACTORS.map((r) => r.timelineColumnX)) + 30;
-const X_SPAN = X_MAX - X_MIN;
-const YEAR_MIN = 1953;
-const YEAR_MAX = 2030;
-const Y_TOP = 30;       // SVG units of padding at top for label spacing
-const Y_BOTTOM_PAD = 30;
-const Y_TIMELINE_HEIGHT = 600; // chart's plot area height in SVG units
-const Y_TOTAL = Y_TOP + Y_TIMELINE_HEIGHT + Y_BOTTOM_PAD;
-
-function yAtYear(year: number): number {
-  const t = (year - YEAR_MIN) / (YEAR_MAX - YEAR_MIN);
-  return Y_TOP + t * Y_TIMELINE_HEIGHT;
-}
-
-const DECADE_LABELS = [1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030];
+const DENDRO_URL = '/assets/005-dendrogram-clean_336edeac.svg';
 
 const CSS_INJECTED_KEY = '__poster005_timeline_css';
 
@@ -71,126 +54,159 @@ function injectStyleOnce() {
   (document as any)[CSS_INJECTED_KEY] = true;
   const style = document.createElement('style');
   style.textContent = `
-    .poster005-timeline g[data-unit] {
-      transition: opacity 150ms ease-out;
+    .poster005-timeline g[id^="row-"] {
+      transform-box: fill-box;
+      transform-origin: center;
+      transition: transform 120ms ease-out, opacity 150ms ease-out;
       cursor: pointer;
+      will-change: transform, opacity;
     }
-    .poster005-timeline g[data-unit] .timeline-bar {
-      transition: stroke-width 150ms ease-out;
+    .poster005-timeline g[id^="row-"].is-focused {
+      transform: scale(1.05);
     }
-    .poster005-timeline g[data-unit].is-focused .timeline-bar {
-      stroke-width: 2.5;
-    }
-    .poster005-timeline g[data-unit].is-focused circle.timeline-dot {
-      r: 6;
-    }
-    .poster005-timeline g[data-unit].is-dimmed {
+    .poster005-timeline g[id^="row-"].is-dimmed {
       opacity: 0.1;
     }
   `;
   document.head.appendChild(style);
 }
 
-// Render one reactor's bar/dot geometry.
-function renderReactorBar(r: Reactor) {
-  const x = r.timelineColumnX;
-  const colour = STATUS_COLOUR[r.status];
-
-  if (r.status === 'cancelled') {
-    // Single dot at cancellationYear (fall back to constructionStart
-    // if cancellation is null, but our manifest always has it for
-    // cancelled rows).
-    const year = r.cancellationYear ?? r.constructionStart ?? YEAR_MAX;
-    const cy = yAtYear(year);
-    return (
-      <circle
-        className="timeline-dot"
-        cx={x}
-        cy={cy}
-        r={3.5}
-        fill={colour}
-        fillOpacity={0.7}
-        stroke={colour}
-        strokeWidth={0.5}
-      />
-    );
-  }
-
-  if (r.status === 'underConstruction') {
-    const y0 = r.constructionStart !== null ? yAtYear(r.constructionStart) : yAtYear(YEAR_MAX);
-    const y1 = r.commercialOperation !== null ? yAtYear(r.commercialOperation) : yAtYear(YEAR_MAX);
-    return (
-      <>
-        <line
-          className="timeline-bar"
-          x1={x} x2={x}
-          y1={y0} y2={y1}
-          stroke={colour}
-          strokeWidth={1.2}
-          strokeDasharray="3 3"
-          strokeLinecap="round"
-        />
-        <line x1={x - 4} x2={x + 4} y1={y0} y2={y0} stroke={colour} strokeWidth={1} strokeLinecap="round" />
-      </>
-    );
-  }
-
-  // retired / operating: red segment (construction→COD), green segment
-  // (COD→shutdown or 2030).
-  const yc = r.constructionStart !== null ? yAtYear(r.constructionStart) : yAtYear(YEAR_MIN);
-  const yg = r.commercialOperation !== null ? yAtYear(r.commercialOperation) : yc;
-  const ys = r.shutdown !== null ? yAtYear(r.shutdown) : yAtYear(YEAR_MAX);
-  const redColour = '#a51e23'; // matches the print's construction-bar red
-  const greenColour = '#237c3e'; // print's operating green
-  return (
-    <>
-      <line
-        className="timeline-bar"
-        x1={x} x2={x}
-        y1={yc} y2={yg}
-        stroke={redColour}
-        strokeWidth={1.2}
-        strokeLinecap="round"
-      />
-      <line
-        className="timeline-bar"
-        x1={x} x2={x}
-        y1={yg} y2={ys}
-        stroke={greenColour}
-        strokeWidth={1.2}
-        strokeLinecap="round"
-      />
-      {/* End-caps */}
-      <line x1={x - 4} x2={x + 4} y1={yc} y2={yc} stroke={redColour} strokeWidth={1} strokeLinecap="round" />
-      <line x1={x - 4} x2={x + 4} y1={ys} y2={ys} stroke={greenColour} strokeWidth={1} strokeLinecap="round" />
-    </>
-  );
-}
+const InjectedTimeline = memo(function InjectedTimeline({ markup }: { markup: string }) {
+  return <div className="w-full" dangerouslySetInnerHTML={{ __html: markup }} />;
+});
 
 export default function Poster005Timeline() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
+  // Tooltip state — purely local; cross-view hover panel is the
+  // separate Poster005ReactorDetail component.
+  const [tooltip, setTooltip] = useState<{
+    reactorId: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => { injectStyleOnce(); }, []);
 
-  // Hover + filter dim subscription. Walks every g[data-unit] and
-  // applies focus/dim classes per the composition rule (hover
-  // overrides filter; site-level brushing as on the other views).
+  // Fetch the source SVG once. Crop viewBox to the timeline strip
+  // and bump year-label font-size.
   useEffect(() => {
+    let cancelled = false;
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', DENDRO_URL, true);
+    xhr.responseType = 'text';
+    xhr.onload = () => {
+      if (cancelled) return;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xhr.responseText, 'image/svg+xml');
+        const svg = doc.querySelector('svg');
+        if (svg) {
+          // y-bounds inside the source (measured 2026-05-11):
+          //   gridlines:    y = 835.316 .. 993.758
+          //   year labels:  y = 837.982 .. 997.088 (Georgia, font-size 10)
+          //   row bars top: y = 835.316
+          //   row bars bot: y = 983.160
+          // viewBox starts at y=820 for headroom above the top gridline /
+          // 1960 label baseline and ends at y=1005 to clear the 2030
+          // label descender.
+          svg.setAttribute('viewBox', '0 820 1694.98 185');
+          svg.setAttribute('width', '100%');
+          svg.removeAttribute('height');
+          svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+          svg.setAttribute('style', 'display:block;width:100%;height:auto;');
+
+          // Bump year-label font-size for legibility at full-width scale.
+          // The decade labels are <text font-size="10"> elements with
+          // 4-digit content; leave non-year text alone.
+          const yearLabels = svg.querySelectorAll('text');
+          yearLabels.forEach((t) => {
+            const inner = (t.textContent ?? '').trim();
+            if (/^\d{4}$/.test(inner)) {
+              t.setAttribute('font-size', '16');
+              t.setAttribute('opacity', '0.8');
+            }
+          });
+        }
+        setSvgMarkup(new XMLSerializer().serializeToString(svg ?? doc.documentElement));
+      }
+    };
+    xhr.send();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Container-delegated hover. Finds the nearest row-* group ancestor
+  // and uses its rowId → REACTOR_BY_ID lookup.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const findRow = (el: Element | null): SVGGElement | null => {
+      let cur: Element | null = el;
+      while (cur && cur !== container) {
+        if (cur instanceof SVGGElement && /^row-\d+$/.test(cur.id)) return cur;
+        cur = cur.parentElement;
+      }
+      return null;
+    };
+
+    const onOver = (e: PointerEvent) => {
+      const g = findRow(e.target as Element);
+      if (!g) return;
+      const r = REACTORS.find((x) => x.rowId === g.id);
+      if (!r) return;
+      poster005Store.setHoveredReactor(r.id);
+      // Position the tooltip near the cursor inside the container.
+      const rect = container.getBoundingClientRect();
+      setTooltip({ reactorId: r.id, x: e.clientX - rect.left, y: e.clientY - rect.top });
+    };
+
+    const onMove = (e: PointerEvent) => {
+      // Only update tooltip position if a tooltip is open and we're
+      // still over a row.
+      const g = findRow(e.target as Element);
+      if (!g) return;
+      const rect = container.getBoundingClientRect();
+      setTooltip((prev) =>
+        prev ? { ...prev, x: e.clientX - rect.left, y: e.clientY - rect.top } : prev,
+      );
+    };
+
+    const onOut = (e: PointerEvent) => {
+      const g = findRow(e.target as Element);
+      if (!g) return;
+      const next = findRow(e.relatedTarget as Element);
+      if (next && next !== g) return;
+      poster005Store.setHoveredReactor(null);
+      setTooltip(null);
+    };
+
+    container.addEventListener('pointerover', onOver, { passive: true });
+    container.addEventListener('pointermove', onMove, { passive: true });
+    container.addEventListener('pointerout', onOut, { passive: true });
+    return () => {
+      container.removeEventListener('pointerover', onOver);
+      container.removeEventListener('pointermove', onMove);
+      container.removeEventListener('pointerout', onOut);
+    };
+  }, []);
+
+  // Apply focus/dim classes from store state.
+  useEffect(() => {
+    if (!svgMarkup) return;
     const container = containerRef.current;
     if (!container) return;
 
     const apply = (filteredStatus: ReactorStatus | null, hoveredId: string | null) => {
       const hoveredR = hoveredId ? REACTOR_BY_ID[hoveredId] : null;
-      const groups = container.querySelectorAll<SVGGElement>('g[data-unit]');
-      groups.forEach((g) => {
-        const id = g.getAttribute('data-unit') ?? '';
-        const r = REACTOR_BY_ID[id];
+      const rows = container.querySelectorAll<SVGGElement>('g[id^="row-"]');
+      rows.forEach((g) => {
+        const rowId = g.id;
+        const r = REACTORS.find((x) => x.rowId === rowId);
         if (!r) return;
-        // Per-unit identity only. See Poster005Map for the bug
-        // this replaces.
         const matchesHover = hoveredR ? r.id === hoveredR.id : false;
         const matchesFilter = filteredStatus === null || r.status === filteredStatus;
-        const isFocused = !!matchesHover;
+        const isFocused = matchesHover;
         const isDimmed = hoveredR ? !matchesHover : (filteredStatus !== null && !matchesFilter);
         g.classList.toggle('is-focused', isFocused);
         g.classList.toggle('is-dimmed', isDimmed);
@@ -200,117 +216,57 @@ export default function Poster005Timeline() {
     const initial = poster005Store.getCurrent();
     apply(initial.filteredStatus, initial.hoveredReactor);
     return poster005Store.subscribe((s) => apply(s.filteredStatus, s.hoveredReactor));
-  }, []);
+  }, [svgMarkup]);
 
-  // Container-delegated hover.
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const findUnit = (el: Element | null): SVGGElement | null => {
-      let cur: Element | null = el;
-      while (cur && cur !== container) {
-        if (cur instanceof SVGGElement && cur.getAttribute('data-unit')) return cur;
-        cur = cur.parentElement;
-      }
-      return null;
-    };
-    const onOver = (e: PointerEvent) => {
-      const g = findUnit(e.target as Element);
-      if (!g) return;
-      const id = g.getAttribute('data-unit');
-      if (id) poster005Store.setHoveredReactor(id);
-    };
-    const onOut = (e: PointerEvent) => {
-      const g = findUnit(e.target as Element);
-      if (!g) return;
-      const next = findUnit(e.relatedTarget as Element);
-      if (next && next !== g) return;
-      poster005Store.setHoveredReactor(null);
-    };
-    container.addEventListener('pointerover', onOver, { passive: true });
-    container.addEventListener('pointerout', onOut, { passive: true });
-    return () => {
-      container.removeEventListener('pointerover', onOver);
-      container.removeEventListener('pointerout', onOut);
-    };
-  }, []);
-
-  const viewBox = `${X_MIN} 0 ${X_SPAN} ${Y_TOTAL}`;
+  const tooltipReactor = tooltip ? REACTOR_BY_ID[tooltip.reactorId] : null;
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-8">
       <div
         ref={containerRef}
-        className="poster005-timeline w-full overflow-x-auto"
-        style={{ minHeight: 360 }}
+        className="poster005-timeline relative w-full mx-auto"
+        style={{ minHeight: 200 }}
       >
-        <svg
-          viewBox={viewBox}
-          preserveAspectRatio="xMidYMid meet"
-          style={{
-            display: 'block',
-            width: '100%',
-            height: 'auto',
-            minWidth: 800,
-            maxHeight: '60vh',
-          }}
-          aria-label="Reactor timeline 1953 to 2030"
-        >
-          {/* Decade gridlines + year labels */}
-          {DECADE_LABELS.map((yr) => {
-            const y = yAtYear(yr);
-            return (
-              <g key={yr}>
-                <line
-                  x1={X_MIN}
-                  x2={X_MAX}
-                  y1={y}
-                  y2={y}
-                  stroke="#7d746a"
-                  strokeOpacity={0.25}
-                  strokeWidth={0.4}
-                />
-                <text
-                  x={X_MIN + 8}
-                  y={y - 3}
-                  fontSize="9"
-                  fill="#0d1a1e"
-                  opacity={0.55}
-                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                >
-                  {yr}
-                </text>
-                <text
-                  x={X_MAX - 8}
-                  y={y - 3}
-                  fontSize="9"
-                  fill="#0d1a1e"
-                  opacity={0.55}
-                  textAnchor="end"
-                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                >
-                  {yr}
-                </text>
-              </g>
-            );
-          })}
+        {svgMarkup && <InjectedTimeline markup={svgMarkup} />}
 
-          {/* Per-reactor bars */}
-          {REACTORS.map((r) => (
-            <g key={r.id} data-unit={r.id} data-phase={r.status}>
-              {renderReactorBar(r)}
-              {/* Generous invisible hit-target for thin bars */}
-              <rect
-                x={r.timelineColumnX - 8}
-                y={Y_TOP}
-                width={16}
-                height={Y_TIMELINE_HEIGHT}
-                fill="transparent"
-                pointerEvents="all"
-              />
-            </g>
-          ))}
-        </svg>
+        {tooltip && tooltipReactor && (
+          <div
+            className="absolute z-20 pointer-events-none p-3 rounded-sm border bg-card shadow-md"
+            style={{
+              borderColor: 'rgba(13,26,30,0.18)',
+              borderLeftColor: STATUS_COLOUR[tooltipReactor.status],
+              borderLeftWidth: 3,
+              // Offset so the tooltip doesn't sit directly under the
+              // cursor — flips to the left if near the right edge.
+              left:
+                tooltip.x > (containerRef.current?.clientWidth ?? 0) - 220
+                  ? tooltip.x - 200
+                  : tooltip.x + 16,
+              top: tooltip.y + 12,
+              minWidth: 180,
+              maxWidth: 220,
+            }}
+          >
+            <p
+              className="font-serif text-sm leading-tight"
+              style={{ color: STATUS_COLOUR[tooltipReactor.status], fontWeight: 600 }}
+            >
+              {tooltipReactor.name}
+            </p>
+            <p
+              className="text-xs uppercase tracking-[0.1em] text-muted-foreground mt-0.5"
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
+            >
+              {STATUS_LABEL[tooltipReactor.status]}
+            </p>
+            <p
+              className="text-xs text-foreground mt-1 tabular-nums"
+              style={{ fontFamily: "'Playfair', Georgia, serif" }}
+            >
+              {tooltipReactor.capacityMw ? `${tooltipReactor.capacityMw.toLocaleString()} MW` : '— MW'}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
