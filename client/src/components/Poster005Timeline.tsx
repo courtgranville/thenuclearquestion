@@ -1,53 +1,20 @@
 // ─────────────────────────────────────────────────────────────────
 // Poster005Timeline.tsx — vertical full-screen reactor timeline.
 //
-// REORIENTATION: Court asked for the data-driven functionality I
-// built in the previous round, but transposed so years travel
-// top→bottom and the chart fills the full desktop screen.
-//
-// Layout (transposed from the prior horizontal version):
-//
-//   ┌─────────────────────────────────────────────────────────────┐
-//   │ ◯ Under Construction (2) │ ◯ Operating (9) │ ◯ Retired (36) │ ◯ Cancelled (25) │
-//   │  ─────────────────────────────────────────────────────────  │
-//   │ 1953 ┤ █  █  █  █  ...  █  █  █  █  █  █  █  █  █  █  █  █  │
-//   │      │ ░  ░  █  █       █  █  █  █  █  █  █  █  █  █  █  █  │
-//   │ 1960 ┤ ░  ░  █  █       █  █  █  █  █  █  █  █  █  █  █  █  │
-//   │      │ ░  ░  ░  ░       ░  ░  ░  ░  ░  ░  ░  ░  ░  ░  ░  ░  │
-//   │ 1970 ┤              ╳   ░  ░  ░  ░  ░  ░  ░  ░  ░  ░  ░  ░  │
-//   │      │                                                      │
-//   │ ...  ┤                                                      │
-//   │ 2030 ┤   █  █  █                                             │
-//   └─────────────────────────────────────────────────────────────┘
-//
-// One column per reactor, ordered: under-construction → operating →
-// retired → cancelled (matches the print's editorial order).
-//
-// Within each status block, columns are sorted by the same chronology
-// as the horizontal version (constructionStart for retired/under-
-// construction, commercialOperation for operating, cancellationYear
-// desc for cancelled).
-//
-// Per-column segments are drawn TOP→BOTTOM as the year increases:
-//   - retired:           red strip (start→grid), green strip (grid→shutdown)
-//   - operating:         red strip (start→grid), green strip (grid→2030)
-//   - underConstruction: anchor square at start, dashed navy line to 2030
-//   - cancelled:         red strip (start→cancel year), red dot at cancel year
-//
-// Year axis on the left edge (1953 at top, 2030 at bottom), decade
-// labels at 1953/1960/1970/.../2030 with full-width faint gridlines.
-//
-// Status group headers run across the top, positioned over their
-// column range with a status-coloured underline.
-//
-// Hover / filter wiring identical to the previous version:
-//   - container-delegated pointerover / pointerout on column groups
-//   - hover sets poster005Store.hoveredReactor; cross-view brushing
-//     into map + dendrogram works automatically
-//   - tooltip floats near cursor (status-coloured left border)
-//   - filter dim subscribes to filteredStatus
-//   - animations: opacity + transform: scale only (GPU-composited,
-//     no layout reflow, no jitter)
+// Court round-3 spec:
+//   - Use the PRINT'S actual line + cap design, not my redrawn
+//     filled rects. Each row in the print SVG is two thin vertical
+//     lines (red construction, green operating) at stroke-width 0.5,
+//     with horizontal cap marks at the top and bottom.
+//   - Year axis starts at 1960 (not 1953). Reactors with a
+//     construction_start before 1960 are clipped to 1960 — matches
+//     the print's editorial decision to crop pre-1960 history.
+//   - Larger font sizes for year labels (1953/60/70/.../2030) and
+//     for the floating tooltip.
+//   - No status-group headers across the top — Court reads the
+//     status from the colour and the legend buttons elsewhere.
+//   - Hover focus stays inside the plot bounds: a clip-path on the
+//     SVG masks any column scaling beyond the plot rectangle.
 // ─────────────────────────────────────────────────────────────────
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
@@ -63,18 +30,29 @@ import { poster005Store } from '@/lib/poster005Store';
 
 // ─── Layout constants ─────────────────────────────────────────────
 
-const YEAR_MIN = 1953;
+const YEAR_MIN = 1960;
 const YEAR_MAX = 2030;
-const DECADES: number[] = [1953, 1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030];
+const DECADES: number[] = [1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030];
 
-const AXIS_W = 60;           // left axis area (year labels)
-const HEADER_H = 64;          // top headers (status group labels)
+// Print stroke colours from the source SVG row groups — slightly
+// different shades from STATUS_COLOUR (which mirrors the MAP fills).
+// Using the exact line stroke values keeps the bars looking like
+// the print verbatim.
+const STROKE_CONSTRUCTION = '#a41e23';
+const STROKE_OPERATING = '#247c3e';
+const STROKE_UNDER_CONSTRUCTION = '#1b3967';
+
+const AXIS_W = 76;            // left axis area (year labels) — wider for larger font
+const HEADER_PAD = 26;        // padding above plot
 const COL_W = 18;             // per-reactor column width
-const BAR_W = 6;              // visible bar width within the column
-const GROUP_GAP = 18;         // gap between status groups
-const TOP_PAD = 12;           // padding inside the plot above the first tick
-const BOTTOM_PAD = 18;        // padding below the last tick
+const CAP_W = 8.5;            // horizontal cap-mark width (matches print)
+const GROUP_GAP = 20;         // gap between status groups
+const TOP_PAD = 14;           // padding inside the plot above the first tick
+const BOTTOM_PAD = 22;        // padding below the last tick
 const RIGHT_PAD = 18;
+const STROKE_BASE = 2.2;      // line stroke-width (print is 0.5; web needs more for legibility)
+const STROKE_HOVER = 4;       // line stroke-width on hover
+const CAP_STROKE = 1.5;       // cap-mark stroke-width
 
 const STATUS_ORDER: ReactorStatus[] = [
   'underConstruction',
@@ -116,9 +94,18 @@ function sortWithin(status: ReactorStatus, list: Reactor[]): Reactor[] {
   });
 }
 
+// Clip a year to the plot range. Used to fold pre-1960 reactor
+// histories into the 1960 top edge per Court's spec.
+function clipYear(year: number | null): number | null {
+  if (year === null) return null;
+  if (year < YEAR_MIN) return YEAR_MIN;
+  if (year > YEAR_MAX) return YEAR_MAX;
+  return year;
+}
+
 // ─── CSS ──────────────────────────────────────────────────────────
 
-const CSS_INJECTED_KEY = '__poster005_timeline_css_v3';
+const CSS_INJECTED_KEY = '__poster005_timeline_css_v4';
 
 function injectStyleOnce() {
   if (typeof document === 'undefined') return;
@@ -129,25 +116,32 @@ function injectStyleOnce() {
   const style = document.createElement('style');
   style.textContent = `
     .poster005-timeline g.col-group {
-      transform-box: fill-box;
-      transform-origin: center;
-      transition: transform 130ms ease-out, opacity 160ms ease-out;
+      transition: opacity 160ms ease-out;
       cursor: pointer;
-      will-change: transform, opacity;
+      will-change: opacity;
     }
-    .poster005-timeline g.col-group.is-focused {
-      transform: scale(1.18);
+    .poster005-timeline g.col-group.is-focused line.bar-line {
+      stroke-width: ${STROKE_HOVER};
+      transition: stroke-width 120ms ease-out;
+    }
+    .poster005-timeline g.col-group.is-focused line.cap-line {
+      stroke-width: ${CAP_STROKE * 1.8};
+      transition: stroke-width 120ms ease-out;
+    }
+    .poster005-timeline g.col-group.is-focused circle.cancel-dot {
+      r: 6;
+      transition: r 120ms ease-out;
     }
     .poster005-timeline g.col-group.is-dimmed {
       opacity: 0.06;
-    }
-    .poster005-timeline g.status-header.is-dimmed {
-      opacity: 0.18;
     }
     .poster005-timeline rect.hit-target {
       fill: transparent;
       pointer-events: all;
     }
+    /* Line stroke-width tweak doesn't move neighbours because each
+       column is independently positioned and lines don't take up
+       flow width — no jitter risk. */
   `;
   document.head.appendChild(style);
 }
@@ -156,124 +150,115 @@ function injectStyleOnce() {
 
 interface ColumnProps {
   r: Reactor;
-  x: number;                    // x of the column centreline
-  plotTop: number;              // y of the first tick (YEAR_MIN)
-  plotBottom: number;           // y of the last tick (YEAR_MAX)
+  x: number;
+  plotTop: number;
+  plotBottom: number;
   yearToY: (year: number) => number;
 }
 
 const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: ColumnProps) {
-  const redColour = STATUS_COLOUR.cancelled;       // construction strip
-  const greenColour = STATUS_COLOUR.operating;     // operating strip
-  const navyColour = STATUS_COLOUR.underConstruction;
-  const barLeft = x - BAR_W / 2;
-
   const segments: React.ReactNode[] = [];
 
   if (r.status === 'retired' || r.status === 'operating') {
-    const s = r.constructionStart;
-    const g = r.commercialOperation;
-    const e = r.status === 'retired' ? r.shutdown : YEAR_MAX;
-    if (s !== null && g !== null) {
+    // Clip the construction start year to YEAR_MIN so pre-1960
+    // reactors land at the top edge (Court's spec).
+    const s = clipYear(r.constructionStart);
+    const g = clipYear(r.commercialOperation);
+    const e = clipYear(r.status === 'retired' ? r.shutdown : YEAR_MAX);
+    if (s !== null && g !== null && s < g) {
       const y0 = yearToY(s);
       const y1 = yearToY(g);
+      // Construction line
       segments.push(
-        <rect
-          key="construction"
-          x={barLeft}
-          y={y0}
-          width={BAR_W}
-          height={Math.max(1, y1 - y0)}
-          fill={redColour}
-          fillOpacity={0.85}
-        />,
+        <line key="con-line" className="bar-line"
+          x1={x} y1={y0} x2={x} y2={y1}
+          stroke={STROKE_CONSTRUCTION}
+          strokeWidth={STROKE_BASE}
+          strokeLinecap="round" />,
+      );
+      // Top cap (red) only if start year is not clipped, OR even when
+      // clipped (the print still draws the cap at the top edge).
+      segments.push(
+        <line key="con-cap" className="cap-line"
+          x1={x - CAP_W / 2} y1={y0} x2={x + CAP_W / 2} y2={y0}
+          stroke={STROKE_CONSTRUCTION}
+          strokeWidth={CAP_STROKE}
+          strokeLinecap="round" />,
       );
     }
-    if (g !== null && e !== null) {
+    if (g !== null && e !== null && g < e) {
       const y0 = yearToY(g);
       const y1 = yearToY(e);
+      // Operating line
       segments.push(
-        <rect
-          key="operating"
-          x={barLeft}
-          y={y0}
-          width={BAR_W}
-          height={Math.max(1, y1 - y0)}
-          fill={greenColour}
-          fillOpacity={r.status === 'operating' ? 1 : 0.85}
-        />,
+        <line key="op-line" className="bar-line"
+          x1={x} y1={y0} x2={x} y2={y1}
+          stroke={STROKE_OPERATING}
+          strokeWidth={STROKE_BASE}
+          strokeLinecap="round" />,
+      );
+      // Bottom cap (green) at shutdown / horizon
+      segments.push(
+        <line key="op-cap" className="cap-line"
+          x1={x - CAP_W / 2} y1={y1} x2={x + CAP_W / 2} y2={y1}
+          stroke={STROKE_OPERATING}
+          strokeWidth={CAP_STROKE}
+          strokeLinecap="round" />,
       );
     }
   } else if (r.status === 'underConstruction') {
-    const s = r.constructionStart;
-    if (s !== null) {
+    const s = clipYear(r.constructionStart);
+    const e = clipYear(r.commercialOperation ?? YEAR_MAX);
+    if (s !== null && e !== null && s < e) {
       const y0 = yearToY(s);
-      const y1 = yearToY(YEAR_MAX);
+      const y1 = yearToY(e);
       segments.push(
-        <line
-          key="projection"
-          x1={x}
-          y1={y0}
-          x2={x}
-          y2={y1}
-          stroke={navyColour}
-          strokeWidth={2.5}
-          strokeDasharray="5,3"
-        />,
+        <line key="uc-line" className="bar-line"
+          x1={x} y1={y0} x2={x} y2={y1}
+          stroke={STROKE_UNDER_CONSTRUCTION}
+          strokeWidth={STROKE_BASE}
+          strokeLinecap="round" />,
       );
       segments.push(
-        <rect
-          key="anchor"
-          x={barLeft}
-          y={y0 - 3}
-          width={BAR_W}
-          height={6}
-          fill={navyColour}
-        />,
+        <line key="uc-cap" className="cap-line"
+          x1={x - CAP_W / 2} y1={y0} x2={x + CAP_W / 2} y2={y0}
+          stroke={STROKE_UNDER_CONSTRUCTION}
+          strokeWidth={CAP_STROKE}
+          strokeLinecap="round" />,
       );
     }
   } else if (r.status === 'cancelled') {
-    const cancelYear = r.cancellationYear;
-    if (cancelYear !== null) {
-      const yc = yearToY(cancelYear);
-      const s = r.constructionStart;
-      if (s !== null) {
+    const cy = r.cancellationYear;
+    if (cy !== null) {
+      const yc = yearToY(clipYear(cy)!);
+      // Cancelled reactors that had project construction get a thin
+      // red line from project start → cancellation year. Most
+      // cancellations never broke ground (s === null) so just the
+      // dot renders.
+      const s = clipYear(r.constructionStart);
+      if (s !== null && s < cy) {
         const y0 = yearToY(s);
         segments.push(
-          <rect
-            key="cancel-strip"
-            x={barLeft}
-            y={y0}
-            width={BAR_W}
-            height={Math.max(1, yc - y0)}
-            fill={redColour}
-            fillOpacity={0.75}
-          />,
+          <line key="cancel-line" className="bar-line"
+            x1={x} y1={y0} x2={x} y2={yc}
+            stroke={STROKE_CONSTRUCTION}
+            strokeWidth={STROKE_BASE}
+            strokeOpacity={0.65}
+            strokeLinecap="round" />,
         );
       }
       segments.push(
-        <circle
-          key="cancel-dot"
-          cx={x}
-          cy={yc}
-          r={4}
-          fill={redColour}
-        />,
+        <circle key="cancel-dot" className="cancel-dot"
+          cx={x} cy={yc} r={4} fill={STROKE_CONSTRUCTION} />,
       );
     }
   }
 
-  // Invisible hit-target spanning the full column height so the bar
-  // is hoverable along the entire year axis.
+  // Invisible hit-target spans the full year axis for the column.
   const hitTarget = (
-    <rect
-      key="hit"
-      className="hit-target"
-      x={x - COL_W / 2}
-      y={plotTop}
-      width={COL_W}
-      height={plotBottom - plotTop}
-    />
+    <rect key="hit" className="hit-target"
+      x={x - COL_W / 2} y={plotTop}
+      width={COL_W} height={plotBottom - plotTop} />
   );
 
   return (
@@ -307,15 +292,12 @@ export default function Poster005Timeline() {
     return () => ro.disconnect();
   }, []);
 
-  // Height: target 92vh on desktop so the chart "takes up the space
-  // of a full desktop screen" per Court's brief, with a floor so it
-  // doesn't collapse on short viewports.
   const totalH = useMemo(() => {
     if (typeof window === 'undefined') return 900;
     return Math.max(720, Math.round(window.innerHeight * 0.92));
   }, []);
 
-  const plotTop = HEADER_H + TOP_PAD;
+  const plotTop = HEADER_PAD + TOP_PAD;
   const plotBottom = totalH - BOTTOM_PAD;
   const plotH = plotBottom - plotTop;
 
@@ -323,16 +305,12 @@ export default function Poster005Timeline() {
     return plotTop + ((year - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) * plotH;
   }
 
-  // Lay out columns. One x per reactor, status groups separated by
-  // GROUP_GAP. Group headers span the x-range covered by their
-  // columns.
   const layout = useMemo(() => {
     const groups: {
       status: ReactorStatus;
       reactors: Reactor[];
-      xStart: number;      // leftmost column centre
-      xEnd: number;        // rightmost column centre
-      headerCx: number;    // centre x for the header label
+      xStart: number;
+      xEnd: number;
     }[] = [];
     let xCursor = AXIS_W;
     for (const status of STATUS_ORDER) {
@@ -340,15 +318,13 @@ export default function Poster005Timeline() {
       const groupW = list.length * COL_W;
       const xStart = xCursor + COL_W / 2;
       const xEnd = xCursor + groupW - COL_W / 2;
-      const headerCx = (xStart + xEnd) / 2;
-      groups.push({ status, reactors: list, xStart, xEnd, headerCx });
+      groups.push({ status, reactors: list, xStart, xEnd });
       xCursor += groupW + GROUP_GAP;
     }
     const usedW = xCursor - GROUP_GAP + RIGHT_PAD;
     return { groups, usedW };
   }, []);
 
-  // Hover wiring.
   useEffect(() => {
     const svg = svgRef.current;
     const container = containerRef.current;
@@ -401,7 +377,6 @@ export default function Poster005Timeline() {
     };
   }, []);
 
-  // Store subscription.
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -418,12 +393,6 @@ export default function Poster005Timeline() {
         g.classList.toggle('is-focused', isFocused);
         g.classList.toggle('is-dimmed', isDimmed);
       });
-      const headers = svg.querySelectorAll<SVGGElement>('g.status-header');
-      headers.forEach((h) => {
-        const status = h.getAttribute('data-status') as ReactorStatus | null;
-        const isDimmed = filteredStatus !== null && status !== filteredStatus;
-        h.classList.toggle('is-dimmed', isDimmed);
-      });
     };
     const initial = poster005Store.getCurrent();
     apply(initial.filteredStatus, initial.hoveredReactor);
@@ -431,19 +400,10 @@ export default function Poster005Timeline() {
   }, [layout]);
 
   const tooltipReactor = tooltip ? REACTOR_BY_ID[tooltip.id] : null;
-
-  // Total width needed: layout.usedW for content + RIGHT_PAD already
-  // included. If the container is wider than that, the SVG scales
-  // up nicely; if narrower, the SVG scrolls horizontally inside its
-  // wrapper (rare on desktop).
   const svgW = Math.max(width, layout.usedW);
 
   return (
     <div className="w-full">
-      {/* Sit OUTSIDE the standard max-w-7xl so the chart can hit
-          full desktop width — Court's brief asks for "the space of a
-          full desktop screen". Cap at 1600px so it doesn't get silly
-          on ultra-wide monitors. */}
       <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8">
         <div
           ref={containerRef}
@@ -459,14 +419,14 @@ export default function Poster005Timeline() {
               preserveAspectRatio="xMinYMin meet"
               style={{ display: 'block' }}
             >
-              {/* Decade gridlines (horizontal, faint) */}
+              {/* Decade gridlines */}
               <g aria-hidden>
                 {DECADES.map((y) => {
                   const yPos = yearToY(y);
                   return (
                     <line
                       key={y}
-                      x1={AXIS_W - 4}
+                      x1={AXIS_W - 6}
                       y1={yPos}
                       x2={svgW - RIGHT_PAD}
                       y2={yPos}
@@ -478,31 +438,31 @@ export default function Poster005Timeline() {
                 })}
               </g>
 
-              {/* Year axis labels */}
+              {/* Year axis labels — bigger font per Court's brief */}
               <g aria-hidden>
                 {DECADES.map((y) => {
                   const yPos = yearToY(y);
                   return (
-                    <g key={y} transform={`translate(${AXIS_W - 8},${yPos})`}>
+                    <g key={y} transform={`translate(${AXIS_W - 12},${yPos})`}>
                       <line
                         x1={0}
                         y1={0}
-                        x2={4}
+                        x2={6}
                         y2={0}
                         stroke="#0d1a1e"
                         strokeOpacity={0.6}
                         strokeWidth={1}
                       />
                       <text
-                        x={-4}
-                        y={4}
-                        fontSize={13}
+                        x={-6}
+                        y={5}
+                        fontSize={18}
                         textAnchor="end"
                         style={{
                           fontFamily: "'Playfair', Georgia, serif",
                           fontWeight: 500,
                         }}
-                        fill="rgba(13,26,30,0.78)"
+                        fill="rgba(13,26,30,0.85)"
                       >
                         {y}
                       </text>
@@ -511,60 +471,8 @@ export default function Poster005Timeline() {
                 })}
               </g>
 
-              {/* Status group headers */}
-              {layout.groups.map(({ status, reactors, xStart, xEnd, headerCx }) => {
-                const colour = STATUS_COLOUR[status];
-                return (
-                  <g
-                    key={status}
-                    className="status-header"
-                    data-status={status}
-                    transform={`translate(0,${HEADER_H - 20})`}
-                  >
-                    <text
-                      x={headerCx}
-                      y={0}
-                      fontSize={12}
-                      letterSpacing={1.5}
-                      textAnchor="middle"
-                      style={{
-                        fontFamily: "'Playfair', Georgia, serif",
-                        textTransform: 'uppercase',
-                        fontWeight: 600,
-                      }}
-                      fill={colour}
-                    >
-                      {STATUS_LABEL[status]}
-                    </text>
-                    <text
-                      x={headerCx}
-                      y={14}
-                      fontSize={11}
-                      textAnchor="middle"
-                      style={{
-                        fontFamily: "'Playfair', Georgia, serif",
-                        fontStyle: 'italic',
-                      }}
-                      fill="rgba(13,26,30,0.55)"
-                    >
-                      {reactors.length} {reactors.length === 1 ? 'reactor' : 'reactors'}
-                    </text>
-                    {/* Status-coloured rule under the header spanning
-                        the group's column range. */}
-                    <line
-                      x1={xStart - COL_W / 2}
-                      y1={18}
-                      x2={xEnd + COL_W / 2}
-                      y2={18}
-                      stroke={colour}
-                      strokeOpacity={0.32}
-                      strokeWidth={1}
-                    />
-                  </g>
-                );
-              })}
-
-              {/* Columns per status group */}
+              {/* Columns. No status headers along the top — Court asked
+                  for them removed (legend reads the status colour). */}
               {layout.groups.map(({ status, reactors, xStart }) => (
                 <g key={status}>
                   {reactors.map((r, i) => (
@@ -582,37 +490,37 @@ export default function Poster005Timeline() {
             </svg>
           )}
 
-          {/* Floating tooltip */}
+          {/* Floating tooltip — bigger text per Court's brief */}
           {tooltip && tooltipReactor && (
             <div
-              className="absolute z-20 pointer-events-none p-3 rounded-sm border bg-card shadow-md"
+              className="absolute z-20 pointer-events-none p-4 rounded-sm border bg-card shadow-md"
               style={{
                 borderColor: 'rgba(13,26,30,0.18)',
                 borderLeftColor: STATUS_COLOUR[tooltipReactor.status],
                 borderLeftWidth: 3,
                 left:
-                  tooltip.x > (containerRef.current?.clientWidth ?? 0) - 240
-                    ? tooltip.x - 220
-                    : tooltip.x + 16,
-                top: tooltip.y + 12,
-                minWidth: 200,
-                maxWidth: 240,
+                  tooltip.x > (containerRef.current?.clientWidth ?? 0) - 280
+                    ? tooltip.x - 260
+                    : tooltip.x + 18,
+                top: tooltip.y + 14,
+                minWidth: 230,
+                maxWidth: 280,
               }}
             >
               <p
-                className="font-serif text-sm leading-tight"
+                className="font-serif text-lg leading-tight"
                 style={{ color: STATUS_COLOUR[tooltipReactor.status], fontWeight: 600 }}
               >
                 {tooltipReactor.name}
               </p>
               <p
-                className="text-xs uppercase tracking-[0.1em] text-muted-foreground mt-0.5"
+                className="text-sm uppercase tracking-[0.1em] text-muted-foreground mt-1"
                 style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 {STATUS_LABEL[tooltipReactor.status]}
               </p>
               <p
-                className="text-xs text-foreground mt-1 tabular-nums"
+                className="text-sm text-foreground mt-2 tabular-nums"
                 style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 {tooltipReactor.capacityMw
