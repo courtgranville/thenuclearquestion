@@ -153,10 +153,11 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
     const s = clipYear(r.constructionStart);
     const g = clipYear(r.commercialOperation);
     const e = clipYear(r.status === 'retired' ? r.shutdown : YEAR_MAX);
-    if (s !== null && g !== null && s < g) {
-      const y0 = yearToY(s);
-      const y1 = yearToY(g);
-      // Construction line
+    const constructionVisible = s !== null && g !== null && s < g;
+    const operatingVisible = g !== null && e !== null && g < e;
+    if (constructionVisible) {
+      const y0 = yearToY(s!);
+      const y1 = yearToY(g!);
       segments.push(
         <line key="con-line" className="bar-line"
           x1={x} y1={y0} x2={x} y2={y1}
@@ -164,8 +165,7 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
           strokeWidth={STROKE_BASE}
           strokeLinecap="round" />,
       );
-      // Top cap (red) only if start year is not clipped, OR even when
-      // clipped (the print still draws the cap at the top edge).
+      // Top cap matches the visible top phase (red here).
       segments.push(
         <line key="con-cap" className="cap-line"
           x1={x - CAP_W / 2} y1={y0} x2={x + CAP_W / 2} y2={y0}
@@ -174,10 +174,9 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
           strokeLinecap="round" />,
       );
     }
-    if (g !== null && e !== null && g < e) {
-      const y0 = yearToY(g);
-      const y1 = yearToY(e);
-      // Operating line
+    if (operatingVisible) {
+      const y0 = yearToY(g!);
+      const y1 = yearToY(e!);
       segments.push(
         <line key="op-line" className="bar-line"
           x1={x} y1={y0} x2={x} y2={y1}
@@ -185,14 +184,30 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
           strokeWidth={STROKE_BASE}
           strokeLinecap="round" />,
       );
-      // Bottom cap (green) at shutdown / horizon
+      // Bottom cap (green) at shutdown / horizon.
       segments.push(
-        <line key="op-cap" className="cap-line"
+        <line key="op-cap-bottom" className="cap-line"
           x1={x - CAP_W / 2} y1={y1} x2={x + CAP_W / 2} y2={y1}
           stroke={STROKE_OPERATING}
           strokeWidth={CAP_STROKE}
           strokeLinecap="round" />,
       );
+      // Top cap — only if the construction phase clipped out
+      // entirely (so the visible top of the bar is the start of
+      // the operating phase). Court round-15: 'some of the timeline
+      // lines are missing their starting cap lines.' Pre-1960
+      // reactors had construction + grid both before 1960, both
+      // clipped to 1960 → no top cap rendered. Now they get a
+      // green cap matching the visible top phase.
+      if (!constructionVisible) {
+        segments.push(
+          <line key="op-cap-top" className="cap-line"
+            x1={x - CAP_W / 2} y1={y0} x2={x + CAP_W / 2} y2={y0}
+            stroke={STROKE_OPERATING}
+            strokeWidth={CAP_STROKE}
+            strokeLinecap="round" />,
+        );
+      }
     }
   } else if (r.status === 'underConstruction') {
     const s = clipYear(r.constructionStart);
