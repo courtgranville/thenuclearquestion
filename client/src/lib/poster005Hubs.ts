@@ -151,6 +151,13 @@ export interface HubLeaf {
   y: number;
 }
 
+// The dendrogram's leaf row sits at SVG y=800.993 — every leaf
+// circle (72 of them) is on this line in the print. The JSON
+// extractor mistakenly stored the cancellation-dot y (which lives
+// on the timeline strip below) into dendrogram_leaf_cy for cancelled
+// reactors, so we anchor on this constant rather than that field.
+const DENDROGRAM_LEAF_Y = 800.993;
+
 export const LEAVES_BY_STATUS: Record<ReactorStatus, HubLeaf[]> = (() => {
   const out: Record<ReactorStatus, HubLeaf[]> = {
     underConstruction: [],
@@ -164,17 +171,16 @@ export const LEAVES_BY_STATUS: Record<ReactorStatus, HubLeaf[]> = (() => {
         id: string;
         status: ReactorStatus;
         dendrogram_leaf_cx: number | null;
-        dendrogram_leaf_cy: number | null;
       }[];
     }
   ).reactors;
   for (const r of reactors) {
-    if (r.dendrogram_leaf_cx === null || r.dendrogram_leaf_cy === null) continue;
+    if (r.dendrogram_leaf_cx === null) continue;
     out[r.status].push({
       reactorId: r.id,
       status: r.status,
       x: r.dendrogram_leaf_cx,
-      y: r.dendrogram_leaf_cy,
+      y: DENDROGRAM_LEAF_Y,
     });
   }
   return out;

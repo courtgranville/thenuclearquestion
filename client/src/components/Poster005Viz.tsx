@@ -41,7 +41,7 @@ interface SectionFrameProps {
 function SectionFrame({ title, lead, children }: SectionFrameProps) {
   return (
     <div className="w-full">
-      <div className="container mb-10">
+      <div className="container mb-6">
         <div className="max-w-3xl mx-auto">
           <p
             className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
@@ -66,7 +66,7 @@ function SectionFrame({ title, lead, children }: SectionFrameProps) {
       {children}
       <div className="container">
         <div className="max-w-3xl mx-auto">
-          <hr className="border-border/40 my-16" />
+          <hr className="border-border/40 my-8" />
         </div>
       </div>
     </div>

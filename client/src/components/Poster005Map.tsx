@@ -68,7 +68,7 @@ function injectStyleOnce() {
       stroke-width: 1 !important;
     }
     .poster005-map circle[data-unit].is-dimmed {
-      opacity: 0.08;
+      opacity: 0.04;
     }
   `;
   document.head.appendChild(style);
@@ -96,7 +96,7 @@ function MapHoverPill() {
 
   return (
     <div
-      className="w-full max-w-3xl mx-auto px-4 mt-4 min-h-[44px] flex items-center justify-center"
+      className="w-full max-w-3xl mx-auto px-4 mt-3 min-h-[40px] flex items-center justify-center"
       aria-live="polite"
     >
       {!r && (
@@ -264,7 +264,7 @@ export default function Poster005Map() {
   }, [svgMarkup]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-8">
+    <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4">
       <div
         ref={containerRef}
         className="poster005-map relative w-full mx-auto"
@@ -281,7 +281,7 @@ export default function Poster005Map() {
           as a single unit. The legend drives the global filter that
           dims non-matching circles here; placing it adjacent makes
           the cause-and-effect immediate. */}
-      <div className="mt-4">
+      <div className="mt-2">
         <Poster005StatusLegend />
       </div>
     </div>

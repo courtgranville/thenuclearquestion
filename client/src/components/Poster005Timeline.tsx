@@ -139,7 +139,7 @@ function injectStyleOnce() {
       transform: scale(1.18);
     }
     .poster005-timeline g.col-group.is-dimmed {
-      opacity: 0.12;
+      opacity: 0.06;
     }
     .poster005-timeline g.status-header.is-dimmed {
       opacity: 0.18;

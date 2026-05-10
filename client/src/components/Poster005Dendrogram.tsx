@@ -58,7 +58,12 @@ import {
   type ReactorStatus,
 } from '@/lib/poster005Data';
 import { poster005Store } from '@/lib/poster005Store';
-import { HUBS, HUB_BY_STATUS, LEAVES_BY_STATUS, TUNING } from '@/lib/poster005Hubs';
+import { HUBS, LEAVES_BY_STATUS, TUNING } from '@/lib/poster005Hubs';
+import {
+  TRAJECTORY_BY_REACTOR,
+  trajectoryPoint,
+  type Trajectory,
+} from '@/lib/poster005Connectors';
 import {
   PULSE_BULGE_COLOR,
   PULSE_BULGE_HALF_LEN,
@@ -71,6 +76,7 @@ import {
   PULSE_GLOW_RADIUS,
   HUB_PHYSICAL_PULSE_MS,
   HUB_PULSE_PEAK_SCALE,
+  PULSE_LAUNCH_AT_MS,
   PULSE_TRAVEL_SPEED_PX_PER_MS,
 } from '@/lib/poster004Engine';
 
@@ -114,17 +120,29 @@ function injectStyleOnce() {
       transform: scale(1.35);
     }
     .poster005-dendro circle[data-unit].is-dimmed {
-      opacity: 0.12;
+      opacity: 0.06;
     }
     .poster005-dendro g[id^="row-"] {
       transition: opacity 160ms ease-out;
     }
     .poster005-dendro g[id^="row-"].is-dimmed {
-      opacity: 0.12;
+      opacity: 0.06;
     }
-    /* Hub canvas hover area — invisible rect inside the SVG layer
-       wouldn't be needed if pointer events on canvas worked across
-       layers; we use a sibling overlay div for hub hit-testing. */
+    /* When ANY reactor is hovered, drop the connector Béziers and
+       any miscellaneous strokes/text in the SVG so the focused leaf
+       reads alone. We toggle this via the data-any-hover attribute
+       on the container, set from the store subscription. */
+    .poster005-dendro[data-any-hover="true"] svg path,
+    .poster005-dendro[data-any-hover="true"] svg text,
+    .poster005-dendro[data-any-hover="true"] svg line {
+      opacity: 0.06;
+      transition: opacity 160ms ease-out;
+    }
+    /* Filter dim (no hover): dim non-matching connectors too. */
+    .poster005-dendro[data-filter-active="true"] svg path {
+      opacity: 0.18;
+      transition: opacity 160ms ease-out;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -140,18 +158,24 @@ const InjectedDendro = memo(function InjectedDendro({ markup }: { markup: string
 });
 
 // ─── Pulse cascade ────────────────────────────────────────────────
+//
+// Court's spec (round 2):
+//   - Pulses travel along the ACTUAL connector Béziers, not faked
+//     straight Béziers. Trajectories come from poster005Connectors
+//     (parses the 98 dendrogram_links and concatenates level-1 +
+//     level-2 paths into hub→sub-hub→leaf trajectories).
+//   - All pulses launch SIMULTANEOUSLY at PULSE_LAUNCH_AT_MS after
+//     hover start, matching poster 004's HUB_CASCADE choreography.
+//     No fan stagger — that's why the hub physical-pulse precedes
+//     by PULSE_LAUNCH_AT_MS: visual emphasis on the hub first,
+//     then the wave of pulses leaves together.
+//   - Single pulse per leaf — no absorb flash beyond u=1, no
+//     duplicate-fire on re-hover.
 
 interface Pulse {
-  // Cubic Bézier control points from origin (hub anchor) to dest (leaf)
-  ox: number; oy: number;
-  c1x: number; c1y: number;
-  c2x: number; c2y: number;
-  dx: number; dy: number;
-  // Travel time, computed from straight-line distance
-  travelMs: number;
-  startedAt: number;
-  reactorId: string;
-  colour: string;
+  traj: Trajectory;
+  startedAt: number;     // wall-clock ms when the pulse leaves the hub
+  travelMs: number;      // time to traverse the whole trajectory
 }
 
 interface HubPulseFx {
@@ -159,68 +183,16 @@ interface HubPulseFx {
   startedAt: number;
 }
 
-function cubicPoint(
-  t: number,
-  ox: number, oy: number,
-  c1x: number, c1y: number,
-  c2x: number, c2y: number,
-  dx: number, dy: number,
-): { x: number; y: number; tx: number; ty: number } {
-  const u = 1 - t;
-  const b0 = u * u * u;
-  const b1 = 3 * u * u * t;
-  const b2 = 3 * u * t * t;
-  const b3 = t * t * t;
-  const x = b0 * ox + b1 * c1x + b2 * c2x + b3 * dx;
-  const y = b0 * oy + b1 * c1y + b2 * c2y + b3 * dy;
-  // Tangent = derivative
-  const d0 = 3 * u * u;
-  const d1 = 6 * u * t;
-  const d2 = 3 * t * t;
-  const tx = d0 * (c1x - ox) + d1 * (c2x - c1x) + d2 * (dx - c2x);
-  const ty = d0 * (c1y - oy) + d1 * (c2y - c1y) + d2 * (dy - c2y);
-  return { x, y, tx, ty };
-}
-
-function buildPulsesForHub(status: ReactorStatus, now: number, hubColour: string): Pulse[] {
-  const hub = HUB_BY_STATUS[status];
+function buildPulsesForHub(status: ReactorStatus, now: number): Pulse[] {
   const leaves = LEAVES_BY_STATUS[status];
-  if (!hub || !leaves.length) return [];
-  const [hx, hyTop] = hub.anchor;
-  // Use the hub's bottom-of-bbox as the pulse origin so the pulse
-  // visibly emerges from the hub form rather than its centroid.
-  const hy = Math.max(hyTop, hub.bbox.maxY);
-
   const pulses: Pulse[] = [];
-  // Stagger pulses so they fan out — first pulse at t=0, last at t=180ms.
-  const STAGGER_TOTAL_MS = 220;
-  const n = leaves.length;
-  leaves.forEach((leaf, i) => {
-    const stagger = n > 1 ? (i / (n - 1)) * STAGGER_TOTAL_MS : 0;
-    // Curve: pull control points so the pulse arcs gracefully out.
-    // c1 is just below the hub anchor (pushed sideways toward the leaf),
-    // c2 is just above the leaf (pushed back toward the hub centre).
-    const midX = (hx + leaf.x) * 0.5;
-    const sideX = midX + (leaf.x - hx) * 0.15;
-    const c1y = hy + (leaf.y - hy) * 0.35;
-    const c2y = hy + (leaf.y - hy) * 0.65;
-    const dx = Math.hypot(leaf.x - hx, leaf.y - hy);
-    const travelMs = Math.max(220, dx / PULSE_TRAVEL_SPEED_PX_PER_MS);
-    pulses.push({
-      ox: hx,
-      oy: hy,
-      c1x: sideX,
-      c1y,
-      c2x: leaf.x,
-      c2y,
-      dx: leaf.x,
-      dy: leaf.y,
-      travelMs,
-      startedAt: now + stagger,
-      reactorId: leaf.reactorId,
-      colour: hubColour,
-    });
-  });
+  const launchAt = now + PULSE_LAUNCH_AT_MS;
+  for (const leaf of leaves) {
+    const traj = TRAJECTORY_BY_REACTOR.get(leaf.reactorId);
+    if (!traj) continue;
+    const travelMs = traj.totalLen / PULSE_TRAVEL_SPEED_PX_PER_MS;
+    pulses.push({ traj, startedAt: launchAt, travelMs });
+  }
   return pulses;
 }
 
@@ -244,6 +216,12 @@ export default function Poster005Dendrogram() {
   const hubPulsesRef = useRef<HubPulseFx[]>([]);
   const hoverHubRef = useRef<HubHoverState>({ status: null, px: 0, py: 0 });
   const filteredStatusRef = useRef<ReactorStatus | null>(null);
+  // Live reactor-hover ref so the canvas can dim non-matching hubs
+  // when any leaf / map circle / column is hovered.
+  const hoveredReactorRef = useRef<{
+    id: string;
+    status: ReactorStatus;
+  } | null>(null);
 
   useEffect(() => { injectStyleOnce(); }, []);
 
@@ -390,7 +368,11 @@ export default function Poster005Dendrogram() {
     if (!container) return;
     const apply = (filteredStatus: ReactorStatus | null, hoveredId: string | null) => {
       filteredStatusRef.current = filteredStatus;
-      const hoveredR = hoveredId ? REACTOR_BY_ID[hoveredId] : null;
+      hoveredReactorRef.current = hoveredId ? REACTOR_BY_ID[hoveredId] ?? null : null;
+      const hoveredR = hoveredReactorRef.current;
+      // Toggle root attributes so CSS can drop connectors / text / lines.
+      container.setAttribute('data-any-hover', hoveredR ? 'true' : 'false');
+      container.setAttribute('data-filter-active', filteredStatus !== null ? 'true' : 'false');
       const leaves = container.querySelectorAll<SVGCircleElement>('circle[data-unit]');
       leaves.forEach((c) => {
         const id = c.getAttribute('data-unit') ?? '';
@@ -469,6 +451,7 @@ export default function Poster005Dendrogram() {
 
       const filteredStatus = filteredStatusRef.current;
       const hoverHub = hoverHubRef.current;
+      const hoveredReactor = hoveredReactorRef.current;
 
       const k1 = TUNING.flowK1;
       const w1 = TUNING.flowW1;
@@ -481,8 +464,22 @@ export default function Poster005Dendrogram() {
       // ── Hub forms ───────────────────────────────────────────────
       for (const hub of HUBS) {
         const isFiltered = filteredStatus !== null && filteredStatus !== hub.status;
-        const isHovered = hoverHub.status === hub.status;
-        const baseAlpha = isFiltered ? 0.06 : (isHovered || filteredStatus === hub.status ? 1 : 0.85);
+        const isHubHovered = hoverHub.status === hub.status;
+        // When a reactor is hovered (from anywhere), keep only the
+        // hub matching that reactor's status at full alpha — every
+        // other hub fades. This makes "the rest grey out" complete.
+        const isReactorHovered = hoveredReactor !== null;
+        const matchesReactorHub = hoveredReactor !== null && hoveredReactor.status === hub.status;
+        let baseAlpha: number;
+        if (isFiltered) {
+          baseAlpha = 0.05;
+        } else if (isReactorHovered) {
+          baseAlpha = matchesReactorHub ? 1 : 0.05;
+        } else if (isHubHovered || filteredStatus === hub.status) {
+          baseAlpha = 1;
+        } else {
+          baseAlpha = 0.85;
+        }
 
         // Hub physical pulse: animate scale around centroid.
         let physScale = 1;
@@ -579,19 +576,20 @@ export default function Poster005Dendrogram() {
       }
 
       // ── Pulses ──────────────────────────────────────────────────
+      // Single pulse per leaf, traveling along the real trajectory.
+      // Pulse disappears cleanly at u=1 — no absorb flash, no second
+      // pulse (Court round-2 spec).
       const livePulses: Pulse[] = [];
       for (const p of pulsesRef.current) {
         const dt = now - p.startedAt;
-        if (dt < 0) { livePulses.push(p); continue; }
-        const u = dt / p.travelMs;
-        if (u >= 1) {
-          // Absorb flash at the destination, then drop.
-          // Implemented as a brief radial flash in the next frame's
-          // path — for simplicity we render it inline if u in (1, 1.1).
-          if (u < 1.1) livePulses.push(p);
+        if (dt < 0) {
+          // Not launched yet (in the PULSE_LAUNCH_AT_MS pre-roll window).
+          livePulses.push(p);
           continue;
         }
-        const pt = cubicPoint(u, p.ox, p.oy, p.c1x, p.c1y, p.c2x, p.c2y, p.dx, p.dy);
+        const u = dt / p.travelMs;
+        if (u >= 1) continue;       // pulse has arrived; drop it
+        const pt = trajectoryPoint(p.traj, u);
 
         ctx.save();
         ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
@@ -628,7 +626,6 @@ export default function Poster005Dendrogram() {
         ctx.restore();
         livePulses.push(p);
       }
-      // Trim absorbed pulses.
       pulsesRef.current = livePulses;
 
       // Trim expired hub physical pulses.
@@ -669,9 +666,15 @@ export default function Poster005Dendrogram() {
   const onHubEnter = (status: ReactorStatus) => {
     hoverHubRef.current = { status, px: 0, py: 0 };
     const now = performance.now();
-    const colour = STATUS_COLOUR[status];
-    pulsesRef.current = pulsesRef.current.concat(buildPulsesForHub(status, now, colour));
-    hubPulsesRef.current = hubPulsesRef.current.concat([{ status, startedAt: now }]);
+    // Replace any in-flight pulses for this hub so re-hovering before
+    // the previous cascade finishes doesn't pile up overlapping fires
+    // (which read as "double pulses" per Court's report).
+    pulsesRef.current = pulsesRef.current
+      .filter((p) => p.traj.status !== status)
+      .concat(buildPulsesForHub(status, now));
+    hubPulsesRef.current = hubPulsesRef.current
+      .filter((p) => p.status !== status)
+      .concat([{ status, startedAt: now }]);
   };
   const onHubLeave = (status: ReactorStatus) => {
     if (hoverHubRef.current.status === status) {
