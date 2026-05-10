@@ -115,14 +115,21 @@ function injectStyleOnce() {
     .poster005-quadrant circle[data-unit].is-dimmed {
       opacity: 0.06;
     }
+    /* Hub-form polylines render natively in the SVG layer now.
+       Smooth in/out for hover & filter dim. */
+    .poster005-quadrant svg polyline {
+      transition: opacity 180ms ease-out;
+    }
     .poster005-quadrant[data-any-hover="true"] svg path,
     .poster005-quadrant[data-any-hover="true"] svg text,
-    .poster005-quadrant[data-any-hover="true"] svg line {
+    .poster005-quadrant[data-any-hover="true"] svg line,
+    .poster005-quadrant[data-any-hover="true"] svg polyline {
       opacity: 0.06;
       transition: opacity 160ms ease-out;
     }
+    /* Filter on a different status: the whole quadrant fades back. */
     .poster005-quadrant[data-other-filter="true"] {
-      opacity: 0.25;
+      opacity: 0.18;
       transition: opacity 200ms ease-out;
     }
     .poster005-quadrant.is-this-filter {
@@ -208,8 +215,38 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       const myLeaves = new Set(LEAVES_BY_STATUS[status].map((l) => l.reactorId));
       const myLeafXs = LEAVES_BY_STATUS[status].map((l) => l.x);
 
-      // Strip every hub-form polyline (we'll redraw on canvas).
-      svg.querySelectorAll('polyline').forEach((p) => p.remove());
+      // Keep THIS status's hub polylines (canonical print stroke
+       // colour) so they render natively as crisp SVG at full
+      // resolution; strip every other hub's polylines + cream-fill
+      // polylines. The canvas overlay now owns only the pulse
+      // animation — the hub form itself is rendered by the SVG.
+      //
+      // Court round-7: 'replace the forms with the ones being used
+      // on the current live site main branch, which are much higher
+      // definition'. The print SVG's 256 polylines per hub are
+      // already high-def — rendering them as SVG instead of
+      // rasterised canvas is what makes them look high-def.
+      const MY_HUB_STROKE: Record<string, string> = {
+        underConstruction: '#b4822e',
+        operating:         '#237c3e',
+        retired:           '#7d746a',
+        cancelled:         '#a51e23',
+      };
+      const myHubStroke = MY_HUB_STROKE[status];
+      svg.querySelectorAll('polyline').forEach((p) => {
+        const stroke = (p.getAttribute('stroke') ?? '').trim().toLowerCase();
+        const fill = (p.getAttribute('fill') ?? '').trim().toLowerCase();
+        if (stroke === myHubStroke) {
+          // Keep this hub's outline polylines. Tighten the stroke
+          // width slightly so they read cleanly at the larger
+          // quadrant scale.
+          p.setAttribute('stroke-width', '0.55');
+          return;
+        }
+        // Strip every other polyline (other hubs' outlines, cream
+        // fills, and any miscellaneous shape primitives).
+        p.remove();
+      });
 
       // Strip every row-* group (the timeline strip is its own component).
       svg.querySelectorAll('g[id^="row-"]').forEach((g) => g.remove());
@@ -262,15 +299,34 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         el: SVGPathElement; sx: number; sy: number; ex: number; ey: number;
       }[] = [];
       svg.querySelectorAll<SVGPathElement>('path').forEach((p) => {
-        const d = p.getAttribute('d') ?? '';
-        const m = /^M([\d.\-]+),([\d.\-]+)c/.exec(d.trim());
-        if (!m) return;
-        const sx = parseFloat(m[1]);
-        const sy = parseFloat(m[2]);
-        const tail = d.substring(m[0].length).split(/[, ]+/).map(parseFloat).filter((n) => !isNaN(n));
-        if (tail.length < 6) { p.remove(); return; }
-        const ex = sx + tail[4];
-        const ey = sy + tail[5];
+        const d = (p.getAttribute('d') ?? '').trim();
+        // Match the M start, then peek at the next command. Connector
+        // paths can be cubic (c... → relative cubic Bézier ending at
+        // dx,dy in the last two numbers) OR vertical-only (v... →
+        // single relative dy). Both are valid connectors; the c
+        // form curves, the v form is a straight vertical drop.
+        const startM = /^M([\d.\-]+),([\d.\-]+)([cv])/.exec(d);
+        if (!startM) return;
+        const sx = parseFloat(startM[1]);
+        const sy = parseFloat(startM[2]);
+        const cmd = startM[3];
+        // SVG paths omit the comma before negative numbers (so
+        // "103.332-20.96" is two numbers, not "103.332" minus 20).
+        // Match every signed number rather than splitting on
+        // separators.
+        const tail =
+          d.substring(startM[0].length).match(/-?\d+\.?\d*(?:e[-+]?\d+)?/g)?.map(parseFloat) ?? [];
+        let ex: number, ey: number;
+        if (cmd === 'c') {
+          if (tail.length < 6) { p.remove(); return; }
+          ex = sx + tail[4];
+          ey = sy + tail[5];
+        } else {
+          // v: single dy (vertical line by dy)
+          if (tail.length < 1) { p.remove(); return; }
+          ex = sx;
+          ey = sy + tail[0];
+        }
         allPathInfo.push({ el: p, sx, sy, ex, ey });
       });
 
@@ -513,120 +569,18 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
 
       const hoveredReactor = hoveredReactorRef.current;
       const filteredStatus = filteredStatusRef.current;
-
-      // Hub base alpha:
-      //  - filter on a different status → dim heavily
-      //  - reactor hovered with status != this → dim heavily
-      //  - reactor hovered with status == this → full
-      //  - hub hovered → full
-      //  - default → full (we have only ONE hub per quadrant; no
-      //    need to dim "other" hubs)
-      let baseAlpha = 1;
-      if (filteredStatus !== null && filteredStatus !== status) {
-        baseAlpha = 0.05;
-      } else if (hoveredReactor && hoveredReactor.status !== status) {
-        baseAlpha = 0.05;
-      }
-
-      // Hub physical pulse: animate scale around centroid.
-      let physScale = 1;
-      const pulse = hubPulseRef.current;
-      if (pulse) {
-        const dt = now - pulse.startedAt;
-        if (dt < HUB_PHYSICAL_PULSE_MS) {
-          const u = dt / HUB_PHYSICAL_PULSE_MS;
-          const e = Math.sin(u * Math.PI);
-          physScale = 1 + (HUB_PULSE_PEAK_SCALE - 1) * e;
-        }
-      }
-
-      ctx.save();
-      ctx.setTransform(scale, 0, 0, scale, offX, offY);
-      const [cx, cy] = hub.centroid;
-      ctx.translate(cx, cy);
-      ctx.scale(physScale, physScale);
-      ctx.translate(-cx, -cy);
-
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.strokeStyle = hub.colour;
-      // Thin stroke + per-bucket transparency so the linework reads
-      // like the print: hand-drawn strokes with cream visible
-      // between them, not a solid blob. Court round-5: "the green
-      // and yellow forms don't look like their actual thin-lined
-      // svg versions with transparency between the stroke lines."
-      ctx.lineWidth = 0.35;
-
-      const k1 = TUNING.flowK1, w1 = TUNING.flowW1;
-      const k2 = TUNING.flowK2, w2 = TUNING.flowW2;
-      const a2w = TUNING.flowAmp2Weight;
-      const flowAmp = hub.flowAmp;
-      const N = hub.lines.length;
-      const t1off = w1 * t;
-      const t1offY = w1 * t * 1.3;
-      const t2off = w2 * t * 1.7;
-      const t2offY = w2 * t * 0.7;
-      const NUM_BUCKETS = 8;
-
-      for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
-        const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
-        // Per-bucket alpha: outermost strokes (depth=0) sit at 0.55,
-        // innermost at 0.30. Accumulated they read at ~70% density
-        // with cream visibly showing between adjacent strokes.
-        ctx.globalAlpha = baseAlpha * (0.30 + 0.25 * (1 - bucketDepthMid));
-        ctx.beginPath();
-        for (let li = 0; li < N; li++) {
-          const line = hub.lines[li];
-          const lineBucket = Math.min(NUM_BUCKETS - 1, Math.floor(line.depth * NUM_BUCKETS));
-          if (lineBucket !== bucket) continue;
-          if (line.path !== null) {
-            const pts = line.pts;
-            const n = line.n;
-            if (n < 2) continue;
-            ctx.moveTo(pts[0], pts[1]);
-            for (let kk = 1; kk < n; kk++) {
-              ctx.lineTo(pts[kk * 2], pts[kk * 2 + 1]);
-            }
-            continue;
-          }
-          const pts = line.pts;
-          const n = line.n;
-          if (n < 2) continue;
-          const a = flowAmp * line.dw;
-          {
-            const x = pts[0];
-            const y = pts[1];
-            const ax1 = k1 * x + t1off;
-            const ay1 = k1 * y + t1offY;
-            const ax2 = k2 * x + t2off;
-            const ay2 = k2 * y + t2offY;
-            const dx =
-              Math.sin(ax1) * Math.cos(ay1) +
-              a2w * Math.sin(ax2) * Math.cos(ay2);
-            const dy =
-              -Math.cos(ax1) * Math.sin(ay1) -
-              a2w * Math.cos(ax2) * Math.sin(ay2);
-            ctx.moveTo(x + a * dx, y + a * dy);
-          }
-          for (let kk = 1; kk < n; kk++) {
-            const x = pts[kk * 2];
-            const y = pts[kk * 2 + 1];
-            const ax1 = k1 * x + t1off;
-            const ay1 = k1 * y + t1offY;
-            const ax2 = k2 * x + t2off;
-            const ay2 = k2 * y + t2offY;
-            const dx =
-              Math.sin(ax1) * Math.cos(ay1) +
-              a2w * Math.sin(ax2) * Math.cos(ay2);
-            const dy =
-              -Math.cos(ax1) * Math.sin(ay1) -
-              a2w * Math.cos(ax2) * Math.sin(ay2);
-            ctx.lineTo(x + a * dx, y + a * dy);
-          }
-        }
-        ctx.stroke();
-      }
-      ctx.restore();
+      // baseAlpha / hub physical pulse / canvas hub-form rendering
+      // all removed — the SVG layer renders the hub polylines
+      // natively now. Court round-7: 'replace the forms with the
+      // ones being used on the current live site main branch, which
+      // are much higher definition'. The canonical 256 print
+      // polylines per hub render crisply when drawn as SVG instead
+      // of rasterised on canvas.
+      void hoveredReactor;
+      void filteredStatus;
+      void hub;
+      void t;
+      void TUNING;
 
       // Pulses
       const live: Pulse[] = [];

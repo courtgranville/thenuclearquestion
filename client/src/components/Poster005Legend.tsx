@@ -69,7 +69,7 @@ export default function Poster005Legend() {
           Legend
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-10 gap-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-10 gap-y-8">
           {/* 1. Map */}
           <Section title="The map">
             <p className="text-sm text-muted-foreground leading-snug">
@@ -196,21 +196,6 @@ export default function Poster005Legend() {
             </div>
           </Section>
 
-          {/* 4. Methodology */}
-          <Section title="Methodology">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              The data records what happened, not why. A cancelled project
-              looks the same here whether the developer walked away, the
-              government killed it, or the programme quietly lapsed —
-              those distinctions are political and economic, and they are
-              not in the underlying dataset.
-            </p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Pre-1960 reactor histories are clipped to 1960 — the print
-              starts its timeline there. Capacity values are nameplate, not
-              realised generation.
-            </p>
-          </Section>
         </div>
       </div>
     </div>
