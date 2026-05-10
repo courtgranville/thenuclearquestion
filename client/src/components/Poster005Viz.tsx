@@ -1,472 +1,116 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+// ─────────────────────────────────────────────────────────────────
+// Poster005Viz.tsx — assembly only.
+//
+// Mirrors Poster006Viz's SectionFrame composition. Sections in
+// reading order:
+//
+//   1. Hero map — full-width UK reactor map.
+//   2. Status legend — drives the global filteredStatus that every
+//      section reads.
+//   3. Status dendrogram — hubs / connectors / leaves with cross-
+//      view hover focus.
+//   4. Reactor detail panel — shows the currently hovered reactor,
+//      sourced from any of the three views.
+//   5. Three editorial callouts — "31 years", "30+ reactors",
+//      "14,141 MW" — verbatim from the print.
+//   6. Reactor timeline — full-width bars 1953→2030.
+//
+// The legend + detail panel are small persistent UI; the brief
+// flagged that we'd iterate on their exact placement. v1 puts them
+// where they're discoverable: legend at the top so it's visible
+// before the data sections, detail after the dendrogram so a hover
+// has somewhere to land.
+//
+// SectionFrame matches Poster006Viz: eyebrow + h3 (text-xl) + lead
+// (max-w-3xl Playfair) inside a `container max-w-3xl mx-auto` wrapper
+// that aligns with PosterPage's "Explore the Data" column.
+// ─────────────────────────────────────────────────────────────────
 
-/*
-  POSTER 005 - Interactive Reactor Map + Timeline Dendrogram
-  
-  Layout (per wireframe): Two separate stacked sections:
-  1. Map - UK reactor locations, filterable by status
-  2. Dendrogram - Timeline showing reactor lifespans, filterable by status
-  
-  Map filtering: targets circle[fill="COLOR"] - must handle fill-opacity=".55" circles
-  in zoom insets as well as fill-opacity="1" circles on the main map.
-  
-  Dendrogram filtering: targets BOTH:
-  - circle[fill="COLOR"] for the reactor dots at the bottom
-  - polyline[stroke="COLOR"] for the blob forms at the top (organic shapes)
-  - Also dims the filled polylines (#ece7df) in the same parent group
-*/
+import Poster005Map from '@/components/Poster005Map';
+import Poster005StatusLegend from '@/components/Poster005StatusLegend';
+import Poster005Dendrogram from '@/components/Poster005Dendrogram';
+import Poster005ReactorDetail from '@/components/Poster005ReactorDetail';
+import Poster005Callouts from '@/components/Poster005Callouts';
+import Poster005Timeline from '@/components/Poster005Timeline';
 
-const MAP_URL = "/assets/005-map_d6bf9e9f.svg";
-const DENDROGRAM_URL = "/assets/005-dendrogram-clean_336edeac.svg";
-
-interface ReactorCategory {
-  id: string;
-  name: string;
-  color: string;
-  count: number;
-  description: string;
+interface SectionFrameProps {
+  title: string;
+  lead: string;
+  children: React.ReactNode;
 }
 
-// Map categories (5 statuses on the geographic map)
-const mapCategories: ReactorCategory[] = [
-  {
-    id: "operating",
-    name: "Operating",
-    color: "#267c3e",
-    count: 3,
-    description:
-      "The remaining UK reactors still generating electricity for the grid. Most are AGRs scheduled for retirement by 2030; only Sizewell B is expected to keep running into the 2030s.",
-  },
-  {
-    id: "future",
-    name: "Planned / Under Construction",
-    color: "#b4822e",
-    count: 3,
-    description:
-      "Hinkley Point C (under construction since 2018) and Sizewell C (financed in 2025). The first new UK reactor to switch on in 35+ years is projected for the 2030s.",
-  },
-  {
-    id: "paused",
-    name: "Paused",
-    color: "#1b3967",
-    count: 1,
-    description:
-      "Construction or planning halted but not formally cancelled - sites that are technically still on the table but where no work is happening.",
-  },
-  {
-    id: "past",
-    name: "Decommissioned",
-    color: "#7d746b",
-    count: 10,
-    description:
-      "Sites where reactors have been permanently shut down and are at various stages of defuelling, dismantling, or long-term care and maintenance. Sellafield holds the largest concentration.",
-  },
-  {
-    id: "abandoned",
-    name: "Cancelled",
-    color: "#a61e23",
-    count: 2,
-    description:
-      "Sites where projects were formally cancelled before completion. The data records the cancellation event, not the reason - abandonment, government withdrawal, and developer collapse all look the same here.",
-  },
-];
-
-// Dendrogram categories (4 statuses on the timeline)
-// Blob forms use stroke colors; circles use fill colors
-const dendroCategories: ReactorCategory[] = [
-  {
-    id: "construction",
-    name: "Under Construction",
-    color: "#b4822e",
-    count: 2,
-    description:
-      "Hinkley Point C1 and C2 - bars dashed because the line is projected to target completion, not yet realised.",
-  },
-  {
-    id: "operating",
-    name: "Operating",
-    color: "#237c3e",
-    count: 9,
-    description:
-      "Reactors still running. Bars start at construction and end with an open arrow - the closure year hasn't happened yet, though most are scheduled to retire by 2030.",
-  },
-  {
-    id: "retired",
-    name: "Retired",
-    color: "#7d746a",
-    count: 36,
-    description:
-      "Reactors that operated and have since shut down. Bars span from construction start to shutdown year, showing both the build-out wave of the 1960s-80s and the absence of new starts since.",
-  },
-  {
-    id: "cancelled",
-    name: "Cancelled",
-    color: "#a51e23",
-    count: 25,
-    description:
-      "Single dot at the cancellation year. 14,141 MW of capacity announced and never built - more than twice the capacity of Britain's entire operating fleet today.",
-  },
-];
-
-// Map filter: target circles by fill color
-// All circles start visible. When a category is active, only matching fill circles stay full opacity.
-// IMPORTANT: Many circles have fill-opacity=".55" inline. We use opacity (not fill-opacity) for dimming
-// but must set it high enough that semi-transparent circles remain visible when selected.
-function getMapFilterStyle(activeColor: string | null) {
-  if (!activeColor) {
-    // Default state: no filter, all circles visible as-is
-    return ``;
-  }
-  // When filtering: dim non-matching circles, keep matching ones at full opacity
-  return `
-    circle[fill]:not([fill="none"]):not([fill="${activeColor}"]) {
-      opacity: 0.1 !important;
-      transition: opacity 0.3s ease-out;
-    }
-    circle[fill="${activeColor}"] {
-      opacity: 1 !important;
-      fill-opacity: 1 !important;
-      transition: opacity 0.3s ease-out;
-    }
-  `;
-}
-
-// Dendrogram filter: target circles by fill AND polylines by stroke
-// The blob forms are polylines with stroke=COLOR.
-// Circle structure in the dendrogram SVG:
-//   - 72 large circles (the row of dots): have opacity=".55" and fill=COLOR
-//   - 25 small timeline circles: have fill-opacity="0" and stroke=COLOR (outline only)
-// When filtering: boost matching large circles to opacity:1, dim non-matching to opacity:0.1
-// Leave the small timeline circles (fill-opacity=0) untouched.
-function getDendroFilterStyle(activeColor: string | null, allColors: string[]) {
-  if (!activeColor) {
-    // Default state: no filter, everything visible as-is
-    return ``;
-  }
-
-  // Build rules to dim non-matching large circles (those with opacity=".55")
-  const dimCircleRules = allColors
-    .filter((c) => c !== activeColor)
-    .map(
-      (c) => `
-    circle[fill="${c}"][opacity] {
-      opacity: 0.1 !important;
-      transition: opacity 0.3s ease-out;
-    }
-  `
-    )
-    .join("\n");
-
-  // Build rules to dim non-matching polylines (by stroke color)
-  const dimPolylineRules = allColors
-    .filter((c) => c !== activeColor)
-    .map(
-      (c) => `
-    polyline[stroke="${c}"] {
-      opacity: 0.1 !important;
-      transition: opacity 0.3s ease-out;
-    }
-  `
-    )
-    .join("\n");
-
-  return `
-    circle[fill="${activeColor}"][opacity] {
-      opacity: 1 !important;
-      transition: opacity 0.3s ease-out;
-    }
-    polyline[stroke="${activeColor}"] {
-      opacity: 1 !important;
-      transition: opacity 0.3s ease-out;
-    }
-    ${dimCircleRules}
-    ${dimPolylineRules}
-  `;
-}
-
-/* ─── Shared Legend Component ─── */
-function CategoryLegend({
-  categories,
-  activeCategory,
-  onCategoryClick,
-}: {
-  categories: ReactorCategory[];
-  activeCategory: string | null;
-  onCategoryClick: (id: string) => void;
-}) {
-  const activeInfo = categories.find((c) => c.id === activeCategory);
-
+function SectionFrame({ title, lead, children }: SectionFrameProps) {
   return (
-    <div className="space-y-3">
-      {/* Legend buttons */}
-      <div className="flex flex-wrap gap-2 justify-center">
-        {categories.map((cat) => {
-          const isActive = activeCategory === cat.id;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => onCategoryClick(cat.id)}
-              className={`
-                inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border text-sm
-                transition-all duration-200 cursor-pointer
-                ${
-                  isActive
-                    ? "border-current bg-current/5"
-                    : activeCategory
-                      ? "border-border/40 text-muted-foreground/50"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                }
-              `}
-              style={{
-                fontFamily: "'Playfair', Georgia, serif",
-                color: isActive ? cat.color : undefined,
-              }}
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: cat.color }}
-              />
-              {cat.name}
-              <span className="opacity-60">({cat.count})</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Info panel */}
-      {activeInfo && (
-        <div
-          className="max-w-2xl mx-auto px-4 py-3 rounded-sm border-l-2 bg-muted/30"
-          style={{ borderLeftColor: activeInfo.color }}
-        >
+    <div className="w-full">
+      <div className="container mb-10">
+        <div className="max-w-3xl mx-auto">
           <p
-            className="text-base font-medium mb-1"
-            style={{
-              fontFamily: "'Playfair', Georgia, serif",
-              color: activeInfo.color,
-            }}
-          >
-            {activeInfo.name} - {activeInfo.count} site
-            {activeInfo.count !== 1 ? "s" : ""}
-          </p>
-          <p
-            className="text-sm text-muted-foreground"
+            className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
             style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
-            {activeInfo.description}
+            Interactive Visualisation
+          </p>
+          <h3
+            className="font-serif text-xl text-foreground mb-3"
+            style={{ fontWeight: 600, lineHeight: 1.2 }}
+          >
+            {title}
+          </h3>
+          <p
+            className="text-base text-muted-foreground leading-relaxed"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            {lead}
           </p>
         </div>
-      )}
-
-      {!activeCategory && (
-        <p
-          className="text-center text-sm text-muted-foreground"
-          style={{ fontFamily: "'Playfair', Georgia, serif" }}
-        >
-          Tap a category to filter
-        </p>
-      )}
-      {activeCategory && (
-        <p
-          className="text-center text-sm text-muted-foreground"
-          style={{ fontFamily: "'Playfair', Georgia, serif" }}
-        >
-          Tap again to deselect
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* ─── Map Interactive Section ─── */
-function MapSection() {
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [svgContent, setSvgContent] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(MAP_URL)
-      .then((r) => r.text())
-      .then((text) => {
-        setSvgContent(text);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  // Apply fill-color-based filtering via injected <style>
-  useEffect(() => {
-    if (!containerRef.current || !svgContent) return;
-    const svg = containerRef.current.querySelector("svg");
-    if (!svg) return;
-
-    const activeCat = mapCategories.find((c) => c.id === activeCategory);
-    const activeColor = activeCat ? activeCat.color : null;
-
-    let styleEl = svg.querySelector(
-      "style.interactive-style"
-    ) as SVGStyleElement | null;
-    if (!styleEl) {
-      styleEl = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "style"
-      );
-      styleEl.setAttribute("class", "interactive-style");
-      svg.insertBefore(styleEl, svg.firstChild);
-    }
-    styleEl.textContent = getMapFilterStyle(activeColor);
-  }, [activeCategory, svgContent]);
-
-  const handleCategoryClick = useCallback((id: string) => {
-    setActiveCategory((prev) => (prev === id ? null : id));
-  }, []);
-
-  return (
-    <div className="w-full">
-      <p
-        className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-3"
-        style={{ fontFamily: "'Playfair', Georgia, serif" }}
-      >
-        Reactor Map
-      </p>
-
-      <div
-        className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
-        style={{ minHeight: "400px" }}
-      >
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
-              <span
-                className="text-sm text-muted-foreground"
-                style={{ fontFamily: "'Playfair', Georgia, serif" }}
-              >
-                Loading...
-              </span>
-            </div>
-          </div>
-        )}
-        <div
-          ref={containerRef}
-          className="w-full [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[85vh]"
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-        />
       </div>
-
-      <div className="mt-4">
-        <CategoryLegend
-          categories={mapCategories}
-          activeCategory={activeCategory}
-          onCategoryClick={handleCategoryClick}
-        />
+      {children}
+      <div className="container">
+        <div className="max-w-3xl mx-auto">
+          <hr className="border-border/40 my-16" />
+        </div>
       </div>
     </div>
   );
 }
 
-/* ─── Dendrogram Interactive Section ─── */
-function DendrogramSection() {
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [svgContent, setSvgContent] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const allDendroColors = dendroCategories.map((c) => c.color);
-
-  useEffect(() => {
-    setLoading(true);
-    fetch(DENDROGRAM_URL)
-      .then((r) => r.text())
-      .then((text) => {
-        setSvgContent(text);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
-
-  // Apply filtering via injected <style> - targets circles AND polylines
-  useEffect(() => {
-    if (!containerRef.current || !svgContent) return;
-    const svg = containerRef.current.querySelector("svg");
-    if (!svg) return;
-
-    const activeCat = dendroCategories.find((c) => c.id === activeCategory);
-    const activeColor = activeCat ? activeCat.color : null;
-
-    let styleEl = svg.querySelector(
-      "style.interactive-style"
-    ) as SVGStyleElement | null;
-    if (!styleEl) {
-      styleEl = document.createElementNS(
-        "http://www.w3.org/2000/svg",
-        "style"
-      );
-      styleEl.setAttribute("class", "interactive-style");
-      svg.insertBefore(styleEl, svg.firstChild);
-    }
-    styleEl.textContent = getDendroFilterStyle(activeColor, allDendroColors);
-  }, [activeCategory, svgContent, allDendroColors]);
-
-  const handleCategoryClick = useCallback((id: string) => {
-    setActiveCategory((prev) => (prev === id ? null : id));
-  }, []);
-
-  return (
-    <div className="w-full">
-      <p
-        className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-3"
-        style={{ fontFamily: "'Playfair', Georgia, serif" }}
-      >
-        Status Dendrogram & Timeline
-      </p>
-
-      <div
-        className="relative bg-[#f5f1eb]/50 rounded-sm border border-border/30 overflow-hidden"
-        style={{ minHeight: "300px" }}
-      >
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-foreground/60 rounded-full animate-spin" />
-              <span
-                className="text-sm text-muted-foreground"
-                style={{ fontFamily: "'Playfair', Georgia, serif" }}
-              >
-                Loading...
-              </span>
-            </div>
-          </div>
-        )}
-        <div
-          ref={containerRef}
-          className="w-full [&>svg]:w-full [&>svg]:h-auto [&>svg]:max-h-[85vh]"
-          dangerouslySetInnerHTML={{ __html: svgContent }}
-        />
-      </div>
-
-      <div className="mt-4">
-        <CategoryLegend
-          categories={dendroCategories}
-          activeCategory={activeCategory}
-          onCategoryClick={handleCategoryClick}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ─── Main Component ─── */
 export default function Poster005Viz() {
   return (
-    <div className="w-full space-y-12">
-      {/* Section 1: Reactor Map */}
-      <MapSection />
+    <div className="w-full">
+      <SectionFrame
+        title="The map"
+        lead="Where Britain's nuclear fleet actually sits. Three clusters — Sellafield, Wylfa, and Sizewell — account for over half of the country's reactor history; the rest are scattered along the coast. Hover any reactor to highlight it across all three views below."
+      >
+        <Poster005Map />
+      </SectionFrame>
 
-      {/* Section 2: Timeline Dendrogram */}
-      <DendrogramSection />
+      <div className="container mb-12">
+        <div className="max-w-3xl mx-auto">
+          <Poster005StatusLegend />
+        </div>
+      </div>
+
+      <SectionFrame
+        title="Every reactor, grouped by status"
+        lead="The four states a UK reactor can be in. Hubs are sized by the total capacity in each status; leaf circles below are individual units, sized by their own capacity. Click a status above to filter; hover any reactor to bring up its details."
+      >
+        <Poster005Dendrogram />
+      </SectionFrame>
+
+      <div className="container mb-12">
+        <Poster005ReactorDetail />
+      </div>
+
+      <div className="container mb-16">
+        <Poster005Callouts />
+      </div>
+
+      <SectionFrame
+        title="When each reactor was built and shut down"
+        lead="The full timeline, 1953 to 2030. Red bars are construction, green bars are operating life, dashed lines are projected commissioning, dots are cancellation years. Britain's last reactor came online in 1995 — nothing has been added since."
+      >
+        <Poster005Timeline />
+      </SectionFrame>
     </div>
   );
 }
