@@ -1,65 +1,57 @@
-import InteractiveSVG from "@/components/InteractiveSVG";
-import {
-  wasteQuantitiesConfig,
-  radiationDosesConfig,
-  wasteLocationsConfig,
-  wasteStorageConfig,
-} from "@/lib/vizConfigs";
+import Poster006WasteInversion from '@/components/Poster006WasteInversion';
+import Poster006Sellafield from '@/components/Poster006Sellafield';
+import Poster006RadiationDoses from '@/components/Poster006RadiationDoses';
+import Poster006WasteStorage from '@/components/Poster006WasteStorage';
 
-/*
-  POSTER 006 - Interactive Visualisations (Stacked Layout)
-  
-  Per wireframe, 4 sections stacked vertically:
-  1. Waste Quantities (blob chart)
-  2. Where Does Waste Come From (dendrogram / locations)
-  3. Radiation Doses (burst chart)
-  4. Waste Storage (illustrated methods)
-*/
-
-interface VizSectionProps {
+interface SectionFrameProps {
   title: string;
-  description: string;
-  config: { svgUrl: string; regions: any[] };
-  maxHeight?: string;
-  viewBoxOverride?: string;
+  lead: string;
+  children: React.ReactNode;
 }
 
-function VizSection({ title, description, config, maxHeight = "85vh", viewBoxOverride }: VizSectionProps) {
+// Uniform type scale across the four interactive subsections.
+//
+// Hierarchy on the poster page (largest → smallest):
+//   H1  "Britain's Nuclear Waste"        text-3xl / lg:text-4xl   (30 / 36 px)
+//   H2  "Explore the Data"               text-2xl                 (24 px)
+//   H3  subsection (e.g. "The Inversion") text-xl                  (20 px)
+//   ─── eyebrow / lead / body / captions in descending order ───
+function SectionFrame({ title, lead, children }: SectionFrameProps) {
+  // Wrapper matches PosterPage's "Explore the Data" block exactly:
+  //   <div className="container mb-4">
+  //     <div className="max-w-3xl mx-auto"> ... </div>
+  //   </div>
+  // The Tailwind `container` utility plus max-w-3xl mx-auto produces a
+  // single canonical column that every text block on the page snaps to.
   return (
-    <div className="w-full pb-6">
-      {/* Section heading */}
-      <div className="max-w-4xl mx-auto px-4 mb-4">
-        <p
-          className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-1.5"
-          style={{ fontFamily: "'Playfair', Georgia, serif" }}
-        >
-          Interactive Visualisation
-        </p>
-        <h3
-          className="font-serif text-xl lg:text-2xl text-foreground mb-2"
-          style={{ fontWeight: 600 }}
-        >
-          {title}
-        </h3>
-        <p
-          className="text-base text-muted-foreground leading-relaxed"
-          style={{ fontFamily: "'Playfair', Georgia, serif" }}
-        >
-          {description}
-        </p>
+    <div className="w-full">
+      <div className="container mb-10">
+        <div className="max-w-3xl mx-auto">
+          <p
+            className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            Interactive Visualisation
+          </p>
+          <h3
+            className="font-serif text-xl text-foreground mb-3"
+            style={{ fontWeight: 600, lineHeight: 1.2 }}
+          >
+            {title}
+          </h3>
+          <p
+            className="text-base text-muted-foreground leading-relaxed"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            {lead}
+          </p>
+        </div>
       </div>
-
-      {/* Interactive SVG */}
-      <InteractiveSVG
-        svgUrl={config.svgUrl}
-        regions={config.regions}
-        maxHeight={maxHeight}
-        viewBoxOverride={viewBoxOverride}
-      />
-
-      {/* Subtle divider */}
-      <div className="max-w-4xl mx-auto px-4 mt-8">
-        <hr className="border-border/40" />
+      {children}
+      <div className="container">
+        <div className="max-w-3xl mx-auto">
+          <hr className="border-border/40 my-16" />
+        </div>
       </div>
     </div>
   );
@@ -67,36 +59,34 @@ function VizSection({ title, description, config, maxHeight = "85vh", viewBoxOve
 
 export default function Poster006Viz() {
   return (
-    <div className="w-full space-y-8">
-      {/* 1. Waste Quantities */}
-      <VizSection
-        title="Waste Quantities"
-        description="The UK has produced approximately 4.45 million cubic metres of radioactive waste. The forms below are scaled proportionally to volume - yet the smallest contains almost all of the radioactivity."
-        config={wasteQuantitiesConfig}
-      />
+    <div className="w-full">
+      <SectionFrame
+        title="The Inversion"
+        lead="The four categories of UK radioactive waste, scaled two ways. Toggle between physical volume and radioactivity. The smallest physical volume holds almost all of the radioactivity — this is the editorial fact this page is built around."
+      >
+        <Poster006WasteInversion />
+      </SectionFrame>
 
-      {/* 2. Where Does Waste Come From (Dendrogram / Locations) */}
-      <VizSection
-        title="Where Does Waste Come From?"
-        description="Where Britain's radioactive waste is stored. Circle sizes are proportional to volume - Sellafield holds over 72% of the total."
-        config={wasteLocationsConfig}
-        viewBoxOverride="200 120 1100 830"
-      />
+      <SectionFrame
+        title="Sellafield"
+        lead="Where Britain's radioactive waste actually sits. Hover any producer to focus it. Sellafield holds 72.4% of the total volume and the bulk of the cleanup bill."
+      >
+        <Poster006Sellafield />
+      </SectionFrame>
 
-      {/* 3. Radiation Doses */}
-      <VizSection
+      <SectionFrame
         title="Radiation Doses"
-        description="Comparing common radiation doses from everyday activities and nuclear waste. Each burst is scaled to the dose - the largest is a CT scan at 10 mSv."
-        config={radiationDosesConfig}
-        viewBoxOverride="350 300 750 650"
-      />
+        lead="Common radiation doses on a logarithmic scale, from a UK reactor's annual contribution to a CT scan. Hover any form to replay its burst."
+      >
+        <Poster006RadiationDoses />
+      </SectionFrame>
 
-      {/* 4. Waste Storage */}
-      <VizSection
-        title="Waste Storage"
-        description="The four main disposal and storage routes for the UK's radioactive waste, from landfill for the lowest-activity materials to deep geological disposal for the most hazardous."
-        config={wasteStorageConfig}
-      />
+      <SectionFrame
+        title="Storage"
+        lead="The four routes UK radioactive waste takes for storage and disposal. Hover for which waste types each route handles."
+      >
+        <Poster006WasteStorage />
+      </SectionFrame>
     </div>
   );
 }
