@@ -71,6 +71,16 @@ function injectStyleOnce() {
     .poster005-map circle[data-unit].is-dimmed {
       opacity: 0.04;
     }
+    /* Future / planned project markers — print bakes them in but
+       they aren't in REACTORS data. They follow the same dim rules
+       as the regular project circles but never receive hover focus
+       (no data-unit, no detail panel). */
+    .poster005-map circle.is-future-marker {
+      transition: opacity 160ms ease-out;
+    }
+    .poster005-map circle.is-future-marker.is-dimmed {
+      opacity: 0.04;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -181,6 +191,17 @@ export default function Poster005Map() {
           // not respond to hover. Walk all small circles and stamp
           // by nearest reactor within a tolerance.
           const annotated = new Set<SVGCircleElement>();
+          // Fill colour → status mapping (the print's exact fills).
+          const FILL_TO_PHASE: Record<string, ReactorStatus> = {
+            '#267c3e': 'operating',
+            '#7d746b': 'retired',
+            '#a61e23': 'cancelled',
+            '#b4822e': 'underConstruction',
+            // Tolerate the slightly-different historic shades too.
+            '#237c3e': 'operating',
+            '#7d746a': 'retired',
+            '#a51e23': 'cancelled',
+          };
           svg.querySelectorAll<SVGCircleElement>('circle').forEach((c) => {
             if (c.getAttribute('data-unit')) {
               annotated.add(c);
@@ -199,11 +220,10 @@ export default function Poster005Map() {
               if (d < bestD) { bestD = d; best = rr; }
             }
             // Tolerance: 14 SVG units. Above this we assume the
-            // circle is decorative rather than a project marker.
+            // circle is either a duplicate of a known reactor (very
+            // rare) or a 'Future' / 'Planned' project that's drawn
+            // on the print but not in the typed manifest.
             if (best && bestD < 14) {
-              // Collect every unit name that shares this project
-              // (mapX/mapY are project-level, so multi-unit sites
-              // are represented by one circle in the print).
               const units = REACTORS
                 .filter((r2) =>
                   r2.mapX !== null && r2.mapY !== null &&
@@ -213,6 +233,21 @@ export default function Poster005Map() {
               c.setAttribute('data-unit', units.join(','));
               c.setAttribute('data-phase', best.status);
               annotated.add(c);
+              return;
+            }
+            // No close reactor — but the print SVG bakes some
+            // 'Future' project markers (Llynfi, a separate Sizewell
+            // Future site) that aren't in REACTORS data. These
+            // would otherwise stay at full opacity while everything
+            // else dims. Tag them with data-phase from their fill
+            // colour + a marker class so the dim logic includes
+            // them. No data-unit so they don't intercept the
+            // cross-view hover pipeline.
+            const fill = (c.getAttribute('fill') ?? '').trim().toLowerCase();
+            const phase = FILL_TO_PHASE[fill];
+            if (phase) {
+              c.setAttribute('data-phase', phase);
+              c.classList.add('is-future-marker');
             }
           });
           svg.setAttribute('width', '100%');
@@ -287,17 +322,8 @@ export default function Poster005Map() {
       circles.forEach((c) => {
         const units = (c.getAttribute('data-unit') ?? '').split(',').map((s) => s.trim());
         const phase = c.getAttribute('data-phase');
-        // data-unit identity only. The previous site-level OR fallback
-        // lit up the Hinkley Point Future circle when a Hinkley Point
-        // retired unit was hovered, which is the bug.
         const matchesHovered = hoveredR ? units.includes(hoveredR.id) : false;
         const matchesFilter = filteredStatus === null || phase === filteredStatus;
-        // Composition:
-        //   - hover overrides filter (hovered circle is focused; rest dim)
-        //   - filter without hover: matching circles pop via
-        //     is-filter-match (fill-opacity 1 / stroke 1); non-matching
-        //     dim heavily
-        //   - default: everything at print's native fill-opacity
         const isFocused = matchesHovered;
         const isFilterMatch =
           hoveredR === null && filteredStatus !== null && matchesFilter;
@@ -306,6 +332,20 @@ export default function Poster005Map() {
           : (filteredStatus !== null && !matchesFilter);
         c.classList.toggle('is-focused', isFocused);
         c.classList.toggle('is-filter-match', isFilterMatch);
+        c.classList.toggle('is-dimmed', isDimmed);
+      });
+      // Future / planned project markers — same dim logic by phase,
+      // but never focused (no data-unit, no hover interaction).
+      const futures = container.querySelectorAll<SVGCircleElement>('circle.is-future-marker');
+      futures.forEach((c) => {
+        const phase = c.getAttribute('data-phase') as ReactorStatus | null;
+        const matchesPhase = phase !== null && hoveredR !== null && hoveredR.status === phase;
+        const matchesFilter = filteredStatus === null || phase === filteredStatus;
+        // Dim if there's any hover that doesn't match this marker's
+        // phase, or any filter that doesn't match it.
+        const isDimmed = hoveredR
+          ? !matchesPhase
+          : (filteredStatus !== null && !matchesFilter);
         c.classList.toggle('is-dimmed', isDimmed);
       });
     };
