@@ -141,12 +141,16 @@ export default function Poster005Dendrogram() {
           svg.removeAttribute('height');
           svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
           svg.setAttribute('style', 'display:block;width:100%;height:auto;');
-          // Crop the source viewBox to the dendrogram region only —
-          // hubs (y=344..467), connectors (y=422..594), leaves
-          // (y=800.993 ± leaf radius). The timeline portion below
-          // (y=835..993) is now rendered as a separate section by
-          // Poster005Timeline, so we don't show it here too.
-          svg.setAttribute('viewBox', '0 320 1694.98 510');
+          // Crop the source viewBox to the dendrogram region only.
+          // y-bounds inside the source:
+          //   status labels (outlined paths):  y ≈ 313..324
+          //   hubs (256 polylines per status): y =  344..467
+          //   connectors (Bézier paths):       y =  422..594
+          //   leaf circles (loose):            y =  800.993 ± r
+          //   timeline bars + gridlines:       y =  835..993  ← excluded
+          // Starting at y=305 leaves a sliver of headroom above the
+          // labels so descenders aren't clipped at full-width scale.
+          svg.setAttribute('viewBox', '0 305 1694.98 520');
         }
         setSvgMarkup(new XMLSerializer().serializeToString(svg ?? doc.documentElement));
       }
