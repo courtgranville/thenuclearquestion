@@ -249,20 +249,35 @@ export default function Poster005Dendrogram() {
             'display:block;width:100%;height:auto;position:relative;z-index:2;',
           );
 
-          // Strip the hub polylines — anything with stroke matching the
-          // 4 status hub-stroke colours (note: SVG uses the OLD hex
-          // values #a51e23 / #7d746a / #237c3e — we now render via
-          // canvas with the canonical map fill values).
+          // Strip ALL hub-form polylines. The print's hubs are
+          // composed of TWO interleaved sets of 256 polylines each:
+          //   - status-coloured stroke, fill="none" — the outlines
+          //   - fill="#ece7df" (cream/background), no stroke — the
+          //     between-line fills that produce the linework look
+          // Removing only the stroked set leaves the cream-fill set
+          // behind, which collectively forms a faint grey silhouette
+          // through anti-aliasing on the page's cream background
+          // (Court's screenshot: "the dendrogram forms are pretty
+          // broken"). The canvas overlay owns the visual now, so
+          // both sets must come out.
           const HUB_STROKES = new Set([
             '#a51e23',
             '#7d746a',
             '#237c3e',
             '#b4822e',
-            // Defensive: also catch any whitespace / case variation.
           ]);
           svg.querySelectorAll('polyline').forEach((p) => {
             const stroke = (p.getAttribute('stroke') ?? '').trim().toLowerCase();
-            if (HUB_STROKES.has(stroke)) p.remove();
+            const fill = (p.getAttribute('fill') ?? '').trim().toLowerCase();
+            if (HUB_STROKES.has(stroke)) {
+              p.remove();
+              return;
+            }
+            // Cream/background fill polylines are exclusively used as
+            // the hub-form between-line fills — strip them too.
+            if (fill === '#ece7df') {
+              p.remove();
+            }
           });
         }
         setSvgMarkup(new XMLSerializer().serializeToString(svg ?? doc.documentElement));
