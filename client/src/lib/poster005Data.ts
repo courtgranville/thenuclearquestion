@@ -153,14 +153,18 @@ export const STATUS_LABEL: Record<ReactorStatus, string> = {
   cancelled:         'Cancelled',
 };
 
-/** Print colour palette per status. These match both the dendrogram
- *  hub polylines' stroke and the timeline bar colours; the page UI
- *  uses them for legend chips, leaf circles, and hover callouts. */
+/** Print colour palette per status. These are the EXACT fill hex
+ *  values used by the map circles in 005-map_d6bf9e9f.svg and the
+ *  hub fills in 005-dendrogram-clean_336edeac.svg — the page UI
+ *  must match the print verbatim, so the legend chips, leaf circles,
+ *  hover callouts, tooltip accents, and canvas hub strokes all
+ *  resolve to these values rather than the visually-similar
+ *  #237c3e / #7d746a / #a51e23 set we were using before. */
 export const STATUS_COLOUR: Record<ReactorStatus, string> = {
   underConstruction: '#b4822e',
-  operating:         '#237c3e',
-  retired:           '#7d746a',
-  cancelled:         '#a51e23',
+  operating:         '#267c3e',
+  retired:           '#7d746b',
+  cancelled:         '#a61e23',
 };
 
 export const REACTORS: Reactor[] = [

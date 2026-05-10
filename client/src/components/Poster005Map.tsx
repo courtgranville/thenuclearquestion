@@ -38,19 +38,32 @@ function injectStyleOnce() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (document as any)[CSS_INJECTED_KEY] = true;
   const style = document.createElement('style');
+  // Circles in the print SVG have fill-opacity 0.55 (past) or 1.0
+  // (operating). On hover/filter focus we want the circle to read as
+  // unambiguously selected — bumping fill-opacity to 1.0 makes the
+  // print's muted tones pop, and the 1.6× scale puts physical weight
+  // behind the focus. On dim we drop ALL the way to 0.08 so the
+  // filtered group reads as the sole carrier of meaning.
   style.textContent = `
     .poster005-map circle[data-unit] {
       transform-box: fill-box;
       transform-origin: center;
-      transition: transform 120ms ease-out, opacity 150ms ease-out;
+      transition: transform 140ms ease-out, opacity 160ms ease-out,
+                  fill-opacity 160ms ease-out, stroke-width 140ms ease-out;
       cursor: pointer;
-      will-change: transform, opacity;
+      will-change: transform, opacity, fill-opacity;
     }
     .poster005-map circle[data-unit].is-focused {
       transform: scale(1.6);
+      fill-opacity: 1 !important;
+      stroke-width: 1.25 !important;
+    }
+    .poster005-map circle[data-unit].is-filter-match {
+      fill-opacity: 1 !important;
+      stroke-width: 1 !important;
     }
     .poster005-map circle[data-unit].is-dimmed {
-      opacity: 0.18;
+      opacity: 0.08;
     }
   `;
   document.head.appendChild(style);
@@ -157,20 +170,25 @@ export default function Poster005Map() {
       circles.forEach((c) => {
         const units = (c.getAttribute('data-unit') ?? '').split(',').map((s) => s.trim());
         const phase = c.getAttribute('data-phase');
-        // data-unit identity only. The previous site-level OR
-        // fallback lit up the Hinkley Point Future circle when a
-        // Hinkley Point retired unit was hovered, which is the bug.
-        // Cross-view brushing already works on per-unit identity.
+        // data-unit identity only. The previous site-level OR fallback
+        // lit up the Hinkley Point Future circle when a Hinkley Point
+        // retired unit was hovered, which is the bug.
         const matchesHovered = hoveredR ? units.includes(hoveredR.id) : false;
-        const matchesFilter = filteredStatus === null || phase === filteredStatus || phase === 'mixed';
-        // composition: hover overrides filter. If anything is hovered,
-        // focus the matching circle and dim everything else; otherwise
-        // dim non-matching when a filter is active.
+        const matchesFilter = filteredStatus === null || phase === filteredStatus;
+        // Composition:
+        //   - hover overrides filter (hovered circle is focused; rest dim)
+        //   - filter without hover: matching circles pop via
+        //     is-filter-match (fill-opacity 1 / stroke 1); non-matching
+        //     dim heavily
+        //   - default: everything at print's native fill-opacity
         const isFocused = matchesHovered;
+        const isFilterMatch =
+          hoveredR === null && filteredStatus !== null && matchesFilter;
         const isDimmed = hoveredR
           ? !matchesHovered
           : (filteredStatus !== null && !matchesFilter);
         c.classList.toggle('is-focused', isFocused);
+        c.classList.toggle('is-filter-match', isFilterMatch);
         c.classList.toggle('is-dimmed', isDimmed);
       });
     };
