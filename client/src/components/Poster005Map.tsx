@@ -162,14 +162,17 @@ export default function Poster005Map() {
         const doc = parser.parseFromString(xhr.responseText, 'image/svg+xml');
         const svg = doc.querySelector('svg');
         if (svg) {
-          // Crop the viewBox to remove the empty cream space below
-          // the UK shape and on the right (the source viewBox is
-          // 1694.98 × 1330.76 but actual content fits in x=0..1290
-          // y=0..985). We add 30 SVG units of left padding so the
-          // content is visually centred inside the cropped viewBox
-          // rather than left-anchored — content midpoint = 645,
-          // viewBox midpoint = 660, ~15-unit visual offset.
-          svg.setAttribute('viewBox', '-30 0 1350 985');
+          // Crop the viewBox to remove the empty cream space on the
+          // right while keeping the full UK coastline (which has
+          // content down to y≈1050 — the southern coast of England
+          // and surrounding margins). Source SVG viewBox is
+          // 1694.98 × 1330.76; we narrow to roughly the inked area.
+          // Horizontal centring: the UK + insets sit in x=0..1290
+          // (width 1290) but we extend the viewBox to 1340 with 25
+          // SVG units of left padding so the content sits visually
+          // balanced — content midpoint = 645, viewBox midpoint =
+          // 645 (when xMin = -25, w = 1340).
+          svg.setAttribute('viewBox', '-25 0 1340 1050');
 
           // Stamp any unstamped reactor circles by proximity to a
           // known reactor's project map position. The build-time
