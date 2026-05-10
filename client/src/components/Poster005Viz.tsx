@@ -100,9 +100,26 @@ export default function Poster005Viz() {
 
       <SectionFrame
         title="When each reactor was built and shut down"
-        lead="The full timeline, 1953 to 2030. Red bars are construction, green bars are operating life, dashed lines are projected commissioning, dots are cancellation years. Britain's last reactor came online in 1995 — nothing has been added since."
+        lead="The full timeline, 1960 to 2030. Red is construction, green is operating life, navy is projected commissioning under-construction, grey hollow circles mark cancellations. Britain's last reactor came online in 1995 — nothing has been added since."
       >
         <Poster005Timeline />
+        {/* Print legend — explains how to read all the data
+            visualisations on the page. Court is preparing legend
+            SVGs for the other posters; we'll repeat this pattern. */}
+        <div className="w-full max-w-3xl mx-auto px-4 mt-10">
+          <p
+            className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-3 text-center"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            How to read these
+          </p>
+          <img
+            src="/assets/005-legend.svg"
+            alt="Legend explaining how to read the map, dendrogram and timeline"
+            className="w-full h-auto block mx-auto"
+            style={{ maxWidth: 720 }}
+          />
+        </div>
       </SectionFrame>
     </div>
   );

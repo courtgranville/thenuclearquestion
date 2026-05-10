@@ -60,10 +60,24 @@ import {
 
 const DENDRO_URL = '/assets/005-dendrogram-clean_336edeac.svg';
 
-// SVG-unit y range to include per quadrant. Top is just above the
-// status label (y≈313), bottom is just below the leaf row (y=800.993).
-const QUAD_VIEW_Y_TOP = 305;
+// SVG-unit y range to include per quadrant. Hub-form top is around
+// y=345 (the smallest hub bbox top is retired/cancelled at y=345);
+// leaf row at y=800.993. Plus a bit of padding above the hub and
+// below the leaves.
+const QUAD_VIEW_Y_TOP = 335;
 const QUAD_VIEW_Y_BOTTOM = 815;
+const QUAD_VIEW_H = QUAD_VIEW_Y_BOTTOM - QUAD_VIEW_Y_TOP;
+
+// Width (in SVG units) every quadrant uses. The widest content is
+// the retired-status leaf spread of ~590 units; we add padding so
+// the leaves don't sit at the edge. Critically, using the SAME
+// width for every quadrant means preserveAspectRatio gives every
+// quadrant the SAME SVG-to-pixel scale. Hub forms therefore render
+// at their print-proportional sizes — yellow (UC) small, grey
+// (retired) and red (cancelled) larger — matching Court's brief
+// that "yellow forms/circles should not be taller than the grey
+// ones - like in the original poster".
+const QUAD_VIEW_W = 660;
 
 // CSS class registry — one keyed style per quadrant.
 const CSS_INJECTED_KEY = '__poster005_quadrant_css_v1';
@@ -287,22 +301,17 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         }
       });
 
-      // Compute the cropped viewBox: a small padding around the kept
-      // content. X spans from min(hub bbox minX, leaf x minus padding)
-      // to max(hub bbox maxX, leaf x plus padding).
-      const padX = 16;
-      const padY = 6;
-      const allXs: number[] = [
-        hub.bbox.minX,
-        hub.bbox.maxX,
-        ...myLeafXs,
-      ];
-      const xMin = Math.min(...allXs) - padX;
-      const xMax = Math.max(...allXs) + padX;
-      const yMin = QUAD_VIEW_Y_TOP - padY;
-      const yMax = QUAD_VIEW_Y_BOTTOM + padY;
-
-      svg.setAttribute('viewBox', `${xMin} ${yMin} ${xMax - xMin} ${yMax - yMin}`);
+      // Unified viewBox: same width (QUAD_VIEW_W) and same height
+      // (QUAD_VIEW_H) for every quadrant, centred on this hub's
+      // anchor x. Smaller fleets (UC, operating) get whitespace
+      // around their narrow content; larger fleets (retired,
+      // cancelled) fit exactly. Critically the SVG-to-pixel scale
+      // is identical across quadrants, so the hubs render at their
+      // print-proportional sizes.
+      const xCenter = hubAnchor[0];
+      const xMin = xCenter - QUAD_VIEW_W / 2;
+      const yMin = QUAD_VIEW_Y_TOP;
+      svg.setAttribute('viewBox', `${xMin} ${yMin} ${QUAD_VIEW_W} ${QUAD_VIEW_H}`);
       svg.setAttribute('width', '100%');
       svg.removeAttribute('height');
       svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -311,7 +320,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         'display:block;width:100%;height:100%;position:absolute;inset:0;z-index:2;',
       );
 
-      setViewBox({ x: xMin, y: yMin, w: xMax - xMin, h: yMax - yMin });
+      setViewBox({ x: xMin, y: yMin, w: QUAD_VIEW_W, h: QUAD_VIEW_H });
       setSvgMarkup(new XMLSerializer().serializeToString(svg));
     };
     xhr.send();

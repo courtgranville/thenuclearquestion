@@ -231,10 +231,6 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
     const cy = r.cancellationYear;
     if (cy !== null) {
       const yc = yearToY(clipYear(cy)!);
-      // Cancelled reactors that had project construction get a thin
-      // red line from project start → cancellation year. Most
-      // cancellations never broke ground (s === null) so just the
-      // dot renders.
       const s = clipYear(r.constructionStart);
       if (s !== null && s < cy) {
         const y0 = yearToY(s);
@@ -247,18 +243,57 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
             strokeLinecap="round" />,
         );
       }
+      // Cancelled dot — GREY HOLLOW circle, matching the print.
+      // (My earlier red-filled dot didn't match Court's design.)
       segments.push(
         <circle key="cancel-dot" className="cancel-dot"
-          cx={x} cy={yc} r={4} fill={STROKE_CONSTRUCTION} />,
+          cx={x} cy={yc} r={4.5}
+          fill="none"
+          stroke={STATUS_COLOUR.retired}
+          strokeWidth={1.4} />,
       );
     }
   }
 
-  // Invisible hit-target spans the full year axis for the column.
+  // Tight hit-target: hugs the actual ink instead of the full
+  // column × plot height. Computed from the visible y-range only.
+  let hitY0 = plotBottom;
+  let hitY1 = plotTop;
+  if (r.status === 'retired' || r.status === 'operating') {
+    const s = clipYear(r.constructionStart);
+    const e = clipYear(r.status === 'retired' ? r.shutdown : YEAR_MAX);
+    if (s !== null) hitY0 = Math.min(hitY0, yearToY(s));
+    if (e !== null) hitY1 = Math.max(hitY1, yearToY(e));
+  } else if (r.status === 'underConstruction') {
+    const s = clipYear(r.constructionStart);
+    const e = clipYear(r.commercialOperation ?? YEAR_MAX);
+    if (s !== null) hitY0 = Math.min(hitY0, yearToY(s));
+    if (e !== null) hitY1 = Math.max(hitY1, yearToY(e));
+  } else if (r.status === 'cancelled') {
+    const cy = r.cancellationYear;
+    const s = clipYear(r.constructionStart);
+    if (cy !== null) {
+      if (s !== null && s < cy) {
+        hitY0 = Math.min(hitY0, yearToY(s));
+      } else {
+        // Dot only — give the hit-target a small symmetric padding
+        // around the dot rather than zero-height.
+        hitY0 = yearToY(clipYear(cy)!) - 7;
+      }
+      hitY1 = Math.max(hitY1, yearToY(clipYear(cy)!) + 7);
+    }
+  }
+  // Safety: never zero-height.
+  if (hitY1 <= hitY0) {
+    const mid = (hitY0 + hitY1) / 2;
+    hitY0 = mid - 6;
+    hitY1 = mid + 6;
+  }
+  const HIT_W = 12;
   const hitTarget = (
     <rect key="hit" className="hit-target"
-      x={x - COL_W / 2} y={plotTop}
-      width={COL_W} height={plotBottom - plotTop} />
+      x={x - HIT_W / 2} y={hitY0}
+      width={HIT_W} height={hitY1 - hitY0} />
   );
 
   return (
