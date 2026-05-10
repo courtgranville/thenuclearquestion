@@ -243,18 +243,18 @@ export default function Poster005Dendrogram() {
 
     const apply = (filteredStatus: ReactorStatus | null, hoveredId: string | null) => {
       const hoveredR = hoveredId ? REACTOR_BY_ID[hoveredId] : null;
-      const hoveredSite = hoveredR?.site ?? null;
 
       const leaves = container.querySelectorAll<SVGCircleElement>('circle[data-unit]');
       leaves.forEach((c) => {
         const unitId = c.getAttribute('data-unit') ?? '';
         const r = REACTOR_BY_ID[unitId];
         if (!r) return;
-        const matchesHover = hoveredR
-          ? r.id === hoveredR.id || (hoveredSite && r.site === hoveredSite)
-          : false;
+        // Per-unit identity only (no site-level fallback). Cross-view
+        // brushing across map / dendrogram / timeline runs on the
+        // exact data-unit string.
+        const matchesHover = hoveredR ? r.id === hoveredR.id : false;
         const matchesFilter = filteredStatus === null || r.status === filteredStatus;
-        const isFocused = !!matchesHover;
+        const isFocused = matchesHover;
         const isDimmed = hoveredR ? !matchesHover : (filteredStatus !== null && !matchesFilter);
         c.classList.toggle('is-focused', isFocused);
         c.classList.toggle('is-dimmed', isDimmed);
@@ -267,9 +267,7 @@ export default function Poster005Dendrogram() {
         const rowId = g.id;
         const r = REACTORS.find((x) => x.rowId === rowId);
         if (!r) return;
-        const matchesHover = hoveredR
-          ? r.id === hoveredR.id || (hoveredSite && r.site === hoveredSite)
-          : false;
+        const matchesHover = hoveredR ? r.id === hoveredR.id : false;
         const matchesFilter = filteredStatus === null || r.status === filteredStatus;
         const isDimmed = hoveredR ? !matchesHover : (filteredStatus !== null && !matchesFilter);
         g.classList.toggle('is-dimmed', isDimmed);

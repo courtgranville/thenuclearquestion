@@ -181,15 +181,14 @@ export default function Poster005Timeline() {
 
     const apply = (filteredStatus: ReactorStatus | null, hoveredId: string | null) => {
       const hoveredR = hoveredId ? REACTOR_BY_ID[hoveredId] : null;
-      const hoveredSite = hoveredR?.site ?? null;
       const groups = container.querySelectorAll<SVGGElement>('g[data-unit]');
       groups.forEach((g) => {
         const id = g.getAttribute('data-unit') ?? '';
         const r = REACTOR_BY_ID[id];
         if (!r) return;
-        const matchesHover = hoveredR
-          ? r.id === hoveredR.id || (hoveredSite && r.site === hoveredSite)
-          : false;
+        // Per-unit identity only. See Poster005Map for the bug
+        // this replaces.
+        const matchesHover = hoveredR ? r.id === hoveredR.id : false;
         const matchesFilter = filteredStatus === null || r.status === filteredStatus;
         const isFocused = !!matchesHover;
         const isDimmed = hoveredR ? !matchesHover : (filteredStatus !== null && !matchesFilter);

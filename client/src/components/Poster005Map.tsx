@@ -152,18 +152,15 @@ export default function Poster005Map() {
 
     const applyState = (filteredStatus: ReactorStatus | null, hoveredId: string | null) => {
       const hoveredR = hoveredId ? REACTOR_BY_ID[hoveredId] : null;
-      const hoveredSite = hoveredR?.site ?? null;
       const circles = container.querySelectorAll<SVGCircleElement>('circle[data-unit]');
       circles.forEach((c) => {
         const units = (c.getAttribute('data-unit') ?? '').split(',').map((s) => s.trim());
         const phase = c.getAttribute('data-phase');
-        const matchesHovered = hoveredR
-          ? units.includes(hoveredR.id) ||
-            (hoveredSite !== null && units.some((u) => {
-              const ru = REACTOR_BY_ID[u];
-              return ru && ru.site === hoveredSite;
-            }))
-          : false;
+        // data-unit identity only. The previous site-level OR
+        // fallback lit up the Hinkley Point Future circle when a
+        // Hinkley Point retired unit was hovered, which is the bug.
+        // Cross-view brushing already works on per-unit identity.
+        const matchesHovered = hoveredR ? units.includes(hoveredR.id) : false;
         const matchesFilter = filteredStatus === null || phase === filteredStatus || phase === 'mixed';
         // composition: hover overrides filter. If anything is hovered,
         // focus the matching circle and dim everything else; otherwise
