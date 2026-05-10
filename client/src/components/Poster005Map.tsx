@@ -162,17 +162,16 @@ export default function Poster005Map() {
         const doc = parser.parseFromString(xhr.responseText, 'image/svg+xml');
         const svg = doc.querySelector('svg');
         if (svg) {
-          // Crop the viewBox to remove empty cream space on the
-          // right while keeping the full UK coastline (down to
-          // y≈1050) and the inset zoom circles. Horizontal centring
-          // is tricky because the inked area's centre of mass sits
-          // at x≈802 (two insets on the left + UK body + one inset
-          // on the right tip extending to x=1285). The viewBox
-          // centres on that ink-midpoint, not the geometric SVG
-          // midpoint, so the map reads as horizontally centred on
-          // the page. Court round-9: 'map still not showing up as
-          // center... move it to the left a bit'.
-          svg.setAttribute('viewBox', '132 0 1340 1050');
+          // Crop the viewBox so the actual ink is visually centred
+          // both horizontally and vertically. The rendered ink's
+          // centre of mass sits at x≈802 (two left insets + UK
+          // body + one right inset) and y≈650 (most map area lives
+          // in y=400..900). Geometric SVG centring would leave
+          // empty space above the UK; this viewBox centres on the
+          // ink midpoint instead.
+          //   x: midpoint 132 + 1340/2 = 802  (matches ink centre)
+          //   y: midpoint 125 + 1050/2 = 650  (matches ink centre)
+          svg.setAttribute('viewBox', '132 125 1340 1050');
 
           // Stamp any unstamped reactor circles by proximity to a
           // known reactor's project map position. The build-time

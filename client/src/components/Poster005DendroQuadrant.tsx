@@ -120,10 +120,20 @@ function injectStyleOnce() {
     .poster005-quadrant svg polyline {
       transition: opacity 180ms ease-out;
     }
-    .poster005-quadrant[data-any-hover="true"] svg path,
+    /* Court round-11: when hovering a leaf, the hub form (polylines)
+       must STAY visible, and the connector chain from form → focused
+       leaf must also stay visible. Only OTHER connectors and OTHER
+       leaves dim.
+         - polylines (hub form): NOT dimmed by data-any-hover.
+         - path[data-reactor*=ID]: kept visible via a sibling
+           [data-hovered-id=ID] attribute on the quadrant. Other
+           paths drop to 0.06. */
+    .poster005-quadrant[data-any-hover="true"] svg path {
+      opacity: 0.06;
+      transition: opacity 160ms ease-out;
+    }
     .poster005-quadrant[data-any-hover="true"] svg text,
-    .poster005-quadrant[data-any-hover="true"] svg line,
-    .poster005-quadrant[data-any-hover="true"] svg polyline {
+    .poster005-quadrant[data-any-hover="true"] svg line {
       opacity: 0.06;
       transition: opacity 160ms ease-out;
     }
@@ -342,23 +352,59 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       const startsAtOwnSubHub = (sx: number, sy: number): boolean =>
         ownSubHubs.some((sh) => Math.abs(sh.x - sx) < 1 && Math.abs(sh.y - sy) < 1);
 
-      // Pass 2: drop paths that don't belong to this status.
+      // Pass 2: drop paths that don't belong to this status, and
+      // stamp the kept paths with which reactor(s) they serve so
+      // hover dim can keep the chain hub → sub-hub → focused leaf
+      // visible while dimming the rest.
+      const leafByX = new Map<number, string>();
+      for (const leaf of LEAVES_BY_STATUS[status]) {
+        leafByX.set(Math.round(leaf.x * 100) / 100, leaf.reactorId);
+      }
+      const level1ReactorsBySubhub = new Map<string, string[]>();
+      // First find level-2 paths that survive and record which
+      // reactor each one serves; group by their start (sub-hub key)
+      // so level-1 paths can later be stamped with the reactors
+      // reachable through them.
+      for (const info of allPathInfo) {
+        const isLevel2 = Math.abs(info.sy - 594.329) < 1;
+        if (!isLevel2) continue;
+        const matchesLeafX = myLeafXs.some((lx) => Math.abs(info.ex - lx) < 1.5);
+        if (!startsAtOwnSubHub(info.sx, info.sy) || !matchesLeafX) continue;
+        // Find which reactor this serves (closest leaf x).
+        let bestId: string | null = null;
+        let bestD = Infinity;
+        for (const leaf of LEAVES_BY_STATUS[status]) {
+          const d = Math.abs(leaf.x - info.ex);
+          if (d < bestD) { bestD = d; bestId = leaf.reactorId; }
+        }
+        if (!bestId) continue;
+        info.el.setAttribute('data-reactor', bestId);
+        const subKey = `${info.sx.toFixed(2)},${info.sy.toFixed(2)}`;
+        const arr = level1ReactorsBySubhub.get(subKey) ?? [];
+        arr.push(bestId);
+        level1ReactorsBySubhub.set(subKey, arr);
+      }
       for (const info of allPathInfo) {
         const isLevel1 = Math.abs(info.sy - 422.366) < 1;
         const isLevel2 = Math.abs(info.sy - 594.329) < 1;
         if (isLevel1) {
           if (!(Math.abs(info.sx - ANCHOR_X) < 1 && Math.abs(info.sy - ANCHOR_Y) < 1)) {
             info.el.remove();
+            continue;
           }
+          // Stamp with all reactors reachable via this level-1.
+          const subKey = `${info.ex.toFixed(2)},${info.ey.toFixed(2)}`;
+          const reactors = level1ReactorsBySubhub.get(subKey) ?? [];
+          if (reactors.length === 0) continue;
+          info.el.setAttribute('data-reactor', reactors.join(','));
         } else if (isLevel2) {
-          // BOTH start at one of this hub's sub-hubs AND end at one
-          // of this status's leaves.
-          const matchesLeafX = myLeafXs.some((lx) => Math.abs(info.ex - lx) < 1.5);
-          if (!startsAtOwnSubHub(info.sx, info.sy) || !matchesLeafX) {
+          // Already stamped above; drop unstamped ones.
+          if (!info.el.hasAttribute('data-reactor')) {
             info.el.remove();
           }
         }
       }
+      void leafByX;
 
       // Leaves: stamp data-unit, then remove leaves not for this status.
       const sorted = [...REACTORS].sort((a, b) => a.timelineColumnX - b.timelineColumnX);
@@ -521,6 +567,27 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         const isDimmed = hoverInThisQuad && !matchesHover;
         c.classList.toggle('is-focused', isFocused);
         c.classList.toggle('is-dimmed', isDimmed);
+      });
+
+      // Connector chain visibility: when hovering a leaf, the
+      // path(s) whose data-reactor includes the focused id stay at
+      // full opacity (override the data-any-hover dim). Other
+      // paths inherit the 0.06 dim from CSS.
+      const paths = container.querySelectorAll<SVGPathElement>('path[data-reactor]');
+      const focusedId = hoverInThisQuad && hoveredR ? hoveredR.id : null;
+      paths.forEach((p) => {
+        if (!focusedId) {
+          p.style.opacity = '';
+          return;
+        }
+        const reactors = (p.getAttribute('data-reactor') ?? '').split(',');
+        if (reactors.includes(focusedId)) {
+          // Force full opacity even though parent quadrant has
+          // data-any-hover="true".
+          p.style.opacity = '1';
+        } else {
+          p.style.opacity = '';
+        }
       });
     };
     const initial = poster005Store.getCurrent();
