@@ -161,6 +161,13 @@ export default function Poster005Map() {
         const doc = parser.parseFromString(xhr.responseText, 'image/svg+xml');
         const svg = doc.querySelector('svg');
         if (svg) {
+          // Crop the viewBox to remove the empty cream space below
+          // the UK shape (the source SVG's viewBox is 1694.98 × 1330.76
+          // but the actual UK + circles + inset zooms fit inside
+          // roughly x=0..1290 y=0..985). Re-cropping kills the dead
+          // padding that was forcing a ~300px gap between the bottom
+          // of the map and the hover pill.
+          svg.setAttribute('viewBox', '0 0 1290 985');
           svg.setAttribute('width', '100%');
           svg.removeAttribute('height');
           svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
