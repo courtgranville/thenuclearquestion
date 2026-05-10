@@ -60,6 +60,18 @@ import {
 
 const DENDRO_URL = '/assets/005-dendrogram-clean_336edeac.svg';
 
+// Actual connector-anchor positions from the source SVG (where the
+// level-1 cubic Béziers START — i.e. y=422.366, x depends on hub).
+// These differ slightly from HUBS[*].anchor in the JSON (which is
+// the BBOX centroid at y≈405). We need the connector-anchor for
+// path matching.
+const CONNECTOR_ANCHOR: Record<ReactorStatus, { x: number; y: number }> = {
+  underConstruction: { x: 150.873, y: 422.366 },
+  operating:         { x: 301.610, y: 422.366 },
+  retired:           { x: 729.267, y: 422.366 },
+  cancelled:         { x: 1317.654, y: 422.366 },
+};
+
 // SVG-unit y range to include per quadrant. Hub-form top is around
 // y=345 (the smallest hub bbox top is retired/cancelled at y=345);
 // leaf row at y=800.993. Plus a bit of padding above the hub and
@@ -192,7 +204,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
 
       const hub = HUB_BY_STATUS[status];
       if (!hub) return;
-      const hubAnchor = hub.anchor;
+      const connectorAnchor = CONNECTOR_ANCHOR[status];
       const myLeaves = new Set(LEAVES_BY_STATUS[status].map((l) => l.reactorId));
       const myLeafXs = LEAVES_BY_STATUS[status].map((l) => l.x);
 
@@ -202,45 +214,94 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       // Strip every row-* group (the timeline strip is its own component).
       svg.querySelectorAll('g[id^="row-"]').forEach((g) => g.remove());
 
-      // Connectors: remove those that don't belong to this status.
-      // A level-1 connector starts at one of the 4 hub anchors at y=422.
-      // A level-2 connector starts at a sub-hub at y=594.
-      // We keep level-1 paths whose start == this hub's anchor, and
-      // level-2 paths whose end is a leaf x for this status.
-      const ANCHOR_X = hubAnchor[0];
-      const ANCHOR_Y = hubAnchor[1];
-      const subHubXs = new Set<number>();   // populated below from kept level-1s
-      svg.querySelectorAll('path').forEach((p) => {
+      // Strip every <line> below the dendrogram leaf row. The source
+      // SVG has 8 horizontal decade gridlines + tick marks at y=835-
+      // 993 (the timeline portion) which were bleeding through the
+      // quadrant viewBox crop because their elements live OUTSIDE
+      // the row-* groups.
+      svg.querySelectorAll('line').forEach((ln) => {
+        const y1 = parseFloat(ln.getAttribute('y1') ?? '0');
+        const y2 = parseFloat(ln.getAttribute('y2') ?? '0');
+        if (Math.min(y1, y2) > 815) ln.remove();
+      });
+
+      // Strip decade year-label outlined-path groups (live at y=830-
+      // 1000 outside row groups, encoded as isolation glyph groups).
+      svg.querySelectorAll('g').forEach((g) => {
+        const paths = g.querySelectorAll('path');
+        if (paths.length === 0) return;
+        const d = paths[0].getAttribute('d') ?? '';
+        const m = /M([\d.\-]+),([\d.\-]+)/.exec(d);
+        if (!m) return;
+        const sy = parseFloat(m[2]);
+        if (sy > 815) g.remove();
+      });
+
+      // Strip <text> elements that hold decade year labels (1960,
+      // 1970, ...). These were positioned via transform="translate(...)"
+      // and weren't caught by the y-based path filter above.
+      svg.querySelectorAll('text').forEach((t) => {
+        const inner = (t.textContent ?? '').trim();
+        if (/^\d{4}$/.test(inner)) {
+          t.remove();
+        }
+      });
+
+      // Connectors: two-pass filter.
+      //   Pass 1: identify this hub's sub-hubs (the endpoints of
+      //           level-1 paths originating at this hub's anchor).
+      //   Pass 2: keep only level-1 paths from this hub and level-2
+      //           paths whose START matches one of those sub-hubs.
+      // Earlier the filter kept any level-2 path ending at a leaf x
+      // in this status, which let orphan paths from OTHER hubs
+      // through whenever an x-coordinate happened to collide —
+      // visible as 'lines all over the place'.
+      const ANCHOR_X = connectorAnchor.x;
+      const ANCHOR_Y = connectorAnchor.y;
+      const allPathInfo: {
+        el: SVGPathElement; sx: number; sy: number; ex: number; ey: number;
+      }[] = [];
+      svg.querySelectorAll<SVGPathElement>('path').forEach((p) => {
         const d = p.getAttribute('d') ?? '';
         const m = /^M([\d.\-]+),([\d.\-]+)c/.exec(d.trim());
-        if (!m) {
-          // Not a cubic Bézier connector — keep (could be something else).
-          return;
-        }
+        if (!m) return;
         const sx = parseFloat(m[1]);
         const sy = parseFloat(m[2]);
-        // Compute end: c relative cubic Bézier. d-string is "Mx,y c c1x,c1y c2x,c2y ex,ey"
         const tail = d.substring(m[0].length).split(/[, ]+/).map(parseFloat).filter((n) => !isNaN(n));
         if (tail.length < 6) { p.remove(); return; }
         const ex = sx + tail[4];
         const ey = sy + tail[5];
+        allPathInfo.push({ el: p, sx, sy, ex, ey });
+      });
 
-        const isLevel1 = Math.abs(sy - 422.366) < 1;
-        const isLevel2 = Math.abs(sy - 594.329) < 1;
+      // Pass 1: this hub's sub-hub endpoints.
+      const ownSubHubs: { x: number; y: number }[] = [];
+      for (const info of allPathInfo) {
+        const isLevel1 = Math.abs(info.sy - 422.366) < 1;
+        if (isLevel1 && Math.abs(info.sx - ANCHOR_X) < 1 && Math.abs(info.sy - ANCHOR_Y) < 1) {
+          ownSubHubs.push({ x: info.ex, y: info.ey });
+        }
+      }
+      const startsAtOwnSubHub = (sx: number, sy: number): boolean =>
+        ownSubHubs.some((sh) => Math.abs(sh.x - sx) < 1 && Math.abs(sh.y - sy) < 1);
 
+      // Pass 2: drop paths that don't belong to this status.
+      for (const info of allPathInfo) {
+        const isLevel1 = Math.abs(info.sy - 422.366) < 1;
+        const isLevel2 = Math.abs(info.sy - 594.329) < 1;
         if (isLevel1) {
-          // Keep if starts at this hub's anchor (allowing float drift).
-          if (Math.abs(sx - ANCHOR_X) < 1 && Math.abs(sy - ANCHOR_Y) < 1) {
-            subHubXs.add(Math.round(ex * 100) / 100);
-          } else {
-            p.remove();
+          if (!(Math.abs(info.sx - ANCHOR_X) < 1 && Math.abs(info.sy - ANCHOR_Y) < 1)) {
+            info.el.remove();
           }
         } else if (isLevel2) {
-          // Keep if the leaf-x matches one of our reactors.
-          const matchesLeafX = myLeafXs.some((lx) => Math.abs(ex - lx) < 1.5);
-          if (!matchesLeafX) p.remove();
+          // BOTH start at one of this hub's sub-hubs AND end at one
+          // of this status's leaves.
+          const matchesLeafX = myLeafXs.some((lx) => Math.abs(info.ex - lx) < 1.5);
+          if (!startsAtOwnSubHub(info.sx, info.sy) || !matchesLeafX) {
+            info.el.remove();
+          }
         }
-      });
+      }
 
       // Leaves: stamp data-unit, then remove leaves not for this status.
       const sorted = [...REACTORS].sort((a, b) => a.timelineColumnX - b.timelineColumnX);
@@ -303,12 +364,12 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
 
       // Unified viewBox: same width (QUAD_VIEW_W) and same height
       // (QUAD_VIEW_H) for every quadrant, centred on this hub's
-      // anchor x. Smaller fleets (UC, operating) get whitespace
-      // around their narrow content; larger fleets (retired,
-      // cancelled) fit exactly. Critically the SVG-to-pixel scale
-      // is identical across quadrants, so the hubs render at their
-      // print-proportional sizes.
-      const xCenter = hubAnchor[0];
+      // connector-anchor x. Smaller fleets (UC, operating) get
+      // whitespace around their narrow content; larger fleets
+      // (retired, cancelled) fit exactly. Critically the SVG-to-
+      // pixel scale is identical across quadrants, so the hubs
+      // render at their print-proportional sizes.
+      const xCenter = connectorAnchor.x;
       const xMin = xCenter - QUAD_VIEW_W / 2;
       const yMin = QUAD_VIEW_Y_TOP;
       svg.setAttribute('viewBox', `${xMin} ${yMin} ${QUAD_VIEW_W} ${QUAD_VIEW_H}`);
@@ -489,7 +550,12 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = hub.colour;
-      ctx.lineWidth = 0.4;
+      // Thin stroke + per-bucket transparency so the linework reads
+      // like the print: hand-drawn strokes with cream visible
+      // between them, not a solid blob. Court round-5: "the green
+      // and yellow forms don't look like their actual thin-lined
+      // svg versions with transparency between the stroke lines."
+      ctx.lineWidth = 0.35;
 
       const k1 = TUNING.flowK1, w1 = TUNING.flowW1;
       const k2 = TUNING.flowK2, w2 = TUNING.flowW2;
@@ -504,7 +570,10 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
 
       for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
         const bucketDepthMid = (bucket + 0.5) / NUM_BUCKETS;
-        ctx.globalAlpha = baseAlpha * (0.55 + 0.45 * (1 - bucketDepthMid));
+        // Per-bucket alpha: outermost strokes (depth=0) sit at 0.55,
+        // innermost at 0.30. Accumulated they read at ~70% density
+        // with cream visibly showing between adjacent strokes.
+        ctx.globalAlpha = baseAlpha * (0.30 + 0.25 * (1 - bucketDepthMid));
         ctx.beginPath();
         for (let li = 0; li < N; li++) {
           const line = hub.lines[li];
@@ -614,17 +683,47 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
     };
   }, [viewBox, status]);
 
-  // Hub hot-zone enter handler.
-  const onHubEnter = () => {
-    if (isHubHoveredRef.current) return;
-    isHubHoveredRef.current = true;
-    const now = performance.now();
-    pulsesRef.current = buildPulses(status, now);
-    hubPulseRef.current = { startedAt: now };
-  };
-  const onHubLeave = () => {
-    isHubHoveredRef.current = false;
-  };
+  // Hub hot-zone — refer to via ref so we can attach native
+  // pointerover/leave listeners. React's onPointerEnter sometimes
+  // misses fires when the cursor enters via a fast diagonal or when
+  // the parent intercepts the event first; native listeners on the
+  // element are more reliable.
+  const hotZoneRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = hotZoneRef.current;
+    if (!el) return;
+    const fire = () => {
+      if (isHubHoveredRef.current) return;
+      isHubHoveredRef.current = true;
+      const now = performance.now();
+      pulsesRef.current = buildPulses(status, now);
+      hubPulseRef.current = { startedAt: now };
+    };
+    const reset = () => {
+      isHubHoveredRef.current = false;
+    };
+    const onOver = (e: PointerEvent) => {
+      // pointerover bubbles; pointerenter would skip when a child
+      // exists. We don't have children in the hot-zone, but using
+      // pointerover sidesteps any cross-browser quirks with enter.
+      const rel = e.relatedTarget as Node | null;
+      if (rel && el.contains(rel)) return;
+      fire();
+    };
+    const onOut = (e: PointerEvent) => {
+      const rel = e.relatedTarget as Node | null;
+      if (rel && el.contains(rel)) return;
+      reset();
+    };
+    el.addEventListener('pointerover', onOver, { passive: true });
+    el.addEventListener('pointerout', onOut, { passive: true });
+    return () => {
+      el.removeEventListener('pointerover', onOver);
+      el.removeEventListener('pointerout', onOut);
+    };
+  }, [status]);
+
   const onHubClick = () => {
     poster005Store.toggleFilteredStatus(status);
   };
@@ -691,11 +790,10 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         {hubHotZone && (
           <div className="absolute inset-0" style={{ zIndex: 3, pointerEvents: 'none' }}>
             <div
+              ref={hotZoneRef}
               role="button"
               tabIndex={0}
               aria-label={`Pulse cascade for ${STATUS_LABEL[status]} reactors`}
-              onPointerEnter={onHubEnter}
-              onPointerLeave={onHubLeave}
               onClick={onHubClick}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onHubClick(); }}
               className="absolute cursor-pointer"

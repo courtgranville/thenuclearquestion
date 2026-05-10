@@ -60,16 +60,17 @@ function buildPath(pts: Float32Array, n: number): Path2D {
   return p;
 }
 
-// Map mw to a flow amplitude on the same scale as resolveMotion's
-// emissionsT. Range chosen so 77 MW (Wylfa SMR 1, smallest) sits
-// near the floor and 14,141 MW (cancelled fleet, largest) sits near
-// the ceiling.
-function mwToFlowAmp(mw: number): number {
-  const tRaw = Math.log10(mw / 50) / Math.log10(20000 / 50);
-  const t = Math.max(0, Math.min(1, tRaw));
-  // Re-bias so even the smallest hub has visible interior motion.
-  // Min: 7 (the smallest under-construction blob is fine quiet), max: 22.
-  return 7 + t * 15;
+// Flow amplitude must stay tiny relative to the hub bbox or the
+// breathing animation visibly warps the form. Print hub bbox sizes:
+//   UC          37 × 37
+//   Operating   58 × 58
+//   Retired    123 × 123
+//   Cancelled  119 × 119
+// At ~2% of bbox short side, the displacement is subtle and the
+// strokes don't collide into a solid blob. Court round-5:
+// "animations are really extreme and are warping the forms too much."
+function flowAmpForBbox(bboxShortSide: number): number {
+  return Math.max(0.6, bboxShortSide * 0.022);
 }
 
 function preparedHubFromBlob(blob: {
@@ -101,7 +102,11 @@ function preparedHubFromBlob(blob: {
     };
   });
 
-  const flowAmp = mwToFlowAmp(blob.total_mw_sourced);
+  const bboxShortSide = Math.min(
+    blob.bbox.maxX - blob.bbox.minX,
+    blob.bbox.maxY - blob.bbox.minY,
+  );
+  const flowAmp = flowAmpForBbox(bboxShortSide);
   return {
     status,
     label: blob.label,
