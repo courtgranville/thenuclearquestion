@@ -492,9 +492,16 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       filteredStatusRef.current = filteredStatus;
       hoveredReactorRef.current = hoveredId ? REACTOR_BY_ID[hoveredId] ?? null : null;
       const hoveredR = hoveredReactorRef.current;
-      container.setAttribute('data-any-hover', hoveredR ? 'true' : 'false');
-      // Filter dim: if a status filter is active and it's NOT this
-      // quadrant's status, dim this whole quadrant.
+      // Court round-10: hover only greys out other reactors IN THE
+      // SAME sector. Other sectors stay full. The data-any-hover
+      // attribute (which dims hub polylines + connectors + axis
+      // text) is therefore only true on the quadrant that owns the
+      // hovered reactor — never on the others.
+      const hoverInThisQuad = !!hoveredR && hoveredR.status === status;
+      container.setAttribute('data-any-hover', hoverInThisQuad ? 'true' : 'false');
+      // Click-on-hub filter dim still works globally: other
+      // quadrants fade back when a filter is active and it's not
+      // this status.
       container.setAttribute(
         'data-other-filter',
         filteredStatus !== null && filteredStatus !== status ? 'true' : 'false',
@@ -508,7 +515,10 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         const id = c.getAttribute('data-unit') ?? '';
         const matchesHover = hoveredR ? hoveredR.id === id : false;
         const isFocused = matchesHover;
-        const isDimmed = hoveredR ? !matchesHover : false;
+        // Dim leaves only if the hover is in THIS quadrant and this
+        // leaf isn't the focused one. If the hover is in another
+        // quadrant, this quadrant's leaves stay at full opacity.
+        const isDimmed = hoverInThisQuad && !matchesHover;
         c.classList.toggle('is-focused', isFocused);
         c.classList.toggle('is-dimmed', isDimmed);
       });
