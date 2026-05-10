@@ -212,12 +212,15 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
     if (s !== null && e !== null && s < e) {
       const y0 = yearToY(s);
       const y1 = yearToY(e);
+      // Dashed projection — matches the print's convention for
+      // under-construction reactors (Court round-13).
       segments.push(
         <line key="uc-line" className="bar-line"
           x1={x} y1={y0} x2={x} y2={y1}
           stroke={STROKE_UNDER_CONSTRUCTION}
           strokeWidth={STROKE_BASE}
-          strokeLinecap="round" />,
+          strokeLinecap="butt"
+          strokeDasharray="4 3" />,
       );
       segments.push(
         <line key="uc-cap" className="cap-line"
