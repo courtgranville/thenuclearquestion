@@ -1,0 +1,28 @@
+name,latitude,longitude,status,reactor_type,models,total_mw,unit_count,start_year
+Berkeley,51.6927,-2.4938,retired,GCR,MAGNOX,332,2,1962
+Bradwell B,51.7428,0.9047,shelved,PWR,Hualong One,2300,2,
+Bradwell,51.7417,0.8994,retired,GCR,MAGNOX,292,2,1962
+Calder Hall,54.4184,-3.4921,retired,GCR,MAGNOX,240,4,1956
+Chapelcross,55.0169,-3.22401,retired,GCR,MAGNOX,240,4,1959
+Cumbria,54.4296,-3.5109,announced,PHWR,UK SMR,940,2,
+Dounreay,58.5805,-3.7374,retired,FBR,unknown,265,2,1962
+Dungeness,50.9138886573521,0.962049399769726,cancelled,GCR,AGR / MAGNOX / unknown,3340,5,1965
+Hartlepool,54.6341,-1.1801,operating,GCR,AGR,1310,2,1989
+Heysham,54.03101,-2.9112,operating,GCR,AGR,2610,4,1989
+Hinkley Point,51.2063,-3.1423,construction,PWR,AGR / EPR-1750 / MAGNOX,5284,6,1965
+Hunterston,55.7229,-4.8913,retired,GCR,AGR / MAGNOX,1634,4,1964
+Llynfi,51.5706997,-3.6125812,pre-construction,PWR,PWR-20,80,4,2027
+Moorside Clean Energy Hub,54.4296,-3.5109,shelved,PWR,EPR,3200,2,
+Moorside,54.4296,-3.5109,cancelled,PWR,AP-1000,3405,3,
+North Teeside,54.588889,-1.1875,announced,SMR,AP300,1200,4,2030
+Oldbury,51.65201,-2.5674,cancelled,PWR,AP-1000 / MAGNOX,3760,5,1967
+Sellafield (Candu),54.4224,-3.4868,cancelled,PHWR,CANDU,1480,2,
+Sellafield (Hitachi),54.4224,-3.4868,cancelled,FBR,PRISM,622,2,
+Sizewell,52.2199,1.6203,operating,PWR,EPR / MAGNOX / SNUPPS,4940,5,1966
+Torness,55.9679,-2.4086,operating,GCR,AGR,1364,2,1988
+Trawsfynydd,52.9252,-3.9474,retired,GCR,MAGNOX,470,2,1965
+Windscale AGR,54.4245,-3.4952,retired,GCR,AGR,36,1,1963
+Winfrith SGHWR,50.6825,-2.2649,retired,SGHWR,unknown,100,1,1968
+Wylfa Newydd,53.4113,-4.4839,cancelled,BWR,unknown,2760,2,
+Wylfa SMR,53.4116929,-4.4844117,cancelled,SMR,NuScale,924,12,
+Wylfa,53.4161,-4.4808,retired,GCR,MAGNOX,1070,2,1971
