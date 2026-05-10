@@ -11,6 +11,11 @@ import Poster003Viz from "@/components/Poster003Viz";
 import Poster004CanvasViz from "@/components/Poster004CanvasViz";
 import Poster005Viz from "@/components/Poster005Viz";
 import Poster006Viz from "@/components/Poster006Viz";
+import Poster001Legend from "@/components/Poster001Legend";
+import Poster002Legend from "@/components/Poster002Legend";
+import Poster003Legend from "@/components/Poster003Legend";
+import Poster004Legend from "@/components/Poster004Legend";
+import Poster006Legend from "@/components/Poster006Legend";
 import { posters, posterSources } from "@/lib/posterData";
 import { ArrowLeft, ArrowRight, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -242,6 +247,19 @@ export default function PosterPage() {
               {poster.id === "004" && <Poster004CanvasViz />}
               {poster.id === "005" && <Poster005Viz />}
               {poster.id === "006" && <Poster006Viz />}
+            </div>
+
+            {/* Per-poster legend block — sits below the viz and above
+                the download-PDF paragraph. Poster 005 owns its own
+                legend inside Poster005Viz; the others render here.
+                See client/src/components/Poster00*Legend.tsx for the
+                individual designs. */}
+            <div className="w-full mt-16">
+              {poster.id === "001" && <Poster001Legend />}
+              {poster.id === "002" && <Poster002Legend />}
+              {poster.id === "003" && <Poster003Legend />}
+              {poster.id === "004" && <Poster004Legend />}
+              {poster.id === "006" && <Poster006Legend />}
             </div>
           </motion.section>
 
