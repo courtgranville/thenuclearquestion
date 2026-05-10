@@ -24,6 +24,7 @@
 
 import { memo, useEffect, useRef, useState } from 'react';
 import {
+  REACTORS,
   REACTOR_BY_ID,
   STATUS_COLOUR,
   STATUS_LABEL,
@@ -162,12 +163,56 @@ export default function Poster005Map() {
         const svg = doc.querySelector('svg');
         if (svg) {
           // Crop the viewBox to remove the empty cream space below
-          // the UK shape (the source SVG's viewBox is 1694.98 × 1330.76
-          // but the actual UK + circles + inset zooms fit inside
-          // roughly x=0..1290 y=0..985). Re-cropping kills the dead
-          // padding that was forcing a ~300px gap between the bottom
-          // of the map and the hover pill.
-          svg.setAttribute('viewBox', '0 0 1290 985');
+          // the UK shape and on the right (the source viewBox is
+          // 1694.98 × 1330.76 but actual content fits in x=0..1290
+          // y=0..985). We add 30 SVG units of left padding so the
+          // content is visually centred inside the cropped viewBox
+          // rather than left-anchored — content midpoint = 645,
+          // viewBox midpoint = 660, ~15-unit visual offset.
+          svg.setAttribute('viewBox', '-30 0 1350 985');
+
+          // Stamp any unstamped reactor circles by proximity to a
+          // known reactor's project map position. The build-time
+          // annotation script (scripts/annotate-poster-005-map.mjs)
+          // matches by name + status group but misses circles in
+          // duplicate / decorative layers — those would otherwise
+          // not respond to hover. Walk all small circles and stamp
+          // by nearest reactor within a tolerance.
+          const annotated = new Set<SVGCircleElement>();
+          svg.querySelectorAll<SVGCircleElement>('circle').forEach((c) => {
+            if (c.getAttribute('data-unit')) {
+              annotated.add(c);
+              return;
+            }
+            const r = parseFloat(c.getAttribute('r') ?? '0');
+            if (r < 3 || r > 15) return; // skip tiny dots + the big inset outlines
+            const cx = parseFloat(c.getAttribute('cx') ?? '0');
+            const cy = parseFloat(c.getAttribute('cy') ?? '0');
+            // Find the closest reactor by mapX/mapY.
+            let best: typeof REACTORS[0] | null = null;
+            let bestD = Infinity;
+            for (const rr of REACTORS) {
+              if (rr.mapX === null || rr.mapY === null) continue;
+              const d = Math.hypot(rr.mapX - cx, rr.mapY - cy);
+              if (d < bestD) { bestD = d; best = rr; }
+            }
+            // Tolerance: 14 SVG units. Above this we assume the
+            // circle is decorative rather than a project marker.
+            if (best && bestD < 14) {
+              // Collect every unit name that shares this project
+              // (mapX/mapY are project-level, so multi-unit sites
+              // are represented by one circle in the print).
+              const units = REACTORS
+                .filter((r2) =>
+                  r2.mapX !== null && r2.mapY !== null &&
+                  Math.abs(r2.mapX - best!.mapX!) < 1 &&
+                  Math.abs(r2.mapY - best!.mapY!) < 1)
+                .map((r2) => r2.id);
+              c.setAttribute('data-unit', units.join(','));
+              c.setAttribute('data-phase', best.status);
+              annotated.add(c);
+            }
+          });
           svg.setAttribute('width', '100%');
           svg.removeAttribute('height');
           svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
@@ -271,7 +316,7 @@ export default function Poster005Map() {
   }, [svgMarkup]);
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-4">
+    <div className="w-full max-w-5xl mx-auto px-4 sm:px-6">
       <div
         ref={containerRef}
         className="poster005-map relative w-full mx-auto"
