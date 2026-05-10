@@ -27,7 +27,6 @@
 // ─────────────────────────────────────────────────────────────────
 
 import Poster005Map from '@/components/Poster005Map';
-import Poster005StatusLegend from '@/components/Poster005StatusLegend';
 import Poster005Dendrogram from '@/components/Poster005Dendrogram';
 import Poster005ReactorDetail from '@/components/Poster005ReactorDetail';
 import Poster005Callouts from '@/components/Poster005Callouts';
@@ -79,16 +78,10 @@ export default function Poster005Viz() {
     <div className="w-full">
       <SectionFrame
         title="The map"
-        lead="Where Britain's nuclear fleet actually sits. Three clusters — Sellafield, Wylfa, and Sizewell — account for over half of the country's reactor history; the rest are scattered along the coast. Hover any reactor to highlight it across all three views below."
+        lead="Where Britain's nuclear fleet actually sits. Three clusters — Sellafield, Wylfa, and Sizewell — account for over half of the country's reactor history; the rest are scattered along the coast. Hover any reactor to highlight it across all three views below; click a status below to filter the whole page."
       >
         <Poster005Map />
       </SectionFrame>
-
-      <div className="container mb-12">
-        <div className="max-w-3xl mx-auto">
-          <Poster005StatusLegend />
-        </div>
-      </div>
 
       <SectionFrame
         title="Every reactor, grouped by status"

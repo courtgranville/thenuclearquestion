@@ -25,6 +25,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { REACTOR_BY_ID, type ReactorStatus } from '@/lib/poster005Data';
 import { poster005Store } from '@/lib/poster005Store';
+import Poster005StatusLegend from '@/components/Poster005StatusLegend';
 
 const MAP_URL = '/assets/005-map-annotated_57baca8a.svg';
 
@@ -188,6 +189,13 @@ export default function Poster005Map() {
         className="poster005-map relative w-full mx-auto"
       >
         {svgMarkup && <InjectedMap markup={svgMarkup} />}
+      </div>
+      {/* Legend sits inside the map's section so map + legend read
+          as a single unit. The legend drives the global filter that
+          dims non-matching circles here; placing it adjacent makes
+          the cause-and-effect immediate. */}
+      <div className="mt-6">
+        <Poster005StatusLegend />
       </div>
     </div>
   );
