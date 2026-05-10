@@ -237,10 +237,11 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         const stroke = (p.getAttribute('stroke') ?? '').trim().toLowerCase();
         const fill = (p.getAttribute('fill') ?? '').trim().toLowerCase();
         if (stroke === myHubStroke) {
-          // Keep this hub's outline polylines. Tighten the stroke
-          // width slightly so they read cleanly at the larger
-          // quadrant scale.
-          p.setAttribute('stroke-width', '0.55');
+          // Keep this hub's outline polylines. Thinner stroke and
+          // reduced opacity so the form reads as a softer, more
+          // transparent organic mark (Court round-8 feedback).
+          p.setAttribute('stroke-width', '0.35');
+          p.setAttribute('stroke-opacity', '0.5');
           return;
         }
         // Strip every other polyline (other hubs' outlines, cream
