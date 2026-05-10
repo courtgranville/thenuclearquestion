@@ -23,7 +23,12 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { memo, useEffect, useRef, useState } from 'react';
-import { REACTOR_BY_ID, type ReactorStatus } from '@/lib/poster005Data';
+import {
+  REACTOR_BY_ID,
+  STATUS_COLOUR,
+  STATUS_LABEL,
+  type ReactorStatus,
+} from '@/lib/poster005Data';
 import { poster005Store } from '@/lib/poster005Store';
 import Poster005StatusLegend from '@/components/Poster005StatusLegend';
 
@@ -76,6 +81,64 @@ function injectStyleOnce() {
 const InjectedMap = memo(function InjectedMap({ markup }: { markup: string }) {
   return <div className="w-full" dangerouslySetInnerHTML={{ __html: markup }} />;
 });
+
+// Compact hover pill — sits between the map and the legend, fed by
+// poster005Store.hoveredReactor (which any of the three views can
+// set). Court's brief: name, status, and capacity, surfaced near the
+// legend so the colour-code reading happens in one glance.
+function MapHoverPill() {
+  const [hoveredId, setHoveredId] = useState(poster005Store.getCurrent().hoveredReactor);
+  useEffect(() => {
+    return poster005Store.subscribe((s) => setHoveredId(s.hoveredReactor));
+  }, []);
+  const r = hoveredId ? REACTOR_BY_ID[hoveredId] : null;
+  const colour = r ? STATUS_COLOUR[r.status] : 'rgba(13,26,30,0.4)';
+
+  return (
+    <div
+      className="w-full max-w-3xl mx-auto px-4 mt-4 min-h-[44px] flex items-center justify-center"
+      aria-live="polite"
+    >
+      {!r && (
+        <p
+          className="text-sm italic text-muted-foreground text-center"
+          style={{ fontFamily: "'Playfair', Georgia, serif" }}
+        >
+          Hover any reactor for its name, capacity, and status.
+        </p>
+      )}
+      {r && (
+        <div
+          className="flex items-baseline gap-x-4 gap-y-1 flex-wrap justify-center px-4 py-2 rounded-sm border bg-card"
+          style={{
+            borderColor: 'rgba(13,26,30,0.16)',
+            borderLeftColor: colour,
+            borderLeftWidth: 3,
+          }}
+        >
+          <span
+            className="font-serif text-base sm:text-lg leading-tight"
+            style={{ color: colour, fontWeight: 600 }}
+          >
+            {r.name}
+          </span>
+          <span
+            className="text-xs uppercase tracking-[0.12em] text-muted-foreground"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            {STATUS_LABEL[r.status]}
+          </span>
+          <span
+            className="text-sm tabular-nums text-foreground"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            {r.capacityMw ? `${r.capacityMw.toLocaleString()} MW` : '— MW'}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Poster005Map() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -208,11 +271,17 @@ export default function Poster005Map() {
       >
         {svgMarkup && <InjectedMap markup={svgMarkup} />}
       </div>
+      {/* Hover pill: between the map and the legend, surfaces name /
+          status / capacity for whichever reactor is currently hovered
+          on the map (or anywhere else — the same store backs the
+          dendrogram and timeline). Reserves a fixed-height row so the
+          legend doesn't jump up and down on hover. */}
+      <MapHoverPill />
       {/* Legend sits inside the map's section so map + legend read
           as a single unit. The legend drives the global filter that
           dims non-matching circles here; placing it adjacent makes
           the cause-and-effect immediate. */}
-      <div className="mt-6">
+      <div className="mt-4">
         <Poster005StatusLegend />
       </div>
     </div>
