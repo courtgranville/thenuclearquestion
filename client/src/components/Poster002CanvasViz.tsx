@@ -9,7 +9,6 @@ import { Pause, Play } from 'lucide-react';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
-import { easeAlpha } from '@/lib/animationTiming';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -468,19 +467,16 @@ export default function Poster002CanvasViz() {
       const ptr = cursorRef.current;
       const tune = tuningRef.current;
 
-      // Smooth cursor position per frame. Easing coefficients tuned at
-      // 60Hz; easeAlpha rescales them for the current RAF dt so the time
-      // constants stay constant on 120Hz displays.
+      // Smooth cursor position per frame (NucleusHero pattern) - uses real dt
       if (ptr.tx > -9000) {
         if (ptr.x < -9000) { ptr.x = ptr.tx; ptr.y = ptr.ty; }
         const prevX = ptr.x;
         const prevY = ptr.y;
-        const aPos = easeAlpha(dt, 0.10);
-        ptr.x += (ptr.tx - ptr.x) * aPos;
-        ptr.y += (ptr.ty - ptr.y) * aPos;
+        ptr.x += (ptr.tx - ptr.x) * 0.10;
+        ptr.y += (ptr.ty - ptr.y) * 0.10;
         const cursorDt = dt > 0 ? dt : 1 / 60;
         ptr.speed = Math.hypot((ptr.x - prevX) / cursorDt, (ptr.y - prevY) / cursorDt);
-        ptr.smoothSpeed += (ptr.speed - ptr.smoothSpeed) * easeAlpha(dt, 0.18);
+        ptr.smoothSpeed += (ptr.speed - ptr.smoothSpeed) * 0.18;
       }
 
       // Flow field time offsets use cycleT (accumulated time), not wall clock

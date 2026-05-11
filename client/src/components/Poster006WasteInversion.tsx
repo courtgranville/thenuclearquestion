@@ -6,7 +6,6 @@ import formsData from '@/assets/poster-006-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
-import { easeAlpha } from '@/lib/animationTiming';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -316,20 +315,19 @@ export default function Poster006WasteInversion() {
       lastT = now;
       const t = (now - t0) / 1000;
 
-      // Cursor easing - match NucleusHero exactly. Easing coefficients
-      // tuned at 60Hz; easeAlpha rescales them for the current RAF dt
-      // so the time constants stay constant on 120Hz displays (Chrome
-      // on ProMotion).
+      // Cursor easing - match NucleusHero exactly (10% per frame).
+      // The "stops working" feel earlier was a side-effect of one
+      // global magnetism field across all four forms; that's fixed
+      // below by giving each form its own bbox-keyed activation.
       const ptr = ptrRef.current;
       const pxC = ptr.xCss;
       const pyC = ptr.yCss;
-      const aPos = easeAlpha(dt, 0.10);
-      ptr.xCss += (ptr.txCss - ptr.xCss) * aPos;
-      ptr.yCss += (ptr.tyCss - ptr.yCss) * aPos;
+      ptr.xCss += (ptr.txCss - ptr.xCss) * 0.10;
+      ptr.yCss += (ptr.tyCss - ptr.yCss) * 0.10;
       ptr.vxCss = (ptr.xCss - pxC) / dt;
       ptr.vyCss = (ptr.yCss - pyC) / dt;
       const speed = Math.hypot(ptr.vxCss, ptr.vyCss);
-      ptr.smoothSpeed += (speed - ptr.smoothSpeed) * easeAlpha(dt, 0.18);
+      ptr.smoothSpeed += (speed - ptr.smoothSpeed) * 0.18;
 
       // Per-form scale (interpolated if transitioning).
       const s = stateRef.current;

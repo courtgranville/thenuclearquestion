@@ -174,6 +174,21 @@ The full inventory below confirms which components actually derive velocity from
 
 ### ISSUE F.2 - Framerate-dependent easing (the actual root cause)
 
+**STATUS: REVERTED.** Court tested commits 7-8 and reported the fix
+went the wrong way - Safari and Firefox post-fix felt more reactive
+(matching Chrome's old over-reactivity) rather than Chrome being
+slowed down to match Safari/Firefox. Mathematically `easeAlpha(1/60,
+α)` returns α unchanged, so for Safari and Firefox to have changed
+they cannot have been running RAF at 60Hz - meaning the framerate
+hypothesis was wrong.
+
+Reverted in commit 9. The next investigation needs actual dt
+measurements per browser before another fix is attempted - see the
+diagnostic added in commit 10.
+
+(Existing Issue F.2 text below preserved for the historical record
+of what was tried.)
+
 The `getCoalescedEvents()` fix in commits 5-6 was the wrong diagnosis.
 `getCoalescedEvents()` returns `[e]` (single element) for fast passive
 handlers on macOS Chrome, so averaging is a no-op for Court's setup.
