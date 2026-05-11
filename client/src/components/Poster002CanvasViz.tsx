@@ -451,7 +451,6 @@ export default function Poster002CanvasViz() {
       typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).has('frametiming');
     let ftFrames = 0;
-    let ftAccumMs = 0;
     let ftLastReport = performance.now();
 
     const frame = (now: number) => {
@@ -459,17 +458,19 @@ export default function Poster002CanvasViz() {
       lastFrameNow = now;
       if (frameTiming) {
         ftFrames++;
-        ftAccumMs += dt * 1000;
         if (now - ftLastReport >= 1000) {
-          const avgMs = ftAccumMs / ftFrames;
-          const avgHz = 1000 / avgMs;
+          // Report true rate from wall clock, not clamped dt average.
+          // dt is clamped at 50ms upstream, so the previous avg-dt
+          // calculation lied when RAF was throttled off-screen.
+          const elapsedMs = now - ftLastReport;
+          const trueHz = (ftFrames * 1000) / elapsedMs;
+          const trueDtMs = elapsedMs / ftFrames;
           // eslint-disable-next-line no-console
           console.log(
-            `[Poster002CanvasViz] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
-            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+            `[Poster002CanvasViz] ${ftFrames} frames in ${elapsedMs.toFixed(0)}ms · ` +
+            `true dt ${trueDtMs.toFixed(2)}ms · ${trueHz.toFixed(1)} Hz`,
           );
           ftFrames = 0;
-          ftAccumMs = 0;
           ftLastReport = now;
         }
       }
