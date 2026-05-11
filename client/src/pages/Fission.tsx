@@ -4,6 +4,7 @@ import FissionReturn from '@/components/FissionReturn';
 import FissionScene from '@/components/FissionScene';
 import FissionEnergyCounter from '@/components/FissionEnergyCounter';
 import FissionModeratorSlider from '@/components/FissionModeratorSlider';
+import FissionFpsOverlay from '@/components/FissionFpsOverlay';
 
 const TITLE = 'Fission, observed - The Nuclear Question';
 const ROOM_BG = '#0A0A0A';
@@ -76,6 +77,10 @@ export default function Fission() {
       </div>
 
       {!quality && <FissionQualityGate onSelect={setQuality} />}
+
+      {/* Dev-only FPS readout, gated by ?fps=1 in the URL. Mounted
+          after the slider so source order keeps it below visually. */}
+      <FissionFpsOverlay />
     </div>
   );
 }

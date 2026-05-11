@@ -1,12 +1,23 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import formPoints from '@/assets/fission-form-points.json';
 import { QUALITY, type Quality } from '@/lib/fissionTuning';
 import { vertexShader, fragmentShader } from '@/lib/fissionShaders';
 
 type Props = {
   quality: Quality;
+};
+
+type FormPoints = {
+  count: number;
+  boundingRadius: number;
+  viewBox: {
+    width: number;
+    height: number;
+    centroid: { x: number; y: number };
+    boundingRadiusInViewBox: number;
+  };
+  positions: number[];
 };
 
 type Bundle = {
@@ -18,9 +29,9 @@ type Bundle = {
   effectiveCount: number;
 };
 
-function buildBundle(quality: Quality): Bundle {
+function buildBundle(quality: Quality, formPoints: FormPoints): Bundle {
   const baseCount = formPoints.count;
-  const sourcePositions = formPoints.positions as number[];
+  const sourcePositions = formPoints.positions;
   const { particleScale, pointSize } = QUALITY[quality];
   const effectiveCount = Math.max(1, Math.floor(baseCount * particleScale));
 
@@ -74,9 +85,27 @@ function buildBundle(quality: Quality): Bundle {
 }
 
 export default function FissionParticles({ quality }: Props) {
-  // Build once on mount (and rebuild only if quality changes, which in
-  // practice it doesn't - parent remounts the scene on quality change).
-  const bundle = useMemo<Bundle>(() => buildBundle(quality), [quality]);
+  // The form JSON is the heaviest single asset in this route (~780 kB
+  // raw). Dynamic-import it so it lands in its own chunk alongside
+  // Three.js, keeping the main bundle free of it.
+  const [formPoints, setFormPoints] = useState<FormPoints | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/fission-form-points.json').then((m) => {
+      if (cancelled) return;
+      // Vite returns { default: <json> } for JSON modules.
+      setFormPoints((m.default ?? m) as FormPoints);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const bundle = useMemo<Bundle | null>(() => {
+    if (!formPoints) return null;
+    return buildBundle(quality, formPoints);
+  }, [quality, formPoints]);
+
   const pointsRef = useRef<THREE.Points>(null);
 
   // Dispose Three.js resources on unmount or when the bundle is
@@ -84,6 +113,7 @@ export default function FissionParticles({ quality }: Props) {
   // geometry and material here are imperatively constructed; explicit
   // cleanup prevents GPU leaks on quality switches and route exits.
   useEffect(() => {
+    if (!bundle) return;
     return () => {
       bundle.geometry.dispose();
       bundle.material.dispose();
@@ -95,6 +125,7 @@ export default function FissionParticles({ quality }: Props) {
   // legibly alive, not vibrating. If Phase 6 moves physics to GPGPU,
   // this entire loop disappears in favour of a compute pass.
   useFrame((state) => {
+    if (!bundle) return;
     const t = state.clock.elapsedTime;
     bundle.material.uniforms.uTime.value = t;
 
@@ -114,6 +145,8 @@ export default function FissionParticles({ quality }: Props) {
     }
     bundle.geometry.attributes.position.needsUpdate = true;
   });
+
+  if (!bundle) return null;
 
   return (
     <points ref={pointsRef} geometry={bundle.geometry} material={bundle.material} />
