@@ -1,19 +1,19 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005Timeline.tsx — vertical full-screen reactor timeline.
+// Poster005Timeline.tsx - vertical full-screen reactor timeline.
 //
 // Court round-3 spec:
-//   - Use the PRINT'S actual line + cap design, not my redrawn
+// - Use the PRINT'S actual line + cap design, not my redrawn
 //     filled rects. Each row in the print SVG is two thin vertical
 //     lines (red construction, green operating) at stroke-width 0.5,
 //     with horizontal cap marks at the top and bottom.
-//   - Year axis starts at 1960 (not 1953). Reactors with a
-//     construction_start before 1960 are clipped to 1960 — matches
+// - Year axis starts at 1960 (not 1953). Reactors with a
+//     construction_start before 1960 are clipped to 1960 - matches
 //     the print's editorial decision to crop pre-1960 history.
-//   - Larger font sizes for year labels (1953/60/70/.../2030) and
+// - Larger font sizes for year labels (1953/60/70/.../2030) and
 //     for the floating tooltip.
-//   - No status-group headers across the top — Court reads the
+// - No status-group headers across the top - Court reads the
 //     status from the colour and the legend buttons elsewhere.
-//   - Hover focus stays inside the plot bounds: a clip-path on the
+// - Hover focus stays inside the plot bounds: a clip-path on the
 //     SVG masks any column scaling beyond the plot rectangle.
 // ─────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,7 @@ const YEAR_MIN = 1960;
 const YEAR_MAX = 2030;
 const DECADES: number[] = [1960, 1970, 1980, 1990, 2000, 2010, 2020, 2030];
 
-// Print stroke colours from the source SVG row groups — slightly
+// Print stroke colours from the source SVG row groups - slightly
 // different shades from STATUS_COLOUR (which mirrors the MAP fills).
 // Using the exact line stroke values keeps the bars looking like
 // the print verbatim.
@@ -42,7 +42,7 @@ const STROKE_CONSTRUCTION = '#a41e23';
 const STROKE_OPERATING = '#247c3e';
 const STROKE_UNDER_CONSTRUCTION = '#1b3967';
 
-const AXIS_W = 76;            // left axis area (year labels) — wider for larger font
+const AXIS_W = 76;            // left axis area (year labels) - wider for larger font
 const HEADER_PAD = 26;        // padding above plot
 const COL_W = 18;             // per-reactor column width
 const CAP_W = 8.5;            // horizontal cap-mark width (matches print)
@@ -129,7 +129,7 @@ function injectStyleOnce() {
     /* Court round-14: hover only dims, no stroke-width or radius
        changes. The focused column stays at its natural appearance
        so there's zero perceived movement when scrubbing across
-       columns — everything else dims to 0.06. */
+       columns - everything else dims to 0.06. */
   `;
   document.head.appendChild(style);
 }
@@ -192,7 +192,7 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
           strokeWidth={CAP_STROKE}
           strokeLinecap="round" />,
       );
-      // Top cap — only if the construction phase clipped out
+      // Top cap - only if the construction phase clipped out
       // entirely (so the visible top of the bar is the start of
       // the operating phase). Court round-15: 'some of the timeline
       // lines are missing their starting cap lines.' Pre-1960
@@ -215,7 +215,7 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
     if (s !== null && e !== null && s < e) {
       const y0 = yearToY(s);
       const y1 = yearToY(e);
-      // Dashed projection — matches the print's convention for
+      // Dashed projection - matches the print's convention for
       // under-construction reactors (Court round-13).
       segments.push(
         <line key="uc-line" className="bar-line"
@@ -249,7 +249,7 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
             strokeLinecap="round" />,
         );
       }
-      // Cancelled dot — GREY HOLLOW circle, matching the print.
+      // Cancelled dot - GREY HOLLOW circle, matching the print.
       // (My earlier red-filled dot didn't match Court's design.)
       segments.push(
         <circle key="cancel-dot" className="cancel-dot"
@@ -282,7 +282,7 @@ const Column = memo(function Column({ r, x, plotTop, plotBottom, yearToY }: Colu
       if (s !== null && s < cy) {
         hitY0 = Math.min(hitY0, yearToY(s));
       } else {
-        // Dot only — give the hit-target a small symmetric padding
+        // Dot only - give the hit-target a small symmetric padding
         // around the dot rather than zero-height.
         hitY0 = yearToY(clipYear(cy)!) - 7;
       }
@@ -479,7 +479,7 @@ export default function Poster005Timeline() {
                 })}
               </g>
 
-              {/* Year axis labels — bigger font per Court's brief */}
+              {/* Year axis labels - bigger font per Court's brief */}
               <g aria-hidden>
                 {DECADES.map((y) => {
                   const yPos = yearToY(y);
@@ -512,7 +512,7 @@ export default function Poster005Timeline() {
                 })}
               </g>
 
-              {/* Columns. No status headers along the top — Court asked
+              {/* Columns. No status headers along the top - Court asked
                   for them removed (legend reads the status colour). */}
               {layout.groups.map(({ status, reactors, xStart }) => (
                 <g key={status}>
@@ -531,7 +531,7 @@ export default function Poster005Timeline() {
             </svg>
           )}
 
-          {/* Floating tooltip — bigger text per Court's brief */}
+          {/* Floating tooltip - bigger text per Court's brief */}
           {tooltip && tooltipReactor && (
             <div
               className="absolute z-20 pointer-events-none p-4 rounded-sm border bg-card shadow-md"
@@ -566,11 +566,11 @@ export default function Poster005Timeline() {
               >
                 {tooltipReactor.capacityMw
                   ? `${tooltipReactor.capacityMw.toLocaleString()} MW`
-                  : '— MW'}
+                  : ' - MW'}
                 {tooltipReactor.status === 'retired' &&
                 tooltipReactor.commercialOperation &&
                 tooltipReactor.shutdown
-                  ? ` · ${tooltipReactor.commercialOperation}–${tooltipReactor.shutdown}`
+                  ? ` · ${tooltipReactor.commercialOperation} - ${tooltipReactor.shutdown}`
                   : null}
                 {tooltipReactor.status === 'operating' && tooltipReactor.commercialOperation
                   ? ` · since ${tooltipReactor.commercialOperation}`

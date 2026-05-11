@@ -3,7 +3,7 @@ import { type SourceId, SOURCE_IDS } from '@/lib/poster003Data';
 import { poster003Store } from '@/lib/poster003Store';
 
 /**
- * Poster 003 — energy-mix dendrogram (commit 19).
+ * Poster 003 - energy-mix dendrogram (commit 19).
  *
  * Architecture: decoupled from the React render path. The component
  * renders one full SVG tree on mount with all 8 source groups
@@ -21,7 +21,7 @@ import { poster003Store } from '@/lib/poster003Store';
  * drag they pop back at their new target with no animate-in.
  *
  * Editorial relaxation note: per-source % of mix ticks continuously
- * — same justification as the dot ticker (commit 9) and the
+ * - same justification as the dot ticker (commit 9) and the
  * deaths-by-source per-source counts (commit 15). Honest because
  * it's a fraction of the rendered geometry, not an interpolated
  * mortality estimate.
@@ -320,7 +320,7 @@ function Poster003DendrogramImpl() {
       rafId = requestAnimationFrame(tick);
     };
 
-    // Subscribe — every store update wakes the RAF.
+    // Subscribe - every store update wakes the RAF.
     const unsubscribe = poster003Store.subscribe(() => scheduleTick());
 
     // Initial paint at the current store state.

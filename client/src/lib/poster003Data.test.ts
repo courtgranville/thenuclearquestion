@@ -67,7 +67,7 @@ assert(
   'dot ordering values in range',
 );
 
-// MAX_DEATHS_FOR_SOURCE — nuclear maxes at S3 (6), gas maxes at S1/S2 (243).
+// MAX_DEATHS_FOR_SOURCE - nuclear maxes at S3 (6), gas maxes at S1/S2 (243).
 assert(MAX_DEATHS_FOR_SOURCE.nuclear === 6, 'nuclear max deaths = 6');
 assert(MAX_DEATHS_FOR_SOURCE.gas === 243, 'gas max deaths = 243');
 assert(MAX_DEATHS_FOR_SOURCE.solar === 0.3, 'solar max deaths = 0.3');

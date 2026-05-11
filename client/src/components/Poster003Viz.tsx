@@ -8,34 +8,34 @@ import { interpolate, type ScenarioData } from "@/lib/poster003Data";
 import { poster003Store } from "@/lib/poster003Store";
 
 /*
-  Poster 003 — Slider-driven scenario page.
+  Poster 003 - Slider-driven scenario page.
 
   After commit 19, every drag-time visual layer reads from
   poster003Store directly:
-    - Poster003CanvasDeaths   (commit 18)
-    - Poster003Dots           (commit 19)
-    - Poster003Dendrogram     (commit 19)
-    - Poster003Ticker         (commit 19)
+ - Poster003CanvasDeaths   (commit 18)
+ - Poster003Dots           (commit 19)
+ - Poster003Dendrogram     (commit 19)
+ - Poster003Ticker         (commit 19)
   All four are wrapped in React.memo and take NO props from this
-  parent — they never re-render during slider drag.
+  parent - they never re-render during slider drag.
 
   Poster003Viz still owns the slider's controlled value (sliderFraction)
   and re-renders on every drag tick to feed the slider thumb position.
   ScenarioReadout updates when anchorState changes (fraction crosses
-  0.25 / 0.75) and at snap — low frequency, fine for React.
+  0.25 / 0.75) and at snap - low frequency, fine for React.
 
   Editorial constraints (encoded structurally, not stylistically):
     1. Numerical readouts read ONLY from anchorState. The interpolate()
        helper exposes geometric fields for layer geometry but no
-       formatted-number export — the page physically cannot display a
+       formatted-number export - the page physically cannot display a
        fabricated mid-drag death count.
     2. Dot ordering has no source attribution.
-    3. Animation register is serious — no spring, no overshoot.
+    3. Animation register is serious - no spring, no overshoot.
 */
 
 const SCENARIO_DESCRIPTIONS: Record<ScenarioData["id"], string> = {
-  s1: "The UK grid kills an estimated 699 people every year — almost two every day, mostly invisible because they happen in hospitals, not headlines. Gas alone accounts for roughly a third of the toll. Most of these deaths are from sources nobody worries about.",
-  s2: "Doubling nuclear's share of the grid — to roughly the level the UK had in the late 1990s — cuts annual deaths to 297 and saves 401 lives a year. The reduction comes mostly from displacing gas, which dominates the current toll.",
+  s1: "The UK grid kills an estimated 699 people every year - almost two every day, mostly invisible because they happen in hospitals, not headlines. Gas alone accounts for roughly a third of the toll. Most of these deaths are from sources nobody worries about.",
+  s2: "Doubling nuclear's share of the grid - to roughly the level the UK had in the late 1990s - cuts annual deaths to 297 and saves 401 lives a year. The reduction comes mostly from displacing gas, which dominates the current toll.",
   s3: "Reaching France's nuclear share would reduce annual UK grid deaths to 9 and save 690 lives a year compared with today. The red dots almost disappear; nuclear-related deaths only rise from 1 to 6 even as nuclear's share moves from 14% to 70%.",
 };
 
@@ -160,7 +160,7 @@ export default function Poster003Viz() {
   );
   const anchorScenario = vizState.anchorState;
 
-  // Floating slider visibility — driven by an IntersectionObserver
+  // Floating slider visibility - driven by an IntersectionObserver
   // on the section root. The slider only appears when this section
   // is in the viewport so it doesn't hover over neighbouring pages.
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -208,7 +208,7 @@ export default function Poster003Viz() {
             </>
           }
         >
-          {/* No props — both layers read poster003Store directly. */}
+          {/* No props - both layers read poster003Store directly. */}
           <Poster003Dots />
           <Poster003Ticker />
         </SectionFrame>
@@ -252,7 +252,7 @@ export default function Poster003Viz() {
         </SectionFrame>
       </div>
 
-      {/* Floating slider — fixed at the bottom of the viewport while
+      {/* Floating slider - fixed at the bottom of the viewport while
           the section is visible. Width caps at 560px desktop; on
           mobile it spans full width minus 16px each side. */}
       <div

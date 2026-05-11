@@ -5,10 +5,10 @@
 
 /*
   DESIGN: "Editorial Archive" - Light Scholarly Journal
-  - Light off-white background (#f3f0eb) slightly lighter than poster cream (#ece7df)
-  - Dark blueish-grey text (#0d1a1e) from poster palette
-  - Poster colour accents: blue, green, red, ochre, teal, stone
-  - Typography: Playfair Display (titles) + Playfair (body, labels, data)
+ - Light off-white background (#f3f0eb) slightly lighter than poster cream (#ece7df)
+ - Dark blueish-grey text (#0d1a1e) from poster palette
+ - Poster colour accents: blue, green, red, ochre, teal, stone
+ - Typography: Playfair Display (titles) + Playfair (body, labels, data)
 
   Poster palette reference:
   #1c3867 - blue (water)
@@ -245,7 +245,7 @@
   display: block;
 }
 
-/* Tweaks anchor — sits inside the full-bleed icon container */
+/* Tweaks anchor - sits inside the full-bleed icon container */
 .tweaks-anchor {
   position: absolute;
   right: max(24px, calc(50vw - 440px));
@@ -254,7 +254,7 @@
   pointer-events: auto;
 }
 
-/* Fission hint annotation — text-only, appears on U-238 selection */
+/* Fission hint annotation - text-only, appears on U-238 selection */
 .fission-hint {
   position: absolute;
   left: max(16px, calc(50vw - 500px));

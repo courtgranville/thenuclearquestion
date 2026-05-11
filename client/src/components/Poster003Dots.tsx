@@ -3,7 +3,7 @@ import { DOT_ORDERING } from '@/lib/poster003Data';
 import { poster003Store } from '@/lib/poster003Store';
 
 /**
- * Poster 003 — death-toll dots layer (699 dots on a single canvas).
+ * Poster 003 - death-toll dots layer (699 dots on a single canvas).
  *
  * Architecture (commit 19): the layer subscribes to poster003Store
  * directly. The component renders ONCE on mount (a single <canvas>)
@@ -14,10 +14,10 @@ import { poster003Store } from '@/lib/poster003Store';
  * one for green) for speed.
  *
  * Editorial constraints (preserved from the React era):
- *   - No source attribution per dot — DOT_ORDERING is a stable
+ * - No source attribution per dot - DOT_ORDERING is a stable
  *     seeded permutation; no tooltips, no hover, no click.
- *   - The dot grid's count formula switches at snap so the editorial
- *     livesSaved value (anchorState.livesSaved) holds at settle —
+ * - The dot grid's count formula switches at snap so the editorial
+ *     livesSaved value (anchorState.livesSaved) holds at settle  -
  *     same behaviour as before commit 19.
  */
 
@@ -80,7 +80,7 @@ function parseDotsSvg(svgText: string): ParsedDots | null {
 }
 
 /**
- * Same count formula the React component used pre-commit-19 — kept
+ * Same count formula the React component used pre-commit-19 - kept
  * here so the snap-corrected editorial value (anchorState.livesSaved)
  * holds at settle, including the S2 1-dot case where the data
  * doesn't satisfy livesSaved + totalDeaths = 699 exactly.
@@ -100,7 +100,7 @@ function Poster003DotsImpl() {
 
   // Keep React state to track parse completion (so we can switch
   // from a placeholder div to a canvas div), but do not feed
-  // slider-driven values through state — those flow via the store.
+  // slider-driven values through state - those flow via the store.
   const [parsed, setParsed] = useState<boolean>(!!cachedPositions);
   const [parseError, setParseError] = useState(false);
 
@@ -154,7 +154,7 @@ function Poster003DotsImpl() {
     let rafId: number | null = null;
 
     // Pre-build a Path2D each redraw uses by walking the positions
-    // array — but the array is fixed, so we can pre-build TWO
+    // array - but the array is fixed, so we can pre-build TWO
     // Path2Ds (red and green) per redraw. Cheaper to just rebuild
     // on each redraw than to maintain stateful Path2Ds.
     const redraw = () => {
@@ -280,5 +280,5 @@ function Poster003DotsImpl() {
   );
 }
 
-// memo — no props means the default shallow compare always bails.
+// memo - no props means the default shallow compare always bails.
 export default memo(Poster003DotsImpl);

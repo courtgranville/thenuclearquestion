@@ -1,12 +1,12 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005StatusLegend.tsx — four-button status filter.
+// Poster005StatusLegend.tsx - four-button status filter.
 //
 // Drives the global filteredStatus in poster005Store. Map, dendrogram,
 // and timeline all subscribe to that store; clicking a button toggles
 // the filter (click again to clear). Active button is shown with a
 // coloured chip + bold weight.
 //
-// Click toggles. There is no time-scrub or slider — the brief
+// Click toggles. There is no time-scrub or slider - the brief
 // explicitly rules out a time-based approach for this poster.
 // ─────────────────────────────────────────────────────────────────
 

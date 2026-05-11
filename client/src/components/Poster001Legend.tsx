@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster001Legend.tsx — designed legend for poster 001.
+// Poster001Legend.tsx - designed legend for poster 001.
 //
 // Source: client/public/assets/001-legend.svg (Court's print).
 // Re-laid as a designed React component, same pattern as
@@ -48,7 +48,7 @@ export default function Poster001Legend() {
           <Section title="The forms">
             <p className="text-sm text-muted-foreground leading-relaxed">
               Each form is one electric generation source. Volume is
-              proportional to lifecycle greenhouse-gas emissions — larger
+              proportional to lifecycle greenhouse-gas emissions - larger
               forms released more carbon dioxide-equivalent per
               kilowatt-hour of electricity delivered.
             </p>

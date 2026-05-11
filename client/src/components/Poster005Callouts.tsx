@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005Callouts.tsx — three big editorial numerals from the print.
+// Poster005Callouts.tsx - three big editorial numerals from the print.
 //
 // Copy is verbatim from 005-version2_ad4c9725.pdf / 005-preview-1
-// fea2ab19.png. These are static — no time-scrub drives them — and
+// fea2ab19.png. These are static - no time-scrub drives them - and
 // they are what the page is trying to leave the visitor with.
 // ─────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ const CALLOUTS: Callout[] = [
   {
     numeral: '14,141 MW',
     body:
-      "of planned capacity — more than twice the capacity of Britain's entire operating nuclear fleet today.",
+      "of planned capacity - more than twice the capacity of Britain's entire operating nuclear fleet today.",
   },
 ];
 

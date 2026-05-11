@@ -1,7 +1,7 @@
 /**
  * SVG path parser → polylines.
  *
- * Adaptive cubic-bézier flattening — more steps for longer/more-curved
+ * Adaptive cubic-bézier flattening - more steps for longer/more-curved
  * segments, so straight stretches don't waste vertices and tight turns
  * stay smooth. Direct port of the vanilla version, fully typed.
  */
@@ -109,7 +109,7 @@ export function parseD(d: string): number[] {
       prevC2x = cc2x; prevC2y = cc2y;
       cx = x; cy = y;
     } else if (C === 'A') {
-      // arc — rare; consume params, take endpoint as a line.
+      // arc - rare; consume params, take endpoint as a line.
       num(); num(); num(); num(); num();
       let x = num(), y = num(); if (rel) { x += cx; y += cy; }
       cx = x; cy = y; pts.push(x, y);

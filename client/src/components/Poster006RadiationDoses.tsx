@@ -74,7 +74,7 @@ function buildRender(id: string): DoseRender {
     if (r1 > formRadius) formRadius = r1;
     if (r2 > formRadius) formRadius = r2;
     const delay = ((i * 37) % 13) * (MAX_STAGGER_MS / 13);
-    // Use the line's outermost endpoint distance as its depth proxy —
+    // Use the line's outermost endpoint distance as its depth proxy  -
     // longer rays read as "outer / fainter", shorter ones as
     // "inner / brighter". Matches Poster 001's depth-by-line-index
     // intent: alpha-bucket batching produces a transparent stack.
@@ -107,7 +107,7 @@ for (const meta of ALL_DOSES) {
   RENDER[meta.id] = buildRender(meta.id);
 }
 
-// CT scan defines the cell-fill scale — every other dose is rendered
+// CT scan defines the cell-fill scale - every other dose is rendered
 // proportionally smaller using its source formRadius / CT's formRadius.
 const REFERENCE_RADIUS = RENDER.ct.formRadius || 1;
 
@@ -147,7 +147,7 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
     const elapsed = animating ? performance.now() - (s.burstStart as number) : Infinity;
     const totalDuration = BURST_DURATION_MS + MAX_STAGGER_MS;
 
-    // Centre red dot — sized to the source's centreRadius scaled to
+    // Centre red dot - sized to the source's centreRadius scaled to
     // the cell. Smaller doses' centre dots stay proportionally small.
     const dotR = Math.max(1.5, data.centreRadius * s.scale);
     ctx.beginPath();
@@ -156,7 +156,7 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
     ctx.fill();
 
     // Source-extracted rays, drawn with Poster 001's transparent
-    // line-trace technique — alpha-bucket batched (8 buckets), thin
+    // line-trace technique - alpha-bucket batched (8 buckets), thin
     // strokes, depth-graded alpha. The smallest doses (reactor,
     // dental) genuinely have no ray geometry in the print and render
     // as a centre dot only.
@@ -274,7 +274,7 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       </div>
 
-      {/* Label block — fixed-height rows lock the vertical baseline
+      {/* Label block - fixed-height rows lock the vertical baseline
           across cells. Qualifier reserves two lines of height even
           when the text is short, so neighbouring cells line up. */}
       <h4
@@ -324,7 +324,7 @@ export default function Poster006RadiationDoses() {
   return (
     <div className="w-full max-w-6xl mx-auto px-4">
       {/* Tighter row gap (gap-y-2..4) than column gap (gap-x-6..10)
-          so rows squeeze together — bursts of adjacent rows don't
+          so rows squeeze together - bursts of adjacent rows don't
           overlap because the cells are square and the rays stay
           inside the cell radius. */}
       <div className="grid grid-cols-3 gap-y-2 gap-x-6 sm:gap-y-4 sm:gap-x-10 justify-items-stretch">
@@ -337,7 +337,7 @@ export default function Poster006RadiationDoses() {
         style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Hover any form to replay the burst from its centre. The smallest
-        doses (reactor, dental) appear as a centre dot only — the print
+        doses (reactor, dental) appear as a centre dot only - the print
         artwork has no rays for them, and the web preserves that honestly.
       </p>
     </div>

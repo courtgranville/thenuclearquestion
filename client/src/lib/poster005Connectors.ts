@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// poster005Connectors.ts — pre-baked hub→leaf trajectories.
+// poster005Connectors.ts - pre-baked hub→leaf trajectories.
 //
 // The dendrogram SVG holds 98 connector path d-strings (in
 // poster-005-forms.json under dendrogram_links). They form a
@@ -24,7 +24,7 @@
 // loop can sample (x, y) and tangent at any u ∈ [0, 1] in O(log n).
 //
 // Multiple leaves under the same sub-hub share the same level-1
-// segment — when the pulses overlap on that segment they read as
+// segment - when the pulses overlap on that segment they read as
 // a single trail that splits at the sub-hub. That's exactly the
 // visual choreography of poster 004's hub→carrier→sector cascade.
 // ─────────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ function buildTrajectoryForLeaf(
       ptsArr.push(level2.pts[i * 2], level2.pts[i * 2 + 1]);
     }
   } else {
-    // No level-1 path found — fall back to just the level-2 trajectory.
+    // No level-1 path found - fall back to just the level-2 trajectory.
     for (let i = 0; i < level2.n; i++) {
       ptsArr.push(level2.pts[i * 2], level2.pts[i * 2 + 1]);
     }

@@ -12,11 +12,11 @@ import formsData from '@/assets/poster-006-forms.json';
 //   VLLW R = 359 (high fidelity, big source)
 //   ILW  R = 257 (decent)
 //   LLW  R = 156 (medium)
-//   HLW  R =   8 (tiny — basically a dot in the print)
+//   HLW  R =   8 (tiny - basically a dot in the print)
 //
 // Using each form's own source paths produces uneven fidelity:
 // HLW in radioactivity mode (scale=1, fills the slot) magnifies
-// the tiny source 40× — every microscopic Procreate-brush jitter
+// the tiny source 40× - every microscopic Procreate-brush jitter
 // becomes a visible jagged line.
 //
 // Use VLLW's high-fidelity trace as the canonical shape for all
@@ -59,7 +59,7 @@ const LINES: PreparedLine[] = (() => {
     const dw = depthWeight(depth);
     const pts = new Float32Array(p.pts.length);
     for (let k = 0; k < p.pts.length; k += 2) {
-      pts[k]     = (p.pts[k]     - cx) * inv;
+      pts[k]     = (p.pts[k] - cx) * inv;
       pts[k + 1] = (p.pts[k + 1] - cy) * inv;
     }
     return { pts, n: p.n, depth, dw };
@@ -148,7 +148,7 @@ function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
 }
 
-// Dev-only FPS overlay — visible behind the ?fps query string.
+// Dev-only FPS overlay - visible behind the ?fps query string.
 function useFpsCounter(): number | null {
   const [fps, setFps] = useReducer(
     (_: number | null, n: number | null) => n,
@@ -223,7 +223,7 @@ export default function Poster006WasteInversion() {
     // Per-form slot centres. Indexed in FORMS order: VLLW, LLW, ILW, HLW.
     const slotCx: number[] = [0, 0, 0, 0];
     const slotCy: number[] = [0, 0, 0, 0];
-    // Per-form slot bbox — used to determine which form the cursor is
+    // Per-form slot bbox - used to determine which form the cursor is
     // "inside". Each form's magnetism only activates when the cursor
     // is inside its own slot rectangle, matching NucleusHero's
     // single-form-single-bbox interaction model rather than a global
@@ -284,7 +284,7 @@ export default function Poster006WasteInversion() {
       const ptr = ptrRef.current;
       const nx = e.clientX - r.left;
       const ny = e.clientY - r.top;
-      // First entry from "parked" state — snap the eased position to
+      // First entry from "parked" state - snap the eased position to
       // the new target so the velocity calc doesn't see a -1e6 → real
       // jump and the magnetism centre starts where the cursor is.
       if (ptr.xCss < -1000) {
@@ -315,7 +315,7 @@ export default function Poster006WasteInversion() {
       lastT = now;
       const t = (now - t0) / 1000;
 
-      // Cursor easing — match NucleusHero exactly (10% per frame).
+      // Cursor easing - match NucleusHero exactly (10% per frame).
       // The "stops working" feel earlier was a side-effect of one
       // global magnetism field across all four forms; that's fixed
       // below by giving each form its own bbox-keyed activation.
@@ -362,7 +362,7 @@ export default function Poster006WasteInversion() {
 
       // Flow constants. Note flowK1/K2 operate in "form units" now
       // (since points are normalised), so the spatial wavelength is
-      // form-relative — divide by px to keep wavelength CSS-px-stable.
+      // form-relative - divide by px to keep wavelength CSS-px-stable.
       const k1 = TUNING.flowK1 * 25; // empirical: matches Poster 001 feel after normalisation
       const w1 = TUNING.flowW1;
       const k2 = TUNING.flowK2 * 25;
@@ -405,7 +405,7 @@ export default function Poster006WasteInversion() {
       const formMagnetism: { ddCx: number; ddCy: number; twoSig2: number; bulgeGain: number; impulse: number; halfCss: number }[] = [];
       for (let i = 0; i < 4; i++) {
         const halfCss = px[i];
-        // Bulge centre uses the EASED cursor position — that's what
+        // Bulge centre uses the EASED cursor position - that's what
         // NucleusHero does and what gives the form its "weight" feel
         // (slight lag as the deformation follows the cursor rather
         // than snapping instantly). The activation gate above uses
@@ -433,8 +433,8 @@ export default function Poster006WasteInversion() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
 
-      // Draw — alpha-bucket batched per form. Poster 001 line/alpha
-      // values: lineWidth 0.5, alpha 0.5..1.0 across buckets — gives
+      // Draw - alpha-bucket batched per form. Poster 001 line/alpha
+      // values: lineWidth 0.5, alpha 0.5..1.0 across buckets - gives
       // the transparent traced-line appearance Court wants.
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -478,7 +478,7 @@ export default function Poster006WasteInversion() {
                 const fdx = Math.sin(ax1) * Math.cos(ay1)
                           + a2w * Math.sin(ax2) * Math.cos(ay2);
                 const fdy = -Math.cos(ax1) * Math.sin(ay1)
-                          - a2w * Math.cos(ax2) * Math.sin(ay2);
+ - a2w * Math.cos(ax2) * Math.sin(ay2);
                 lx += a * fdx;
                 ly += a * fdy;
               }
@@ -487,7 +487,7 @@ export default function Poster006WasteInversion() {
               let dispX = lx * pxi;
               let dispY = ly * pxi;
 
-              // Magnetism — Gaussian-only; no per-form gate so the
+              // Magnetism - Gaussian-only; no per-form gate so the
               // form deforms continuously as the cursor approaches
               // rather than switching modes at a cutoff radius.
               if (mag.bulgeGain > 0) {
@@ -566,7 +566,7 @@ export default function Poster006WasteInversion() {
           </div>
         )}
 
-        {/* Per-form labels — driven by the RAF loop via refs. */}
+        {/* Per-form labels - driven by the RAF loop via refs. */}
         {FORMS.map((f) => (
           <div
             key={f.id}
@@ -642,7 +642,7 @@ export default function Poster006WasteInversion() {
         className="text-center text-xs text-muted-foreground mt-4 max-w-2xl mx-auto px-4 leading-relaxed"
         style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
-        Forms scaled by the square root of value to preserve visibility — strict area scaling
+        Forms scaled by the square root of value to preserve visibility - strict area scaling
         would hide HLW in volume mode and VLLW in radioactivity mode.
       </p>
     </div>

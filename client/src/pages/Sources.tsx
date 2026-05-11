@@ -307,18 +307,18 @@ export default function Sources() {
                   </SourceGroup>
                   <SourceGroup title="Underlying studies">
                     <Citation
-                      text="Markandya, A., & Wilkinson, P. (2007). Electricity generation and health. The Lancet, 370(9591), 979–990."
+                      text="Markandya, A., & Wilkinson, P. (2007). Electricity generation and health. The Lancet, 370(9591), 979 - 990."
                       url="https://doi.org/10.1016/S0140-6736(07)61253-7"
                     />
                     <Citation
-                      text="Sovacool, B. K., Andersen, R., Sorensen, S., Sorensen, K., Tienda, V., Vainorius, A., Schirach, O. M., & Bjørn-Thygesen, F. (2016). Balancing safety with sustainability: assessing the risk of accidents for modern low-carbon energy systems. Journal of Cleaner Production, 112, 3952–3965."
+                      text="Sovacool, B. K., Andersen, R., Sorensen, S., Sorensen, K., Tienda, V., Vainorius, A., Schirach, O. M., & Bjørn-Thygesen, F. (2016). Balancing safety with sustainability: assessing the risk of accidents for modern low-carbon energy systems. Journal of Cleaner Production, 112, 3952 - 3965."
                       url="https://doi.org/10.1016/j.jclepro.2015.07.059"
                     />
                   </SourceGroup>
                   <Limitations>
                     Death rates per terawatt-hour are modelled, not counted. Most of the deaths the
                     poster attributes to fossil-fuel electricity - particularly air-pollution mortality
-                    - are statistical attributions made through epidemiological models, not individually
+ - are statistical attributions made through epidemiological models, not individually
                     identifiable. The Chernobyl and Fukushima figures used in the nuclear estimate are
                     themselves contested: published estimates range from a few thousand to over a
                     hundred thousand depending on methodology, and the central value used here is a
@@ -469,13 +469,13 @@ export default function Sources() {
                     url="https://monoskop.org/images/b/ba/Foucault_Michel_Fearless_Speech.pdf"
                   />
                   <Citation text="Fricker, M. (2007). Epistemic injustice: Power and the ethics of knowing. Oxford University Press." />
-                  <Citation text="Kahan, D. M. (2012). Cultural cognition as a conception of the cultural theory of risk. In S. Roeser, R. Hillerbrand, P. Sandin, & M. Peterson (Eds.), Handbook of risk theory (pp. 725–759). Springer." />
+                  <Citation text="Kahan, D. M. (2012). Cultural cognition as a conception of the cultural theory of risk. In S. Roeser, R. Hillerbrand, P. Sandin, & M. Peterson (Eds.), Handbook of risk theory (pp. 725 - 759). Springer." />
                   <Citation
                     text="Meadows, D. H. (1999). Leverage points: Places to intervene in a system. The Sustainability Institute."
                     url="https://www.donellameadows.org/wp-content/userfiles/Leverage_Points.pdf"
                   />
                   <Citation
-                    text="Slovic, P. (1987). Perception of risk. Science, 236(4799), 280–285."
+                    text="Slovic, P. (1987). Perception of risk. Science, 236(4799), 280 - 285."
                     url="https://doi.org/10.1126/science.3563507"
                   />
                 </motion.div>

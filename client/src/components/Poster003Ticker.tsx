@@ -2,7 +2,7 @@ import { memo, useEffect, useRef } from 'react';
 import { poster003Store } from '@/lib/poster003Store';
 
 /**
- * Poster 003 — live ticker totals beneath the dot grid (commit 19).
+ * Poster 003 - live ticker totals beneath the dot grid (commit 19).
  *
  * Decoupled from React: the component renders its DOM tree once on
  * mount and subscribes to poster003Store. The subscription callback
@@ -70,7 +70,7 @@ function Poster003TickerImpl() {
       }
     };
 
-    // Initial write — picks up whatever the slider's current state is.
+    // Initial write - picks up whatever the slider's current state is.
     writeNumbers();
 
     const unsubscribe = poster003Store.subscribe(() => writeNumbers());
@@ -79,7 +79,7 @@ function Poster003TickerImpl() {
 
   // The dots SVG is now cropped to the actual dot bbox (no dead
   // zone below), so the ticker can sit visually close to the dot
-  // mass — gap roughly equal to one numeral line-height.
+  // mass - gap roughly equal to one numeral line-height.
   const NUMBER_STYLE: React.CSSProperties = {
     fontWeight: 600,
     fontSize: 'clamp(40px, 6vw, 64px)',

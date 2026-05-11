@@ -1,10 +1,10 @@
 /**
- * Poster 003 — scenario data + slider interpolation contract.
+ * Poster 003 - scenario data + slider interpolation contract.
  *
  * Three discrete scenarios (S1/S2/S3) describe UK electricity-mix
  * deaths and lives-saved at 14% / 30% / 70% nuclear share.
  *
- * The slider exposes a continuous fraction 0–1 across the track:
+ * The slider exposes a continuous fraction 0 - 1 across the track:
  *   S1 anchor = 0.0
  *   S2 anchor = 0.5
  *   S3 anchor = 1.0
@@ -111,7 +111,7 @@ export const SCENARIOS: readonly [ScenarioData, ScenarioData, ScenarioData] = [
 ] as const;
 
 // Maximum value seen across all three scenarios. Used by the canvas
-// blobs layer to compute currentScale = currentDeaths / max — so a
+// blobs layer to compute currentScale = currentDeaths / max - so a
 // form drawn at the scenario where it is largest renders at scale=1.
 export const MAX_DEATHS_FOR_SOURCE: Readonly<Record<SourceId, number>> =
   SOURCE_IDS.reduce(
@@ -144,11 +144,11 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 /**
- * Interpolate the slider state at a given fraction (0–1).
+ * Interpolate the slider state at a given fraction (0 - 1).
  *
  * Geometry fields (geometricSources, geometricTotalDeaths) interpolate
  * linearly between adjacent anchors. They drive blob sizes, dot
- * counts, and node radii — they are NOT for numerical display.
+ * counts, and node radii - they are NOT for numerical display.
  *
  * The displayed numbers come from anchorState, the nearest snap.
  */
@@ -185,7 +185,7 @@ export function interpolate(sliderFraction: number): VizState {
     local,
   );
 
-  // Nearest anchor — ties go right.
+  // Nearest anchor - ties go right.
   let nearestAnchor: 's1' | 's2' | 's3';
   if (f < 0.25) nearestAnchor = 's1';
   else if (f < 0.75) nearestAnchor = 's2';
@@ -222,14 +222,14 @@ export const ANCHOR_FRACTIONS: Readonly<Record<'s1' | 's2' | 's3', number>> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// DOT_ORDERING — a deterministic seeded shuffle of [0..698].
+// DOT_ORDERING - a deterministic seeded shuffle of [0..698].
 //
 // Drives the red→green flip sequence in the dots layer. Every page
 // load produces the same ordering so the visual sequence is stable
 // across sessions. The ordering has NO source attribution: it is a
 // pseudo-random permutation, and individual dots cannot be associated
 // with individual sources. This is a thesis-level editorial
-// constraint — death-by-source is shown by the deaths-blobs layer,
+// constraint - death-by-source is shown by the deaths-blobs layer,
 // never by the dots layer.
 // ─────────────────────────────────────────────────────────────────────
 
@@ -247,7 +247,7 @@ function mulberry32(seed: number): () => number {
 function buildDotOrdering(seed: number, n: number): number[] {
   const arr = Array.from({ length: n }, (_, i) => i);
   const rand = mulberry32(seed);
-  // Fisher–Yates.
+  // Fisher - Yates.
   for (let i = n - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     const tmp = arr[i];

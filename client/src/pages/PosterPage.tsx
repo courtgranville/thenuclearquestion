@@ -249,7 +249,7 @@ export default function PosterPage() {
               {poster.id === "006" && <Poster006Viz />}
             </div>
 
-            {/* Per-poster legend block — sits below the viz and above
+            {/* Per-poster legend block - sits below the viz and above
                 the download-PDF paragraph. Poster 005 owns its own
                 legend inside Poster005Viz; the others render here.
                 See client/src/components/Poster00*Legend.tsx for the

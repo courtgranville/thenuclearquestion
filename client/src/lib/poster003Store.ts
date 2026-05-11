@@ -1,10 +1,10 @@
 import { interpolate, type VizState } from './poster003Data';
 
 /**
- * Poster 003 — minimal pub/sub store for the slider-driven layers.
+ * Poster 003 - minimal pub/sub store for the slider-driven layers.
  *
  * Drives the deaths-by-source canvas (commit 18), the dot grid,
- * the dendrogram, and the live tickers (commit 19) — none of which
+ * the dendrogram, and the live tickers (commit 19) - none of which
  * re-render through React during slider drag. The slider in
  * Poster003Viz dispatches `update(fraction)` on every drag tick and
  * `setDragging(true/false)` on press / release; subscribers read
@@ -16,7 +16,7 @@ import { interpolate, type VizState } from './poster003Data';
  * dot grid's count formula switches at snap:
  *   dragging:  greenCount = 699 − geometricTotalDeaths
  *   settled:   greenCount = anchorState.livesSaved
- * The two formulas can differ by ±1 dot at S2 (data rounding —
+ * The two formulas can differ by ±1 dot at S2 (data rounding  -
  * S2 totalDeaths 297 + livesSaved 401 = 698, not 699). The split
  * preserves the editorial value at snap.
  *

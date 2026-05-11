@@ -62,7 +62,7 @@ export default function Poster006Viz() {
     <div className="w-full">
       <SectionFrame
         title="The Inversion"
-        lead="The four categories of UK radioactive waste, scaled two ways. Toggle between physical volume and radioactivity. The smallest physical volume holds almost all of the radioactivity — this is the editorial fact this page is built around."
+        lead="The four categories of UK radioactive waste, scaled two ways. Toggle between physical volume and radioactivity. The smallest physical volume holds almost all of the radioactivity - this is the editorial fact this page is built around."
       >
         <Poster006WasteInversion />
       </SectionFrame>

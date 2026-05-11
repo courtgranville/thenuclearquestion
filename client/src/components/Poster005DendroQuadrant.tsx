@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005DendroQuadrant.tsx — one status's slice of the dendrogram.
+// Poster005DendroQuadrant.tsx - one status's slice of the dendrogram.
 //
 // Court asked for a 2x2 grid layout (under-construction TL, retired
 // TR, operating BL, cancelled BR) so the hub forms can scale up to
@@ -7,11 +7,11 @@
 // instead of all four sharing one cramped horizontal row.
 //
 // Each quadrant fetches the source SVG, strips:
-//   - all hub-form polylines (canvas owns the visual)
-//   - the row-* groups (the timeline strip lives in Poster005Timeline)
-//   - leaf circles for the other three statuses
-//   - level-1 connectors not originating from THIS status's hub
-//   - level-2 connectors not ending at one of THIS status's leaves
+// - all hub-form polylines (canvas owns the visual)
+// - the row-* groups (the timeline strip lives in Poster005Timeline)
+// - leaf circles for the other three statuses
+// - level-1 connectors not originating from THIS status's hub
+// - level-2 connectors not ending at one of THIS status's leaves
 // then sets a tight viewBox around just the kept geometry.
 //
 // A canvas overlay renders only this status's hub form with the
@@ -61,7 +61,7 @@ import {
 const DENDRO_URL = '/assets/005-dendrogram-clean_336edeac.svg';
 
 // Actual connector-anchor positions from the source SVG (where the
-// level-1 cubic Béziers START — i.e. y=422.366, x depends on hub).
+// level-1 cubic Béziers START - i.e. y=422.366, x depends on hub).
 // These differ slightly from HUBS[*].anchor in the JSON (which is
 // the BBOX centroid at y≈405). We need the connector-anchor for
 // path matching.
@@ -77,7 +77,7 @@ const CONNECTOR_ANCHOR: Record<ReactorStatus, { x: number; y: number }> = {
 // leaf row at y=800.993. Leaves can carry radii up to ~24 so their
 // bottom edge sits at y≈825; the viewBox needs to extend past that
 // or the largest circles clip. Timeline gridlines start at y=835
-// so we stop at 832 — 1 px below the gridlines, 8 px below the
+// so we stop at 832 - 1 px below the gridlines, 8 px below the
 // largest possible leaf bottom (Court round-14: 'circles seem to
 // be getting cut off so you need to increase the bbox slightly').
 const QUAD_VIEW_Y_TOP = 332;
@@ -89,13 +89,13 @@ const QUAD_VIEW_H = QUAD_VIEW_Y_BOTTOM - QUAD_VIEW_Y_TOP;
 // the leaves don't sit at the edge. Critically, using the SAME
 // width for every quadrant means preserveAspectRatio gives every
 // quadrant the SAME SVG-to-pixel scale. Hub forms therefore render
-// at their print-proportional sizes — yellow (UC) small, grey
-// (retired) and red (cancelled) larger — matching Court's brief
+// at their print-proportional sizes - yellow (UC) small, grey
+// (retired) and red (cancelled) larger - matching Court's brief
 // that "yellow forms/circles should not be taller than the grey
 // ones - like in the original poster".
 const QUAD_VIEW_W = 660;
 
-// CSS class registry — one keyed style per quadrant.
+// CSS class registry - one keyed style per quadrant.
 const CSS_INJECTED_KEY = '__poster005_quadrant_css_v1';
 
 function injectStyleOnce() {
@@ -128,8 +128,8 @@ function injectStyleOnce() {
        must STAY visible, and the connector chain from form → focused
        leaf must also stay visible. Only OTHER connectors and OTHER
        leaves dim.
-         - polylines (hub form): NOT dimmed by data-any-hover.
-         - path[data-reactor*=ID]: kept visible via a sibling
+ - polylines (hub form): NOT dimmed by data-any-hover.
+ - path[data-reactor*=ID]: kept visible via a sibling
            [data-hovered-id=ID] attribute on the quadrant. Other
            paths drop to 0.06. */
     .poster005-quadrant[data-any-hover="true"] svg path {
@@ -233,12 +233,12 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
        // colour) so they render natively as crisp SVG at full
       // resolution; strip every other hub's polylines + cream-fill
       // polylines. The canvas overlay now owns only the pulse
-      // animation — the hub form itself is rendered by the SVG.
+      // animation - the hub form itself is rendered by the SVG.
       //
       // Court round-7: 'replace the forms with the ones being used
       // on the current live site main branch, which are much higher
       // definition'. The print SVG's 256 polylines per hub are
-      // already high-def — rendering them as SVG instead of
+      // already high-def - rendering them as SVG instead of
       // rasterised canvas is what makes them look high-def.
       const MY_HUB_STROKE: Record<string, string> = {
         underConstruction: '#b4822e',
@@ -306,7 +306,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       //           paths whose START matches one of those sub-hubs.
       // Earlier the filter kept any level-2 path ending at a leaf x
       // in this status, which let orphan paths from OTHER hubs
-      // through whenever an x-coordinate happened to collide —
+      // through whenever an x-coordinate happened to collide  -
       // visible as 'lines all over the place'.
       const ANCHOR_X = connectorAnchor.x;
       const ANCHOR_Y = connectorAnchor.y;
@@ -449,7 +449,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       // each hub. They're outlined path groups (not <text>). They
       // bleed between adjacent quadrants when the viewBox crop
       // includes their x range, and we already show a status label
-      // in React above each quadrant — so strip everything in the
+      // in React above each quadrant - so strip everything in the
       // label band on every quadrant.
       // The labels are <g><path d="...">…</g> groups whose paths
       // start inside y=305-330. We walk every <g> and remove it if
@@ -495,7 +495,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
     return () => { cancelled = true; };
   }, [status]);
 
-  // Hover wiring — leaves only. Hub hover comes from the dedicated
+  // Hover wiring - leaves only. Hub hover comes from the dedicated
   // hot-zone <div> at the bottom of the JSX.
   useEffect(() => {
     const container = containerRef.current;
@@ -532,7 +532,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
     };
   }, []);
 
-  // Store subscription — apply leaf focus/dim classes + container
+  // Store subscription - apply leaf focus/dim classes + container
   // attributes for SVG-element dimming.
   useEffect(() => {
     if (!svgMarkup) return;
@@ -546,7 +546,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       // SAME sector. Other sectors stay full. The data-any-hover
       // attribute (which dims hub polylines + connectors + axis
       // text) is therefore only true on the quadrant that owns the
-      // hovered reactor — never on the others.
+      // hovered reactor - never on the others.
       const hoverInThisQuad = !!hoveredR && hoveredR.status === status;
       container.setAttribute('data-any-hover', hoverInThisQuad ? 'true' : 'false');
       // Click-on-hub filter dim still works globally: other
@@ -652,7 +652,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       const hoveredReactor = hoveredReactorRef.current;
       const filteredStatus = filteredStatusRef.current;
       // baseAlpha / hub physical pulse / canvas hub-form rendering
-      // all removed — the SVG layer renders the hub polylines
+      // all removed - the SVG layer renders the hub polylines
       // natively now. Court round-7: 'replace the forms with the
       // ones being used on the current live site main branch, which
       // are much higher definition'. The canonical 256 print
@@ -719,7 +719,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
     };
   }, [viewBox, status]);
 
-  // Hub hot-zone — refer to via ref so we can attach native
+  // Hub hot-zone - refer to via ref so we can attach native
   // pointerover/leave listeners. React's onPointerEnter sometimes
   // misses fires when the cursor enters via a fast diagonal or when
   // the parent intercepts the event first; native listeners on the
@@ -780,7 +780,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      {/* Quadrant header — status label + count + MW total */}
+      {/* Quadrant header - status label + count + MW total */}
       <div className="flex items-baseline gap-3 mb-1">
         <span
           className="inline-block w-3 h-3 rounded-full"

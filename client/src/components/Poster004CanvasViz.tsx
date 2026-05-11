@@ -113,7 +113,7 @@ interface PreparedForm {
   colour: string;
   twh: number;
   motion: FormMotion;
-  // Indices of the polylines that form the outer silhouette — drawn
+  // Indices of the polylines that form the outer silhouette - drawn
   // as an opaque page-background fill before the texture strokes so
   // connector lines beneath the canvas don't show through the form's
   // interior gaps.
@@ -193,7 +193,7 @@ const FORMS: Record<FormId, PreparedForm> = (() => {
   return out;
 })();
 
-// Page background colour — used to fill form silhouettes so the
+// Page background colour - used to fill form silhouettes so the
 // connectors that run beneath the canvas don't show through the
 // stroke gaps. Matches CLAUDE.md's locked palette.
 const PAGE_BG = '#ECE7DF';
@@ -203,7 +203,7 @@ const SECTORS = DATA.sectors;
 const SECTOR_LABELS = DATA.labels.sectors;
 
 // ─────────────────────────────────────────────────────────────────
-// Carrier name labels — print designer set these at PDF-export time;
+// Carrier name labels - print designer set these at PDF-export time;
 // not in the SVG. Hard-coded to render alongside each carrier blob.
 // Positions are approximate first-pass values; tune visually later.
 // ─────────────────────────────────────────────────────────────────
@@ -255,7 +255,7 @@ const CARRIER_HIT_RECTS: Record<CarrierId, HitRect> = {
 };
 const HUB_HIT_RECT = hitRectFor(FORMS.total.bbox);
 
-// Sector labels render at their print SVG coordinates verbatim —
+// Sector labels render at their print SVG coordinates verbatim  -
 // the print designer's deliberate placement is preserved without
 // scale or translate.
 
@@ -266,7 +266,7 @@ const SECTOR_BY_ID: Record<string, RawSector> = (() => {
 })();
 
 // ─────────────────────────────────────────────────────────────────
-// Tight content viewBox — replaces the original print-export
+// Tight content viewBox - replaces the original print-export
 // 0 0 1967.58 1674.75 which had the content offset 128 px left and
 // 45 px up from the viewBox centre. Computed at module load from
 // every renderable element with 5% padding.
@@ -291,7 +291,7 @@ const VIEWBOX = (() => {
     expand(s.cx + s.r, s.cy + s.r);
   }
   // Sector label glyph anchors. Render verbatim from the print SVG
-  // — no scale, no translate. Each glyph's path d-string draws the
+  // - no scale, no translate. Each glyph's path d-string draws the
   // character around its anchor; LABEL_GLYPH_EXTENT bounds the
   // typical character width / height so the bbox includes the
   // rendered edge.
@@ -312,7 +312,7 @@ const VIEWBOX = (() => {
   expand(FORMS.total.centroid[0] - 200, 1010 - 12);
   expand(FORMS.total.centroid[0] + 200, 1052 + 16);
 
-  // 2.5% pad on each side — tightened so content fills more of the
+  // 2.5% pad on each side - tightened so content fills more of the
   // rendered viewBox.
   const w = maxX - minX;
   const h = maxY - minY;
@@ -339,7 +339,7 @@ export default function Poster004CanvasViz() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // SVG element refs — populated in JSX render via callback refs.
+  // SVG element refs - populated in JSX render via callback refs.
   const connectorRefs    = useRef<Record<string, SVGPathElement | null>>({});
   const sectorCircleRefs = useRef<Record<string, SVGCircleElement | null>>({});
   const sectorLabelRefs  = useRef<Record<string, SVGGElement | null>>({});
@@ -394,7 +394,7 @@ export default function Poster004CanvasViz() {
     }
     animRef.current.linkLengths = lengths;
 
-    // Cap at 2.0 for retina sharpness — pixel count goes up ~78% vs
+    // Cap at 2.0 for retina sharpness - pixel count goes up ~78% vs
     // 1.5, but the silhouette-singleton + alpha-guard work in this
     // commit recovers the budget. Verify on the dev FPS counter
     // before pushing further.
@@ -482,11 +482,11 @@ export default function Poster004CanvasViz() {
           ctx.translate(-f.anchor[0], -f.anchor[1]);
         }
 
-        // Silhouette fill — page-background-coloured opaque path(s)
+        // Silhouette fill - page-background-coloured opaque path(s)
         // that block the connector lines running underneath. Draw
         // BEFORE the texture strokes so the strokes still draw on
         // top. globalAlpha = formAlpha so the dim mask still works.
-        // Skip when the form is heavily dimmed — the connectors
+        // Skip when the form is heavily dimmed - the connectors
         // beneath are also at DIM_OPACITY, so occlusion isn't load-
         // bearing and the fill cost adds no visible value.
         if (f.silhouetteIndices.length > 0 && alpha > 0.1) {
@@ -512,7 +512,7 @@ export default function Poster004CanvasViz() {
         const flowAmp = f.motion.flowAmp;
         const N = f.lines.length;
 
-        // Bucket-batched strokes — outlines (line.path !== null) go
+        // Bucket-batched strokes - outlines (line.path !== null) go
         // through unchanged, interiors get a per-point flow
         // displacement at amplitude flowAmp × line.dw.
         for (let bucket = 0; bucket < NUM_BUCKETS; bucket++) {
@@ -528,7 +528,7 @@ export default function Poster004CanvasViz() {
             );
             if (lineBucket !== bucket) continue;
 
-            // Outline line — no displacement.
+            // Outline line - no displacement.
             if (line.path !== null) {
               const pts = line.pts;
               const n = line.n;
@@ -540,7 +540,7 @@ export default function Poster004CanvasViz() {
               continue;
             }
 
-            // Interior line — per-point flow displacement.
+            // Interior line - per-point flow displacement.
             const pts = line.pts;
             const n = line.n;
             if (n < 2) continue;
@@ -586,7 +586,7 @@ export default function Poster004CanvasViz() {
 
       // ── Pulse-tips on canvas ──
       // Pulses read as bright yellow-white electricity flowing
-      // through the connector lines — no carrier colour. Three
+      // through the connector lines - no carrier colour. Three
       // layered elements per pulse:
       //   1. Warm-yellow radial glow at the head.
       //   2. White core dot for the focal point.
@@ -739,7 +739,7 @@ export default function Poster004CanvasViz() {
 
   const handleHubPointer = (e: React.PointerEvent<SVGRectElement>) => {
     if (stateRef.current.phase === 'CASCADE_FULL') return;
-    // Block pointerEnter on touch — onPointerDown handles taps so
+    // Block pointerEnter on touch - onPointerDown handles taps so
     // a stray "enter" from a scroll gesture doesn't kick off the
     // cascade unintentionally.
     if (e.type === 'pointerenter' && e.pointerType === 'touch') return;
@@ -748,13 +748,13 @@ export default function Poster004CanvasViz() {
     dispatch({ type: 'CASCADE_FULL_START' });
   };
 
-  // Hub stays hoverable in DEFAULT and FULL — every hover replays the
+  // Hub stays hoverable in DEFAULT and FULL - every hover replays the
   // cascade. Only blocked while a cascade is already playing.
   const hubHittable = state.phase !== 'CASCADE_FULL';
 
   // Carrier focus: pointerEnter activates, pointerLeave schedules a
   // HOVER_DEBOUNCE_MS exit timer that gets cancelled if any other
-  // carrier hover lands within the window — so cross-carrier hover
+  // carrier hover lands within the window - so cross-carrier hover
   // crossfades smoothly without dropping back to FULL between.
   const focusExitTimerRef = useRef<number | null>(null);
   const cancelFocusExit = () => {
@@ -821,7 +821,7 @@ export default function Poster004CanvasViz() {
 
   // First-paint hover instruction. Fades in INSTRUCTION_FADE_IN_DELAY_MS
   // after mount; fades out (and never returns) on first cascade dispatch
-  // — the reducer drops hoverInstructionVisible inside CASCADE_FULL_START.
+  // - the reducer drops hoverInstructionVisible inside CASCADE_FULL_START.
   useEffect(() => {
     const t = window.setTimeout(() => {
       dispatch({ type: 'SHOW_HOVER_INSTRUCTION' });
@@ -896,7 +896,7 @@ export default function Poster004CanvasViz() {
           maxWidth: `min(95vw, calc(90vh * ${VIEWBOX.w} / ${VIEWBOX.h}), 1800px)`,
         }}
       >
-        {/* Layer 1: connectors (lowest). Pointer-events disabled —
+        {/* Layer 1: connectors (lowest). Pointer-events disabled  -
             taps pass through to the upper SVG. */}
         <svg
           viewBox={`${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`}
@@ -936,7 +936,7 @@ export default function Poster004CanvasViz() {
           className="absolute inset-0 w-full h-full"
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="UK final energy in 2024 by carrier and end-use sector — 1,542 TWh total"
+          aria-label="UK final energy in 2024 by carrier and end-use sector - 1,542 TWh total"
           onPointerDown={handleSvgBackground}
           style={{ zIndex: 3 }}
         >
@@ -958,12 +958,12 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Sector labels — outlined glyph paths from the print
+          {/* Sector labels - outlined glyph paths from the print
               SVG, rendered at their print coordinates verbatim.
               The print designer's placement is the source of truth.
               The lone unmatched solidFuel/Chemicals dot has no
               entry in DATA.labels.sectors and renders without a
-              label — accepted as-is for v1. */}
+              label - accepted as-is for v1. */}
           <g id="sector-labels" pointerEvents="none" fill="#0d1a1e">
             {Object.entries(SECTOR_LABELS).map(([sectorId, glyphs]) => (
               <g
@@ -979,7 +979,7 @@ export default function Poster004CanvasViz() {
             ))}
           </g>
 
-          {/* Hub label — sits BELOW the central form, matching the
+          {/* Hub label - sits BELOW the central form, matching the
               print's actual placement. Visible at DEFAULT and
               during CASCADE_FULL, fades out on completion, returns
               on RESET. */}
@@ -1099,7 +1099,7 @@ export default function Poster004CanvasViz() {
         </svg>
       </div>
 
-      {/* Hover instruction — sits as plain HTML below the diagram so
+      {/* Hover instruction - sits as plain HTML below the diagram so
           it can never overlap any visualisation content. Same fade
           behaviour driven by state.hoverInstructionVisible. Layout
           space is preserved when invisible (opacity, not display). */}
@@ -1153,7 +1153,7 @@ export default function Poster004CanvasViz() {
         </button>
       </div>
 
-      {/* Honesty caveat — verbatim from the printed poster. */}
+      {/* Honesty caveat - verbatim from the printed poster. */}
       <p
         className="mt-5 mx-auto max-w-2xl text-center text-foreground/70 leading-relaxed"
         style={{

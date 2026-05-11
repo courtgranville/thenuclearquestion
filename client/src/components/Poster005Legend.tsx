@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005Legend.tsx — designed legend for the poster page.
+// Poster005Legend.tsx - designed legend for the poster page.
 //
 // Court round-6: rather than embed the print's 005-legend.svg
 // verbatim (where the elements run as one long horizontal strip),
@@ -7,11 +7,11 @@
 // React component so each item reads clearly.
 //
 // Four sections (each a column on desktop, stacked on mobile):
-//   1. Map — how to read the geographic dots
-//   2. Dendrogram — how the four hubs cluster reactors by status
+//   1. Map - how to read the geographic dots
+//   2. Dendrogram - how the four hubs cluster reactors by status
 //      and how leaf-size encodes capacity
-//   3. Timeline — what each bar / dot / dashed line means
-//   4. Methodology — the editorial note about cancelled projects
+//   3. Timeline - what each bar / dot / dashed line means
+//   4. Methodology - the editorial note about cancelled projects
 //
 // All icons are tiny inline SVGs that mirror the print's marks:
 // status colour dots, hub→leaf miniature, capacity-circle pair,

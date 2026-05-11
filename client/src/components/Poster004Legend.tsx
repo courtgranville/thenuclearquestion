@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster004Legend.tsx — designed legend for poster 004.
+// Poster004Legend.tsx - designed legend for poster 004.
 //
 // Source: client/public/assets/004-legend.svg. Two sections:
 // dendrogram levels (Hub / Carrier / Sector) and carrier colour
@@ -135,7 +135,7 @@ export default function Poster004Legend() {
           <Section title="Non-energy use">
             <p className="text-sm text-muted-foreground leading-relaxed">
               52.7 TWh of petroleum is shown as feedstock for petrochemicals,
-              lubricants, bitumen and waxes — not combusted, but part of
+              lubricants, bitumen and waxes - not combusted, but part of
               where UK petroleum physically goes.
             </p>
           </Section>

@@ -9,7 +9,7 @@ import {
 import formsData from '@/assets/poster-001-forms.json';
 
 // ─────────────────────────────────────────────────────────────────────
-// Region metadata — copied from the original Poster001Viz.tsx so the
+// Region metadata - copied from the original Poster001Viz.tsx so the
 // legend buttons and info panel work without depending on the old file.
 // ─────────────────────────────────────────────────────────────────────
 
@@ -353,7 +353,7 @@ export default function Poster001CanvasViz() {
       const w2 = TUNING.flowW2;
       const a2w = TUNING.flowAmp2Weight;
 
-      // Number of alpha buckets — 8 is enough that the per-line
+      // Number of alpha buckets - 8 is enough that the per-line
       // alpha gradient still reads as smooth, but few enough that
       // we make 8 stroke calls per form instead of ~270.
       const NUM_BUCKETS = 8;

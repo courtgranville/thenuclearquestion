@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster002Legend.tsx — designed legend for poster 002.
+// Poster002Legend.tsx - designed legend for poster 002.
 //
 // Source: client/public/assets/002-legend.svg. Single-section
 // legend: each source = organic form with a green surface
