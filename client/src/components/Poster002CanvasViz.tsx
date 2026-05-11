@@ -7,6 +7,7 @@ import {
 import formsData from '@/assets/poster-002-forms.json';
 import { Pause, Play } from 'lucide-react';
 import PosterControlButton from '@/components/PosterControlButton';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -411,23 +412,21 @@ export default function Poster002CanvasViz() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-
     const resize = () => {
       const r = container.getBoundingClientRect();
       const cssW = r.width;
       const cssH = r.height;
-      canvas.width = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width = cssW + 'px';
-      canvas.style.height = cssH + 'px';
+      // fitCanvasToDpr (canvasUtils) reads devicePixelRatio fresh
+      // each call, capped at MAX_DPR=3. Removes the previous 1.5
+      // clamp that was rendering Retina at 75% native resolution.
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
       const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
       const offsetY = (cssH - SVG_VIEW_H * scale) / 2;
       transformRef.current = { scale, offsetX, offsetY };
       ctx.setTransform(
-        scale * DPR, 0, 0, scale * DPR,
-        offsetX * DPR, offsetY * DPR,
+        scale * dpr, 0, 0, scale * dpr,
+        offsetX * dpr, offsetY * dpr,
       );
     };
     resize();

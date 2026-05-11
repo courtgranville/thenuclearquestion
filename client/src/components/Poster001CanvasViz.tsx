@@ -8,6 +8,7 @@ import {
 } from '@/lib/posterMotion';
 import formsData from '@/assets/poster-001-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata - copied from the original Poster001Viz.tsx so the
@@ -304,7 +305,6 @@ export default function Poster001CanvasViz() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
     let cssW = 0;
     let cssH = 0;
 
@@ -312,20 +312,21 @@ export default function Poster001CanvasViz() {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      canvas.width = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width = cssW + 'px';
-      canvas.style.height = cssH + 'px';
+      // fitCanvasToDpr reads window.devicePixelRatio fresh each
+      // call (capped at MAX_DPR=3) so display changes refresh
+      // correctly. Returned dpr is composed with the viewBox-fit
+      // scale into the final transform.
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
       const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
       const offsetY = (cssH - SVG_VIEW_H * scale) / 2;
       ctx.setTransform(
-        scale * DPR,
+        scale * dpr,
         0,
         0,
-        scale * DPR,
-        offsetX * DPR,
-        offsetY * DPR,
+        scale * dpr,
+        offsetX * dpr,
+        offsetY * dpr,
       );
     };
     resize();

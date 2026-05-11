@@ -8,6 +8,7 @@ import {
   type FissionState,
 } from '@/lib/fission';
 import { spawnBurst, stepAndDrawParticles } from '@/lib/particles';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
 
 interface NucleusHeroProps {
   /** SVG path d-strings extracted from the icon. */
@@ -47,7 +48,6 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
     let W = 0;
     let H = 0;
 
@@ -55,11 +55,8 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       const r = container.getBoundingClientRect();
       W = r.width;
       H = r.height;
-      canvas.width = Math.max(1, Math.floor(W * DPR));
-      canvas.height = Math.max(1, Math.floor(H * DPR));
-      canvas.style.width = W + 'px';
-      canvas.style.height = H + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const { dpr } = fitCanvasToDpr(canvas, W, H);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
 

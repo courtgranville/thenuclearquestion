@@ -57,6 +57,7 @@ import {
   PULSE_LAUNCH_AT_MS,
   PULSE_TRAVEL_SPEED_PX_PER_MS,
 } from '@/lib/poster004Engine';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
 
 const DENDRO_URL = '/assets/005-dendrogram-clean_336edeac.svg';
 
@@ -607,17 +608,18 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    // DPR refreshed each resize via the shared helper - capped at
+    // MAX_DPR=3 instead of the previous local 1.5 cap which was
+    // rendering Retina at 75% of native resolution.
     let cssW = 0;
     let cssH = 0;
+    let dpr = 1;
     const resize = () => {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      canvas.width = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width = cssW + 'px';
-      canvas.style.height = cssH + 'px';
+      const fit = fitCanvasToDpr(canvas, cssW, cssH);
+      dpr = fit.dpr;
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -645,9 +647,9 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       const s = Math.min(sx, sy);
       const offsetX = (cssW - viewBox.w * s) / 2 - viewBox.x * s;
       const offsetY = (cssH - viewBox.h * s) / 2 - viewBox.y * s;
-      const scale = s * DPR;
-      const offX = offsetX * DPR;
-      const offY = offsetY * DPR;
+      const scale = s * dpr;
+      const offX = offsetX * dpr;
+      const offY = offsetY * dpr;
 
       const hoveredReactor = hoveredReactorRef.current;
       const filteredStatus = filteredStatusRef.current;
