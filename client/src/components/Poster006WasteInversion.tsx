@@ -241,7 +241,11 @@ export default function Poster006WasteInversion() {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
+      // Cap DPR at 1.5 - restores the pre-migration value. Poster 006
+      // Inversion's four-cell canvas with per-cell magnetism plus form
+      // motion was the heaviest hit by the global DPR=3 migration -
+      // 3 Hz Firefox at DPR=2 on retina.
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH, 1.5);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const isStacked = cssW < 560;

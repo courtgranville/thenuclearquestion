@@ -419,10 +419,11 @@ export default function Poster002CanvasViz() {
       const r = container.getBoundingClientRect();
       const cssW = r.width;
       const cssH = r.height;
-      // fitCanvasToDpr (canvasUtils) reads devicePixelRatio fresh
-      // each call, capped at MAX_DPR=3. Removes the previous 1.5
-      // clamp that was rendering Retina at 75% native resolution.
-      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
+      // Cap DPR at 1.5 - restores the pre-migration value. Poster 002's
+      // per-frame stroke work tipped Firefox/Safari from usable into 4-9 Hz
+      // at DPR 2.0 on retina. fitCanvasToDpr reads devicePixelRatio fresh
+      // each call so display changes refresh correctly.
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH, 1.5);
       const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
       const offsetY = (cssH - SVG_VIEW_H * scale) / 2;

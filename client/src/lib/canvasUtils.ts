@@ -2,34 +2,23 @@
  * canvasUtils.ts - shared DPR-aware canvas sizing.
  *
  * Every canvas viz on the site (NucleusHero, Poster001/002/004
- * CanvasViz, Poster005DendroQuadrant) repeats the same sizing
- * scaffold: read devicePixelRatio, multiply the backing store,
- * set CSS dimensions in px. The transform after that differs
- * per-component (some set the simple identity-DPR transform,
- * others compose DPR with a viewBox scale + offset).
+ * CanvasViz, Poster005DendroQuadrant, Poster006WasteInversion)
+ * repeats the same sizing scaffold: read devicePixelRatio,
+ * multiply the backing store, set CSS dimensions in px.
  *
- * Centralising sizing here:
- *  - Eliminates the per-component DPR caps that were rendering
- *    high-DPR displays at 75% of native resolution. Single
- *    MAX_DPR ceiling lives in one place.
- *  - Reads devicePixelRatio FRESH on every call, so dragging the
- *    window between displays of different DPR refreshes correctly.
- *  - Leaves the transform to the caller (since composite transforms
- *    are component-specific).
+ * Per-component DPR caps. Each canvas viz declares its own
+ * maxDpr based on its per-frame stroke cost - the heavier the
+ * canvas, the lower the cap. Firefox's canvas2D path (Cairo) is
+ * significantly slower than Chrome's (Skia), so heavy canvases
+ * tip into unusable framerates at retina DPR even when Chrome
+ * remains smooth.
  *
- * Usage:
- *
- *   const resize = () => {
- *     const r = container.getBoundingClientRect();
- *     const { ctx, dpr } = fitCanvasToDpr(canvas, r.width, r.height);
- *     // Set whatever transform you need:
- *     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);          // simple
- *     // or composite:
- *     ctx.setTransform(scale * dpr, 0, 0, scale * dpr, offX * dpr, offY * dpr);
- *   };
- *   resize();
- *   const ro = new ResizeObserver(resize);
- *   ro.observe(container);
+ * Historical context: every poster canvas was originally
+ * hardcoded at its own cap (1.5 for the heavy ones, 2.0 for the
+ * lighter ones). The May 2026 migration to fitCanvasToDpr
+ * collapsed these into a single global MAX_DPR=3, which caused
+ * Firefox + Safari poster pages to regress from usable to 3-9 Hz.
+ * Per-component caps restored here.
  */
 
 export interface FitCanvasResult {
@@ -39,14 +28,19 @@ export interface FitCanvasResult {
   dpr: number;
 }
 
-/** Maximum DPR we'll ask the browser for. 3.0 covers Retina (2x),
- *  Android 3x, and the rare 4x ultra-HD without runaway backing
- *  stores on extreme-DPR-reporting devices. */
+/** Default ceiling - used when a caller doesn't pass an explicit
+ *  maxDpr. Effectively only applies on devices with native DPR
+ *  above the caller's cap. */
 export const MAX_DPR = 3;
 
 /**
  * Resize a canvas's backing store + CSS dimensions for crisp
  * native-DPR rendering. Returns the 2D context and the DPR used.
+ *
+ * The optional `maxDpr` parameter caps DPR for performance-sensitive
+ * canvases. Heavy canvases (Posters 001/002/005/006) should pass
+ * 1.5; medium canvases (NucleusHero, Poster 004) should pass 2.0;
+ * canvases with light per-frame work can omit the cap entirely.
  *
  * Re-reads `window.devicePixelRatio` on every call so this is safe
  * to use inside a ResizeObserver / resize listener. The transform
@@ -57,8 +51,9 @@ export function fitCanvasToDpr(
   canvas: HTMLCanvasElement,
   cssWidth: number,
   cssHeight: number,
+  maxDpr: number = MAX_DPR,
 ): FitCanvasResult {
-  const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
   canvas.width = Math.max(1, Math.round(cssWidth * dpr));
   canvas.height = Math.max(1, Math.round(cssHeight * dpr));

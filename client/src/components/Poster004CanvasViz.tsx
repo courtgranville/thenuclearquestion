@@ -396,16 +396,16 @@ export default function Poster004CanvasViz() {
     }
     animRef.current.linkLengths = lengths;
 
-    // DPR via shared fitCanvasToDpr (MAX_DPR=3, fresh per call).
-    // Previously this clamped at 2.0; on 3x devices that rendered
-    // at 67% of native resolution. The earlier silhouette-singleton
-    // + alpha-guard work means the wider DPR ceiling stays within
-    // budget.
+    // Cap DPR at 2.0 - matches the pre-helper hardcoded value.
+    // Poster 004's per-frame work fits within the RAF budget at
+    // DPR 2.0 (silhouette-singleton + alpha-guard from earlier
+    // work) so no regression on this component; explicit cap for
+    // parity with the other components.
     const resize = () => {
       const r = stage.getBoundingClientRect();
       const cssW = r.width;
       const cssH = r.height;
-      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH, 2.0);
       // Fit the viewBox (which is offset by VIEWBOX.x / VIEWBOX.y in
       // SVG units) into the canvas with letterboxing matching SVG's
       // preserveAspectRatio="xMidYMid meet".

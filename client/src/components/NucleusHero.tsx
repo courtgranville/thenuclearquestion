@@ -57,7 +57,12 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       const r = container.getBoundingClientRect();
       W = r.width;
       H = r.height;
-      const { dpr } = fitCanvasToDpr(canvas, W, H);
+      // Cap DPR at 2.0 - matches the pre-helper hardcoded value.
+      // NucleusHero ran fine at this DPR; the original migration
+      // to a 3.0 global ceiling didn't change its effective cap on
+      // retina (still 2.0) so this is a no-op for NucleusHero
+      // specifically. Explicit for parity with the other components.
+      const { dpr } = fitCanvasToDpr(canvas, W, H, 2.0);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();

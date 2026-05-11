@@ -618,7 +618,10 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      const fit = fitCanvasToDpr(canvas, cssW, cssH);
+      // Cap DPR at 1.5 - restores the pre-migration value. Poster 005's
+      // per-frame stroke work tipped Firefox/Safari from usable into 4-9 Hz
+      // at DPR 2.0 on retina.
+      const fit = fitCanvasToDpr(canvas, cssW, cssH, 1.5);
       dpr = fit.dpr;
     };
     resize();
