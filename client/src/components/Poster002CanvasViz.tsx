@@ -8,6 +8,7 @@ import formsData from '@/assets/poster-002-forms.json';
 import { Pause, Play } from 'lucide-react';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -379,8 +380,9 @@ export default function Poster002CanvasViz() {
 
     const onMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
-      const px = e.clientX - r.left;
-      const py = e.clientY - r.top;
+      const sample = sampleCoalescedPointer(e);
+      const px = sample.clientX - r.left;
+      const py = sample.clientY - r.top;
       const tf = transformRef.current;
       cursorRef.current.tx = (px - tf.offsetX) / tf.scale;
       cursorRef.current.ty = (py - tf.offsetY) / tf.scale;

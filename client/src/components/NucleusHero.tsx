@@ -9,6 +9,7 @@ import {
 } from '@/lib/fission';
 import { spawnBurst, stepAndDrawParticles } from '@/lib/particles';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 
 interface NucleusHeroProps {
   /** SVG path d-strings extracted from the icon. */
@@ -72,19 +73,21 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       vx: 0, vy: 0, speed: 0,
       active: false,
     };
-    // Raw event-level tracking. The visual-effect path (ptr.x/y → smoothSpeed)
-    // double-smooths velocity, which attenuates brisk shakes from high-DPI or
-    // high-polling mice below the fission gate. We sample velocity directly
-    // from pointermove and feed that into the trigger so a fast shake always
-    // registers, no matter how much faster than threshold the user goes.
+    // Raw event-level tracking for fission detection. With coalesced-
+    // sample averaging (sampleCoalescedPointer above), both this raw
+    // channel and the smoothed magnetism channel receive Firefox-
+    // equivalent input in every browser, so the fission gate triggers
+    // on the same effective gesture intensity regardless of pointer
+    // device sample rate.
     const rawLast = { x: 0, y: 0, dx: 0, dy: 0, t: 0 };
     let rawSpeed = 0;     // peak normalised-units/sec, decays per frame
     let rawReversals = 0; // pending reversal bumps, drained per frame
 
     const onPointerMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
-      const nx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
-      const ny = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      const sample = sampleCoalescedPointer(e);
+      const nx = (sample.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      const ny = (sample.clientY - (r.top + r.height / 2)) / (r.height / 2);
       ptr.tx = Math.max(-1.4, Math.min(1.4, nx));
       ptr.ty = Math.max(-1.4, Math.min(1.4, ny));
       ptr.active = true;

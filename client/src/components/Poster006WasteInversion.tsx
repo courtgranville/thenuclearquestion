@@ -4,6 +4,8 @@ import { depthWeight, resolveMotion, TUNING } from '@/lib/posterMotion';
 import { TUNING as FISSION_TUNING } from '@/lib/fission';
 import formsData from '@/assets/poster-006-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -218,7 +220,6 @@ export default function Poster006WasteInversion() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
     let cssW = 0;
     let cssH = 0;
     // Per-form slot centres. Indexed in FORMS order: VLLW, LLW, ILW, HLW.
@@ -239,11 +240,8 @@ export default function Poster006WasteInversion() {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      canvas.width  = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width  = cssW + 'px';
-      canvas.style.height = cssH + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const isStacked = cssW < 560;
       if (isStacked) {
@@ -282,12 +280,13 @@ export default function Poster006WasteInversion() {
 
     const onPointerMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
+      const sample = sampleCoalescedPointer(e);
       const ptr = ptrRef.current;
-      const nx = e.clientX - r.left;
-      const ny = e.clientY - r.top;
-      // First entry from "parked" state - snap the eased position to
-      // the new target so the velocity calc doesn't see a -1e6 → real
-      // jump and the magnetism centre starts where the cursor is.
+      const nx = sample.clientX - r.left;
+      const ny = sample.clientY - r.top;
+      // First entry from "parked" state - snap eased position to target
+      // so the velocity calc doesn't see a -1e6 -> real jump and the
+      // magnetism centre starts where the cursor is.
       if (ptr.xCss < -1000) {
         ptr.xCss = nx;
         ptr.yCss = ny;
