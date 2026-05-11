@@ -1,0 +1,74 @@
+// Tuning constants for the Fission Room. Every dimensional value is
+// expressed in normalised world units, where the nucleus form spans
+// exactly [-1, +1] (see scripts/extract-fission-form.mjs). That makes
+// each constant readable as a fraction of the form's width, which is
+// what the brief intends. Hot-tune these without touching the engine.
+
+export type Quality = 'low' | 'medium' | 'high';
+
+export const TUNING = {
+  // Spring constants - how strongly bound particles return to rest.
+  SPRING_K: 4.5,
+  DAMPING: 0.86,
+
+  // Cursor magnetism (Phase 6).
+  CURSOR_RADIUS: 0.12,
+  CURSOR_FORCE: 0.8,
+
+  // Cascade behaviour (Phase 6).
+  CASCADE_RADIUS: 0.025,
+  CASCADE_PROBABILITY_BASE: 0.18,
+  REACTION_WINDOW_MS: 120,
+  RECOHERE_DELAY_MS: 1800,
+  RECOHERE_BAND: 0.015,
+
+  // Neutrons (Phase 6 / 7).
+  NEUTRON_SPEED: 1.8,
+  NEUTRON_HIT_RADIUS: 0.012,
+  NEUTRONS_PER_FISSION: 2,
+  MAX_LIVE_NEUTRONS: 600,
+
+  // Energy (Phase 10).
+  ENERGY_PER_FISSION_MEV: 200,
+} as const;
+
+// Per-quality render settings. `particleScale` thins the base point
+// cloud by even-stride sampling (so the outline survives), `bloom`
+// gates Phase 5's post-fx, `pointSize` is the GLSL uPointSize starting
+// value to be re-tuned by eye against bloom in Phase 5.
+export const QUALITY: Record<
+  Quality,
+  {
+    particleScale: number;
+    bloom: boolean;
+    pixelRatio: number;
+    maxNeutrons: number;
+    multiNucleus: boolean;
+    pointSize: number;
+  }
+> = {
+  low: {
+    particleScale: 0.33,
+    bloom: false,
+    pixelRatio: 1.0,
+    maxNeutrons: 150,
+    multiNucleus: false,
+    pointSize: 2.4,
+  },
+  medium: {
+    particleScale: 0.66,
+    bloom: true,
+    pixelRatio: 1.5,
+    maxNeutrons: 350,
+    multiNucleus: true,
+    pointSize: 1.8,
+  },
+  high: {
+    particleScale: 1.0,
+    bloom: true,
+    pixelRatio: 2.0,
+    maxNeutrons: 600,
+    multiNucleus: true,
+    pointSize: 1.4,
+  },
+};

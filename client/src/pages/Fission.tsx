@@ -43,24 +43,24 @@ export default function Fission() {
     >
       {quality && <FissionScene quality={quality} />}
 
-      <div className="absolute top-6 left-4 md:left-6 z-30 font-sans text-sm tracking-[0.25em] uppercase text-[#ECE7DF]/80">
+      <div className="pointer-events-none absolute top-6 left-4 md:left-6 z-30 font-sans text-sm tracking-[0.25em] uppercase text-[#ECE7DF]/80">
         //07 - Fission, observed
       </div>
 
       <FissionReturn />
 
-      <div className="hidden md:block absolute bottom-8 left-8 z-30">
+      <div className="pointer-events-none hidden md:block absolute bottom-8 left-8 z-30">
         <FissionEnergyCounter energyMeV={0} />
       </div>
 
-      <div className="hidden md:block absolute bottom-8 right-8 z-30 w-72">
+      <div className="pointer-events-none hidden md:block absolute bottom-8 right-8 z-30 w-72">
         <FissionModeratorSlider value={moderator} onChange={setModerator} />
       </div>
 
       {/* Mobile-only stacked bottom panel. The desktop absolute-positioned
           UI is hidden on small viewports because corner anchoring breaks
           below ~720px. */}
-      <div className="md:hidden absolute bottom-6 inset-x-4 z-30 flex flex-col gap-6">
+      <div className="pointer-events-none md:hidden absolute bottom-6 inset-x-4 z-30 flex flex-col gap-6">
         <FissionEnergyCounter energyMeV={0} />
         <FissionModeratorSlider value={moderator} onChange={setModerator} />
       </div>

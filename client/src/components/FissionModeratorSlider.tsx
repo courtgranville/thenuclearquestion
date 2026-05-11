@@ -21,7 +21,7 @@ export default function FissionModeratorSlider({ value, onChange }: Props) {
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label="Neutron speed - moderator setting"
-        className="fission-slider w-full"
+        className="fission-slider pointer-events-auto w-full"
       />
       <div className="flex justify-between mt-2 text-sm text-[#ECE7DF]/70">
         <span>Fast</span>

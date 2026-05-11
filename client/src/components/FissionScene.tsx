@@ -1,19 +1,27 @@
-import type { Quality } from './FissionQualityGate';
+import { Canvas } from '@react-three/fiber';
+import type { Quality } from '@/lib/fissionTuning';
+import FissionParticles from './FissionParticles';
 
 type Props = {
   quality: Quality;
 };
 
-// Phase 2 placeholder. Phase 3 replaces this with the R3F Canvas
-// rendering the breathing particle cloud. We intentionally avoid
-// importing three / @react-three/fiber here so the route bundle stays
-// small until Phase 3 actually pulls them in.
-export default function FissionScene(_props: Props) {
+export default function FissionScene({ quality }: Props) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-[#0A0A0A] text-[#ECE7DF]/40">
-      <p className="font-serif text-lg italic">
-        Scene mounts here in Phase 3
-      </p>
-    </div>
+    <Canvas
+      orthographic
+      camera={{ zoom: 220, position: [0, 0, 10], near: 0.1, far: 100 }}
+      gl={{
+        antialias: false,
+        alpha: false,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: false,
+      }}
+      dpr={[1, quality === 'high' ? 2 : 1.5]}
+      style={{ position: 'absolute', inset: 0 }}
+    >
+      <color attach="background" args={['#0A0A0A']} />
+      <FissionParticles quality={quality} />
+    </Canvas>
   );
 }
