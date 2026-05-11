@@ -171,3 +171,52 @@ The full inventory below confirms which components actually derive velocity from
 | `Poster006WasteStorage.tsx` | no - `onMouseEnter` for popout | n/a | no | Discrete hover |
 
 **Net: three files for the cursor parity fix** (NucleusHero, Poster002CanvasViz, Poster006WasteInversion) + the same Poster006WasteInversion file also needs the DPR helper migration that the original audit's commit missed.
+
+### ISSUE F.2 - Framerate-dependent easing (the actual root cause)
+
+The `getCoalescedEvents()` fix in commits 5-6 was the wrong diagnosis.
+`getCoalescedEvents()` returns `[e]` (single element) for fast passive
+handlers on macOS Chrome, so averaging is a no-op for Court's setup.
+
+The actual cause is **display refresh rate**. macOS Chrome syncs
+`requestAnimationFrame` to the display refresh rate (120Hz on
+ProMotion). Safari on macOS caps RAF at 60Hz by default. Firefox on
+macOS also caps at 60Hz on most builds. Confirmed by Court testing
+on his MacBook: Safari and Firefox both feel correct; only Chrome is
+over-reactive.
+
+The three velocity-deriving canvas components use fixed per-frame
+easing coefficients tuned at 60Hz:
+
+| Component | Easing | α at 60Hz | τ at 60Hz | τ at 120Hz (same α) |
+|---|---|---|---|---|
+| NucleusHero | cursor lock-on | 0.10 | 158ms | 79ms |
+| NucleusHero | smoothSpeed | 0.18 | 84ms | 42ms |
+| NucleusHero | cursorAngle | 0.12 | 130ms | 65ms |
+| Poster002CanvasViz | cursor lock-on | 0.10 | 158ms | 79ms |
+| Poster002CanvasViz | smoothSpeed | 0.18 | 84ms | 42ms |
+| Poster006WasteInversion | cursor lock-on | 0.10 | 158ms | 79ms |
+| Poster006WasteInversion | smoothSpeed | 0.18 | 84ms | 42ms |
+
+Halved time constants = cursor lock-on twice as snappy, velocity
+smoothing twice as reactive. Composite effect on the bulge gain:
+roughly 2-4x more twitchy at 120Hz than 60Hz.
+
+### Fix
+
+`client/src/lib/animationTiming.ts` exports `easeAlpha(dt, α60)` that
+returns the framerate-equivalent coefficient for the current frame's
+`dt`. Math: `α_dt = 1 - (1 - α_60)^(dt * 60)`. At `dt = 1/60` returns
+α_60 unchanged. At `dt = 1/120` returns roughly half. Identical
+time-domain behaviour at any framerate.
+
+Applied to:
+- NucleusHero.tsx (3 easings: cursor x/y, smoothSpeed, cursorAngle)
+- Poster002CanvasViz.tsx (2 easings: cursor x/y, smoothSpeed)
+- Poster006WasteInversion.tsx (2 easings: cursor x/y, smoothSpeed)
+
+No TUNING constants changed.
+
+The `cursorSampling.ts` helper from commits 5-6 stays in place -
+not harmful, handles the edge case where Chrome does coalesce events
+on slow passive handlers / certain device drivers.
