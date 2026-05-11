@@ -69,31 +69,29 @@ function SampleRow({
 
 export default function Poster006Legend() {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-      <div className="border-t border-border/40 pt-8">
+    <div className="w-full container">
+      <div className="max-w-3xl mx-auto pt-8 border-t border-border/40">
         <p
-          className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-2 text-center"
+          className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
           style={SERIF_STYLE}
         >
           How to read these
         </p>
         <h3
-          className="font-serif text-xl text-foreground mb-8 text-center"
+          className="font-serif text-2xl text-foreground mb-3"
           style={{ fontWeight: 600 }}
         >
           Legend
         </h3>
-
         <p
-          className="text-sm text-muted-foreground text-center mb-8 max-w-xl mx-auto"
+          className="text-sm text-muted-foreground leading-relaxed mb-6"
           style={SERIF_STYLE}
         >
           Three kinds of forms carry the data on this poster. Volumes are
-          from the NDA&apos;s UK Radioactive Waste Inventory 2022; doses are
-          in millisieverts (mSv).
+          from the NDA&apos;s UK Radioactive Waste Inventory 2022; doses
+          are in millisieverts (mSv).
         </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <Section title="The three forms">
             <FormRow
               icon={

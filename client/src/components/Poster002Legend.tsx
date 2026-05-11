@@ -46,22 +46,21 @@ function MarkerRow({
 
 export default function Poster002Legend() {
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-      <div className="border-t border-border/40 pt-8">
+    <div className="w-full container">
+      <div className="max-w-3xl mx-auto pt-8 border-t border-border/40">
         <p
-          className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-2 text-center"
+          className="text-sm tracking-[0.15em] uppercase text-muted-foreground mb-2"
           style={SERIF_STYLE}
         >
           How to read these
         </p>
         <h3
-          className="font-serif text-xl text-foreground mb-8 text-center"
+          className="font-serif text-2xl text-foreground mb-6"
           style={{ fontWeight: 600 }}
         >
           Legend
         </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <Section title="Each source is an organic form">
             <p className="text-sm text-muted-foreground leading-relaxed">
               A green surface shows the source's lifetime land footprint,
