@@ -288,6 +288,10 @@ export default function Poster002CanvasViz() {
   // Cursor tracking - tx/ty are raw target, x/y are smoothed (eased per frame)
   const cursorRef = useRef({ x: -9999, y: -9999, tx: -9999, ty: -9999, speed: 0, smoothSpeed: 0 });
   const transformRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
+  // Cached container rect - shared between the pointer-handler effect
+  // and the canvas resize effect. getBoundingClientRect forces a layout
+  // flush; caching eliminates it from the pointer hot path.
+  const containerRectRef = useRef<DOMRect | null>(null);
 
   // Dev-only tuning refs
   const tuningRef = useRef({
@@ -380,8 +384,19 @@ export default function Poster002CanvasViz() {
     const container = containerRef.current;
     if (!container) return;
 
+    // Initialise cached rect; refresh on scroll/resize. The canvas
+    // resize effect also writes to containerRectRef on ResizeObserver
+    // fires, so internal container resize stays in sync too.
+    containerRectRef.current = container.getBoundingClientRect();
+    const refreshRect = () => {
+      containerRectRef.current = container.getBoundingClientRect();
+    };
+    window.addEventListener('scroll', refreshRect, { passive: true });
+    window.addEventListener('resize', refreshRect, { passive: true });
+
     const onMove = (e: PointerEvent) => {
-      const r = container.getBoundingClientRect();
+      const r = containerRectRef.current;
+      if (!r) return;
       const sample = sampleCoalescedPointer(e);
       const px = sample.clientX - r.left;
       const py = sample.clientY - r.top;
@@ -405,6 +420,8 @@ export default function Poster002CanvasViz() {
     return () => {
       container.removeEventListener('pointermove', onMove);
       container.removeEventListener('pointerleave', onLeave);
+      window.removeEventListener('scroll', refreshRect);
+      window.removeEventListener('resize', refreshRect);
     };
   }, []);
 
@@ -418,6 +435,7 @@ export default function Poster002CanvasViz() {
 
     const resize = () => {
       const r = container.getBoundingClientRect();
+      containerRectRef.current = r; // keep pointer-handler cache in sync
       const cssW = r.width;
       const cssH = r.height;
       // Cap DPR at 1.5 - restores the pre-migration value. Poster 002's

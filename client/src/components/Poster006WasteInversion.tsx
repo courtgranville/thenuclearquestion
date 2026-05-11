@@ -238,8 +238,18 @@ export default function Poster006WasteInversion() {
     const slotMaxY: number[] = [0, 0, 0, 0];
     let baseRadiusCss = 1; // form half-extent in CSS px at scale=1
 
+    // Cache the container's screen position. getBoundingClientRect
+    // forces a layout flush on every call; in a high-poll-rate pointer
+    // event stream this is the dominant cost in the pointer handler.
+    // Refreshed on scroll/resize/ResizeObserver - where it can change.
+    let cachedRect = container.getBoundingClientRect();
+    const refreshRect = () => {
+      cachedRect = container.getBoundingClientRect();
+    };
+
     const resize = () => {
-      const r = container.getBoundingClientRect();
+      refreshRect();
+      const r = cachedRect;
       cssW = r.width;
       cssH = r.height;
       // Cap DPR at 1.5 - restores the pre-migration value. Poster 006
@@ -283,9 +293,11 @@ export default function Poster006WasteInversion() {
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(container);
+    window.addEventListener('scroll', refreshRect, { passive: true });
+    window.addEventListener('resize', refreshRect, { passive: true });
 
     const onPointerMove = (e: PointerEvent) => {
-      const r = container.getBoundingClientRect();
+      const r = cachedRect;
       const sample = sampleCoalescedPointer(e);
       const ptr = ptrRef.current;
       const nx = sample.clientX - r.left;
@@ -568,6 +580,8 @@ export default function Poster006WasteInversion() {
     return () => {
       stopRaf();
       ro.disconnect();
+      window.removeEventListener('scroll', refreshRect);
+      window.removeEventListener('resize', refreshRect);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerleave', onPointerLeave);
     };

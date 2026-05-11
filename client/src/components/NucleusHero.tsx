@@ -54,10 +54,19 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     let W = 0;
     let H = 0;
 
+    // Cache the container's screen position. getBoundingClientRect
+    // forces a layout flush on every call; in a high-poll-rate pointer
+    // event stream this is the dominant cost in the pointer handler.
+    // Refreshed on scroll/resize/ResizeObserver - where it can change.
+    let cachedRect = container.getBoundingClientRect();
+    const refreshRect = () => {
+      cachedRect = container.getBoundingClientRect();
+    };
+
     const resize = () => {
-      const r = container.getBoundingClientRect();
-      W = r.width;
-      H = r.height;
+      refreshRect();
+      W = cachedRect.width;
+      H = cachedRect.height;
       // Cap DPR at 2.0 - matches the pre-helper hardcoded value.
       // NucleusHero ran fine at this DPR; the original migration
       // to a 3.0 global ceiling didn't change its effective cap on
@@ -70,6 +79,8 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
 
     const ro = new ResizeObserver(resize);
     ro.observe(container);
+    window.addEventListener('scroll', refreshRect, { passive: true });
+    window.addEventListener('resize', refreshRect, { passive: true });
 
     // Parse paths once.
     const { polylines, bbox } = buildPolylines(paths);
@@ -91,7 +102,7 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     let rawReversals = 0; // pending reversal bumps, drained per frame
 
     const onPointerMove = (e: PointerEvent) => {
-      const r = container.getBoundingClientRect();
+      const r = cachedRect;
       const sample = sampleCoalescedPointer(e);
       const nx = (sample.clientX - (r.left + r.width / 2)) / (r.width / 2);
       const ny = (sample.clientY - (r.top + r.height / 2)) / (r.height / 2);
@@ -206,6 +217,8 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     return () => {
       stopRaf();
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('scroll', refreshRect);
+      window.removeEventListener('resize', refreshRect);
       ro.disconnect();
     };
     // paths is stable across the page lifetime (imported JSON);
