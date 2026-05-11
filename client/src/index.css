@@ -513,4 +513,46 @@
   .iso-switch .thumb { transition: none; }
   .iso-switch button { transition: none; }
 }
+
+/* ── FISSION ROOM ─────────────────────────────────────────────────────── */
+/* Thin cream line track, small filled cream circle thumb. The dark
+   room is the only place this slider style appears; scoped via the
+   .fission-slider class. */
+.fission-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1px;
+  background: rgba(236, 231, 223, 0.4);
+  outline: none;
+  cursor: pointer;
+}
+.fission-slider:hover { background: rgba(236, 231, 223, 0.6); }
+.fission-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ECE7DF;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.fission-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.fission-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ECE7DF;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.fission-slider::-moz-range-thumb:hover { transform: scale(1.15); }
+.fission-slider::-moz-range-track {
+  height: 1px;
+  background: rgba(236, 231, 223, 0.4);
+  border: none;
+}
 }
