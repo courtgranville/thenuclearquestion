@@ -310,10 +310,36 @@ export default function Poster006WasteInversion() {
     let loopGuard = false;
     let prevActiveIdx = -1;
 
+    // Dev-only diagnostic: ?frametiming in the URL logs average dt per
+    // second so we can compare actual RAF rates across browsers. See
+    // scripts/cross-browser-audit.md (Issue F.2).
+    const frameTiming =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('frametiming');
+    let ftFrames = 0;
+    let ftAccumMs = 0;
+    let ftLastReport = performance.now();
+
     const frame = (now: number) => {
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
+      if (frameTiming) {
+        ftFrames++;
+        ftAccumMs += dt * 1000;
+        if (now - ftLastReport >= 1000) {
+          const avgMs = ftAccumMs / ftFrames;
+          const avgHz = 1000 / avgMs;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Poster006WasteInversion] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
+            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+          );
+          ftFrames = 0;
+          ftAccumMs = 0;
+          ftLastReport = now;
+        }
+      }
 
       // Cursor easing - match NucleusHero exactly (10% per frame).
       // The "stops working" feel earlier was a side-effect of one

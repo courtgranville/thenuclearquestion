@@ -119,10 +119,37 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     let lastT = t0;
     let rafId = 0;
 
+    // Dev-only diagnostic: ?frametiming in the URL logs average dt per
+    // second to the console so we can compare actual RAF rates across
+    // browsers. Used to diagnose the Chrome over-reactivity report -
+    // see scripts/cross-browser-audit.md (Issue F.2).
+    const frameTiming =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('frametiming');
+    let ftFrames = 0;
+    let ftAccumMs = 0;
+    let ftLastReport = performance.now();
+
     const frame = (now: number) => {
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
+      if (frameTiming) {
+        ftFrames++;
+        ftAccumMs += dt * 1000;
+        if (now - ftLastReport >= 1000) {
+          const avgMs = ftAccumMs / ftFrames;
+          const avgHz = 1000 / avgMs;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[NucleusHero] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
+            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+          );
+          ftFrames = 0;
+          ftAccumMs = 0;
+          ftLastReport = now;
+        }
+      }
 
       // Resolve isotope-driven gates per frame (ref read, no re-mount).
       const { fastSpeed: FAST_SPEED, requiredT: REQUIRED_T, shakeNeeded: SHAKE_NEEDED } =

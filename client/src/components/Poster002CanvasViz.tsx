@@ -443,9 +443,35 @@ export default function Poster002CanvasViz() {
 
     const NUM_BUCKETS = 8;
 
+    // Dev-only diagnostic: ?frametiming in the URL logs average dt per
+    // second so we can compare actual RAF rates across browsers. See
+    // scripts/cross-browser-audit.md (Issue F.2).
+    const frameTiming =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('frametiming');
+    let ftFrames = 0;
+    let ftAccumMs = 0;
+    let ftLastReport = performance.now();
+
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - lastFrameNow) / 1000);
       lastFrameNow = now;
+      if (frameTiming) {
+        ftFrames++;
+        ftAccumMs += dt * 1000;
+        if (now - ftLastReport >= 1000) {
+          const avgMs = ftAccumMs / ftFrames;
+          const avgHz = 1000 / avgMs;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Poster002CanvasViz] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
+            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+          );
+          ftFrames = 0;
+          ftAccumMs = 0;
+          ftLastReport = now;
+        }
+      }
 
       if (!pausedRef.current) {
         cycleT += dt;
