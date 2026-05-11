@@ -8,6 +8,7 @@ import formsData from '@/assets/poster-002-forms.json';
 import { Pause, Play } from 'lucide-react';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 import { easeAlpha } from '@/lib/animationTiming';
 
@@ -441,7 +442,6 @@ export default function Poster002CanvasViz() {
     let cycleT = 0;
     let lastFrameNow = performance.now();
     cycleTRef.current = 0;
-    let rafId = 0;
 
     const NUM_BUCKETS = 8;
 
@@ -454,7 +454,9 @@ export default function Poster002CanvasViz() {
     let ftFrames = 0;
     let ftLastReport = performance.now();
 
-    const frame = (now: number) => {
+    const frame = (now: number, isResume: boolean) => {
+      // Reset lastFrameNow on resume so dt is sensible after off-screen pause.
+      if (isResume) lastFrameNow = now;
       const dt = Math.min(0.05, (now - lastFrameNow) / 1000);
       lastFrameNow = now;
       if (frameTiming) {
@@ -804,12 +806,11 @@ export default function Poster002CanvasViz() {
         }
       }
 
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(container, frame);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       ro.disconnect();
     };
   }, []);

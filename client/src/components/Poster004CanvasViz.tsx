@@ -43,6 +43,7 @@ import {
 import formsData from '@/assets/poster-004-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 
 // ─────────────────────────────────────────────────────────────────
 // Static asset typing + module-level pre-parse.
@@ -423,7 +424,6 @@ export default function Poster004CanvasViz() {
     const ro = new ResizeObserver(resize);
     ro.observe(stage);
 
-    let rafId = 0;
     const lastSyncedConnector: Record<string, number> = {};
     const lastSyncedDrawProgress: Record<string, number> = {};
     const lastSyncedSectorScale: Record<string, number> = {};
@@ -432,7 +432,7 @@ export default function Poster004CanvasViz() {
     const lastSyncedCarrierLabel: Record<string, number> = {};
     const t0 = performance.now();
 
-    const frame = (now: number) => {
+    const frame = (now: number, _isResume: boolean) => {
       const result = tickAnimation(animRef.current, now);
       if (result.cascadeFullComplete) {
         dispatch({ type: 'CASCADE_FULL_COMPLETE' });
@@ -723,12 +723,11 @@ export default function Poster004CanvasViz() {
         }
       }
 
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(stage, frame);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       ro.disconnect();
     };
   }, []);

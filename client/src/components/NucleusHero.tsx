@@ -11,6 +11,7 @@ import { spawnBurst, stepAndDrawParticles } from '@/lib/particles';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 import { easeAlpha } from '@/lib/animationTiming';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 
 interface NucleusHeroProps {
   /** SVG path d-strings extracted from the icon. */
@@ -123,7 +124,6 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     let cursorAngle = 0;
     const t0 = performance.now();
     let lastT = t0;
-    let rafId = 0;
 
     // Dev-only diagnostic: ?frametiming in the URL logs average dt per
     // second to the console so we can compare actual RAF rates across
@@ -135,7 +135,9 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     let ftFrames = 0;
     let ftLastReport = performance.now();
 
-    const frame = (now: number) => {
+    const frame = (now: number, isResume: boolean) => {
+      // Reset lastT on resume so dt is sensible after off-screen pause.
+      if (isResume) lastT = now;
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
@@ -184,8 +186,7 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
 
       ctx.clearRect(0, 0, W, H);
       if (!polylines.length || !bbox) {
-        rafId = requestAnimationFrame(frame);
-        return;
+        return; // helper will schedule the next frame
       }
 
       drawFrame({
@@ -199,13 +200,11 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       });
 
       stepAndDrawParticles(ctx, fission, dt, H);
-
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(container, frame);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       window.removeEventListener('pointermove', onPointerMove);
       ro.disconnect();
     };

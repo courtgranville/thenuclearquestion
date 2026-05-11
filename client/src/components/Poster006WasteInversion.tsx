@@ -7,6 +7,7 @@ import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 import { easeAlpha } from '@/lib/animationTiming';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -311,7 +312,6 @@ export default function Poster006WasteInversion() {
 
     const t0 = performance.now();
     let lastT = t0;
-    let rafId = 0;
     let loopGuard = false;
     let prevActiveIdx = -1;
 
@@ -324,7 +324,9 @@ export default function Poster006WasteInversion() {
     let ftFrames = 0;
     let ftLastReport = performance.now();
 
-    const frame = (now: number) => {
+    const frame = (now: number, isResume: boolean) => {
+      // Reset lastT on resume so dt is sensible after off-screen pause.
+      if (isResume) lastT = now;
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
@@ -560,12 +562,11 @@ export default function Poster006WasteInversion() {
         node.style.top = `${slotCy[i] + halfCss + 8}px`;
       }
 
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(container, frame);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       ro.disconnect();
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerleave', onPointerLeave);

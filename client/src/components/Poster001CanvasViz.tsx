@@ -9,6 +9,7 @@ import {
 import formsData from '@/assets/poster-001-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata - copied from the original Poster001Viz.tsx so the
@@ -336,9 +337,8 @@ export default function Poster001CanvasViz() {
     ro.observe(container);
 
     const t0 = performance.now();
-    let rafId = 0;
 
-    const frame = (now: number) => {
+    const frame = (now: number, _isResume: boolean) => {
       const t = (now - t0) / 1000;
 
       ctx.save();
@@ -452,12 +452,11 @@ export default function Poster001CanvasViz() {
         }
       }
 
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(container, frame);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       ro.disconnect();
     };
   }, []);
