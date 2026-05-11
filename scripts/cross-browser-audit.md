@@ -235,3 +235,24 @@ No TUNING constants changed.
 The `cursorSampling.ts` helper from commits 5-6 stays in place -
 not harmful, handles the edge case where Chrome does coalesce events
 on slow passive handlers / certain device drivers.
+
+### ISSUE F.3 - Framerate-aware easing, calibrated against Court's preferred Safari feel
+
+Court ran the `?frametiming` diagnostic from commit 10 in all three
+browsers on his ProMotion MacBook (dev build, localhost:3000):
+
+| Browser | Avg dt | Effective Hz | Time constant with α=0.10 |
+|---|---|---|---|
+| Chrome  | ~11ms | ~90 Hz | 104ms (too reactive) |
+| Safari  | ~22ms | ~45 Hz | 211ms (Court's preferred feel) |
+| Firefox | ~44ms | ~22 Hz | 431ms (too laggy) |
+
+Commit 11 reintroduces `easeAlpha` with `REFERENCE_FRAMERATE_HZ = 45`
+in `client/src/lib/animationTiming.ts`, calibrated against Safari's
+measured behaviour. All browsers now converge to ~211ms time
+constant: Safari stays where Court likes it, Firefox snappier,
+Chrome ~2x calmer.
+
+`REFERENCE_FRAMERATE_HZ` is a single tunable constant. Lower numbers
+= laggier feel; higher = snappier. If production framerates (typically
+faster than dev) shift the sweet spot, retune in one place.

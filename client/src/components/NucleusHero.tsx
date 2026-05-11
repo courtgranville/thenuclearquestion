@@ -10,6 +10,7 @@ import {
 import { spawnBurst, stepAndDrawParticles } from '@/lib/particles';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
+import { easeAlpha } from '@/lib/animationTiming';
 
 interface NucleusHeroProps {
   /** SVG path d-strings extracted from the icon. */
@@ -155,14 +156,18 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       const { fastSpeed: FAST_SPEED, requiredT: REQUIRED_T, shakeNeeded: SHAKE_NEEDED } =
         isotopeToGates(isotopeRef.current);
 
-      // Ease cursor toward target; track velocity.
+      // Ease cursor toward target; track velocity. Easing coefficients
+      // were tuned at REFERENCE_FRAMERATE_HZ (currently 45, Safari-
+      // dev calibration); easeAlpha rescales them for the current RAF
+      // dt so every browser converges to the same time constant.
       const px = ptr.x, py = ptr.y;
-      ptr.x += (ptr.tx - ptr.x) * 0.10;
-      ptr.y += (ptr.ty - ptr.y) * 0.10;
+      const aPos = easeAlpha(dt, 0.10);
+      ptr.x += (ptr.tx - ptr.x) * aPos;
+      ptr.y += (ptr.ty - ptr.y) * aPos;
       ptr.vx = (ptr.x - px) / dt;
       ptr.vy = (ptr.y - py) / dt;
       ptr.speed = Math.hypot(ptr.vx, ptr.vy);
-      smoothSpeed += (ptr.speed - smoothSpeed) * 0.18;
+      smoothSpeed += (ptr.speed - smoothSpeed) * easeAlpha(dt, 0.18);
 
       // Drain raw input signals captured between frames; decay raw peak speed
       // (~100 ms half-life) so a single brisk flick doesn't latch indefinitely.
@@ -256,7 +261,7 @@ function drawFrame(a: DrawFrameArgs): void {
   let da = targetAng - cursorAngle;
   while (da > Math.PI) da -= 2 * Math.PI;
   while (da < -Math.PI) da += 2 * Math.PI;
-  cursorAngle += da * 0.12;
+  cursorAngle += da * easeAlpha(a.dt, 0.12);
   a.cursorAngleRef.set(cursorAngle);
 
   const impulse = Math.min(1.4, smoothSpeed * 0.45);
