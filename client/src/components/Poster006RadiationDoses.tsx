@@ -299,7 +299,7 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
         {dose.doseLabel}
       </p>
       <p
-        className="text-xs text-muted-foreground mt-1 max-w-[180px]"
+        className="text-sm text-muted-foreground mt-1 max-w-[180px]"
         style={{
           fontFamily: "'Playfair', Georgia, serif",
           minHeight: '2.4rem',

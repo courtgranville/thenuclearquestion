@@ -134,7 +134,7 @@ function MapHoverPill() {
             {r.name}
           </span>
           <span
-            className="text-xs uppercase tracking-[0.12em] text-muted-foreground"
+            className="text-sm uppercase tracking-[0.12em] text-muted-foreground"
             style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
             {STATUS_LABEL[r.status]}

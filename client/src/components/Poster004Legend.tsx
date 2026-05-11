@@ -47,7 +47,7 @@ function LevelRow({
       <div className="flex-shrink-0 mt-0.5">{ring}</div>
       <div>
         <p className="text-sm font-medium text-foreground">{title}</p>
-        <p className="text-xs text-muted-foreground leading-snug">{body}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">{body}</p>
       </div>
     </div>
   );

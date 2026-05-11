@@ -70,7 +70,7 @@ export default function Poster005StatusLegend() {
                 {STATUS_LABEL[status]}
               </span>
               <span
-                className="text-xs text-muted-foreground tabular-nums"
+                className="text-sm text-muted-foreground tabular-nums"
                 style={{ fontFamily: "'Playfair', Georgia, serif" }}
               >
                 {count} · {mw.toLocaleString()} MW
@@ -82,7 +82,7 @@ export default function Poster005StatusLegend() {
           <button
             type="button"
             onClick={() => poster005Store.setFilteredStatus(null)}
-            className="text-xs italic text-muted-foreground hover:text-foreground transition-colors duration-150 px-2"
+            className="text-sm italic text-muted-foreground hover:text-foreground transition-colors duration-150 px-2"
             style={{ fontFamily: "'Playfair', Georgia, serif" }}
             aria-label="Clear filter"
           >
@@ -96,7 +96,7 @@ export default function Poster005StatusLegend() {
           canonical (per provenance note in poster005Data.ts). */}
       {import.meta.env.DEV && filtered !== null && (
         <p
-          className="mt-2 text-center text-xs italic text-muted-foreground"
+          className="mt-2 text-center text-sm italic text-muted-foreground"
           style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           showing {REACTORS.filter((r) => r.status === filtered).length} reactors of {REACTORS.length}

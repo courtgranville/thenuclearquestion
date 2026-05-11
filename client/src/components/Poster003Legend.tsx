@@ -31,7 +31,7 @@ function IconRow({ icon, body }: { icon: React.ReactNode; body: React.ReactNode 
   return (
     <div className="flex items-start gap-3">
       <div className="flex-shrink-0 mt-0.5">{icon}</div>
-      <div className="text-sm text-muted-foreground leading-snug">{body}</div>
+      <div className="text-sm text-muted-foreground leading-relaxed">{body}</div>
     </div>
   );
 }

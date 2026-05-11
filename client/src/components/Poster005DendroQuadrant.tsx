@@ -793,7 +793,7 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
           {STATUS_LABEL[status]}
         </span>
         <span
-          className="text-xs uppercase tracking-[0.12em] text-muted-foreground"
+          className="text-sm uppercase tracking-[0.12em] text-muted-foreground"
           style={{ fontFamily: "'Playfair', Georgia, serif" }}
         >
           {STATUS_TOTALS[status].count} reactors · {STATUS_TOTALS[status].mw.toLocaleString()} MW

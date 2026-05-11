@@ -115,7 +115,7 @@ export default function Sources() {
 
                 <motion.h2
                   variants={fadeUp}
-                  className="font-serif text-xl mb-4"
+                  className="font-serif text-2xl mb-4"
                   style={{ fontWeight: 600 }}
                 >
                   How to verify any claim
@@ -161,7 +161,7 @@ export default function Sources() {
 
                 <motion.h2
                   variants={fadeUp}
-                  className="font-serif text-xl mb-6"
+                  className="font-serif text-2xl mb-6"
                   style={{ fontWeight: 600 }}
                 >
                   Primary datasets
@@ -229,7 +229,7 @@ export default function Sources() {
 
                 <motion.h2
                   variants={fadeUp}
-                  className="font-serif text-xl mb-8"
+                  className="font-serif text-2xl mb-8"
                   style={{ fontWeight: 600 }}
                 >
                   By poster
@@ -445,7 +445,7 @@ export default function Sources() {
 
                 <motion.h2
                   variants={fadeUp}
-                  className="font-serif text-xl mb-4"
+                  className="font-serif text-2xl mb-4"
                   style={{ fontWeight: 600 }}
                 >
                   Theoretical foundations
@@ -494,7 +494,7 @@ export default function Sources() {
 
                 <motion.h2
                   variants={fadeUp}
-                  className="font-serif text-xl mb-6"
+                  className="font-serif text-2xl mb-6"
                   style={{ fontWeight: 600 }}
                 >
                   Visual language references
@@ -526,7 +526,7 @@ export default function Sources() {
 
                 <motion.h2
                   variants={fadeUp}
-                  className="font-serif text-xl mb-4"
+                  className="font-serif text-2xl mb-4"
                   style={{ fontWeight: 600 }}
                 >
                   What these sources can't tell us - the project level
@@ -735,7 +735,7 @@ function PosterSourceSection({
         </span>
       </div>
       <h3
-        className="font-serif text-lg mb-2"
+        className="font-serif text-xl mb-2"
         style={{ fontWeight: 600 }}
       >
         {title}

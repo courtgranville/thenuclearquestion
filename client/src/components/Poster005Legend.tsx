@@ -71,7 +71,7 @@ export default function Poster005Legend() {
         <div className="grid grid-cols-1 gap-y-6">
           {/* 1. Map */}
           <Section title="The map">
-            <p className="text-sm text-muted-foreground leading-snug">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Each dot marks one reactor project at its geographic
               location. Colour shows status.
             </p>
@@ -82,7 +82,7 @@ export default function Poster005Legend() {
               <StatusRow colour={STATUS_COLOUR.cancelled} label="Cancelled" />
             </div>
             <div className="pt-2">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+              <p className="text-sm uppercase tracking-wider text-muted-foreground mb-2">
                 Cluster insets
               </p>
               <svg
@@ -101,7 +101,7 @@ export default function Poster005Legend() {
                 <circle cx="144" cy="25" r="3.5" fill={STATUS_COLOUR.cancelled} fillOpacity={0.55} stroke="#0d1a1e" />
                 <circle cx="138" cy="30" r="3.5" fill={STATUS_COLOUR.underConstruction} fillOpacity={0.55} stroke="#0d1a1e" />
               </svg>
-              <p className="text-xs text-muted-foreground leading-snug mt-1">
+              <p className="text-sm text-muted-foreground leading-relaxed mt-1">
                 Where reactors cluster too tightly to read (Sellafield, Wylfa,
                 Sizewell), an inset zooms in.
               </p>
@@ -110,7 +110,7 @@ export default function Poster005Legend() {
 
           {/* 2. Dendrogram */}
           <Section title="The dendrogram">
-            <p className="text-sm text-muted-foreground leading-snug">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               72 reactors organised by status (the four hubs) and by project.
               Leaf-circle size shows nameplate capacity.
             </p>
@@ -127,7 +127,7 @@ export default function Poster005Legend() {
                 <circle cx="90" cy="100" r="6" fill={STATUS_COLOUR.retired} fillOpacity={0.7} />
                 <circle cx="140" cy="100" r="9" fill={STATUS_COLOUR.retired} fillOpacity={0.7} />
               </svg>
-              <div className="flex justify-between text-xs text-muted-foreground tabular-nums mt-1 px-2">
+              <div className="flex justify-between text-sm text-muted-foreground tabular-nums mt-1 px-2">
                 <span>77 MW</span>
                 <span>1,720 MW</span>
               </div>
@@ -136,7 +136,7 @@ export default function Poster005Legend() {
 
           {/* 3. Timeline */}
           <Section title="The timeline">
-            <p className="text-sm text-muted-foreground leading-snug">
+            <p className="text-sm text-muted-foreground leading-relaxed">
               One vertical line per reactor, plotted from construction year
               (top) to shutdown (bottom). Colour shows the phase.
             </p>
@@ -151,7 +151,7 @@ export default function Poster005Legend() {
                 </svg>
                 <div className="text-sm">
                   <p className="font-medium text-foreground">Retired</p>
-                  <p className="text-xs text-muted-foreground leading-snug">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Construction (red) → operating (green) → shutdown tick.
                   </p>
                 </div>
@@ -164,7 +164,7 @@ export default function Poster005Legend() {
                 </svg>
                 <div className="text-sm">
                   <p className="font-medium text-foreground">Operating</p>
-                  <p className="text-xs text-muted-foreground leading-snug">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Still running, no shutdown tick.
                   </p>
                 </div>
@@ -176,7 +176,7 @@ export default function Poster005Legend() {
                 </svg>
                 <div className="text-sm">
                   <p className="font-medium text-foreground">Under construction</p>
-                  <p className="text-xs text-muted-foreground leading-snug">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Anchor at construction start, dashed to projected COD.
                   </p>
                 </div>
@@ -187,7 +187,7 @@ export default function Poster005Legend() {
                 </svg>
                 <div className="text-sm">
                   <p className="font-medium text-foreground">Cancelled</p>
-                  <p className="text-xs text-muted-foreground leading-snug">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     Hollow grey circle at the cancellation year.
                   </p>
                 </div>

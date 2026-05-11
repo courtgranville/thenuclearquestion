@@ -229,7 +229,7 @@ export default function Poster006Sellafield() {
               {focusedMeta.shareLabel} &middot; {focusedMeta.volumeLabel}
             </p>
             <p
-              className="text-xs text-muted-foreground mt-1.5 leading-relaxed"
+              className="text-sm text-muted-foreground mt-1.5 leading-relaxed"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               {focusedMeta.blurb}
@@ -283,14 +283,14 @@ export default function Poster006Sellafield() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
           <div>
             <p
-              className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+              className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Total cleanup cost
             </p>
             <p className="text-base font-medium text-foreground">£136bn</p>
             <p
-              className="text-xs text-muted-foreground"
+              className="text-sm text-muted-foreground"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               running to 2125
@@ -298,7 +298,7 @@ export default function Poster006Sellafield() {
           </div>
           <div>
             <p
-              className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+              className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Spend in 2023&ndash;24
@@ -307,14 +307,14 @@ export default function Poster006Sellafield() {
           </div>
           <div>
             <p
-              className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+              className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Civil plutonium stockpile
             </p>
             <p className="text-base font-medium text-foreground">~140 t</p>
             <p
-              className="text-xs text-muted-foreground"
+              className="text-sm text-muted-foreground"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               separated
@@ -322,14 +322,14 @@ export default function Poster006Sellafield() {
           </div>
           <div>
             <p
-              className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+              className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Reactors on site
             </p>
             <p className="text-base font-medium text-foreground">7</p>
             <p
-              className="text-xs text-muted-foreground"
+              className="text-sm text-muted-foreground"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               none operating
