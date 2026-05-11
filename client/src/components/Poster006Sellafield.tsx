@@ -16,15 +16,15 @@ const PRODUCERS: ProducerMeta[] = [
   { id: 'sellafield', name: 'Sellafield',        shareLabel: '72.4%', volumeLabel: '3,320,000 m³', blurb: 'Cumbria. Decades of plutonium production and reprocessing have concentrated the bulk of UK radioactive waste here.', accent: '#a51e23' },
   { id: 'magnox',     name: 'Magnox sites',      shareLabel: '12.3%', volumeLabel: '563,000 m³',   blurb: 'First-generation civil reactors, all shut down and in various stages of decommissioning.',                       accent: '#7d746a' },
   { id: 'others',     name: 'Other sites',       shareLabel: '8.1%',  volumeLabel: '370,000 m³',   blurb: 'Hospitals, universities, fuel fabrication and the older defence research footprint.',                              accent: '#7d746a' },
-  { id: 'agr',        name: 'AGR & PWR',         shareLabel: '3.4%',  volumeLabel: '156,000 m³',   blurb: 'The UK’s second and third generation commercial fleet — Hinkley Point B/Hartlepool/Heysham/Hunterston/Torness, plus Sizewell B.', accent: '#7d746a' },
+  { id: 'agr',        name: 'AGR & PWR',         shareLabel: '3.4%',  volumeLabel: '156,000 m³',   blurb: 'The UK’s second and third generation commercial fleet - Hinkley Point B/Hartlepool/Heysham/Hunterston/Torness, plus Sizewell B.', accent: '#7d746a' },
   { id: 'dounreay',   name: 'Dounreay',          shareLabel: '2.5%',  volumeLabel: '114,000 m³',   blurb: 'Former fast-reactor research site in Caithness, now in complex decommissioning.',                                  accent: '#7d746a' },
   { id: 'defence',    name: 'Defence',           shareLabel: '1.1%',  volumeLabel: '51,900 m³',    blurb: 'Naval reactor servicing, weapons establishments, and ancillary facilities.',                                       accent: '#7d746a' },
-  { id: 'hinkley',    name: 'Hinkley Point C',   shareLabel: '0.2%',  volumeLabel: '9,970 m³',     blurb: 'Forward-looking estimate. Waste the new build will generate over its operating life — not yet produced.',          accent: '#7d746a' },
+  { id: 'hinkley',    name: 'Hinkley Point C',   shareLabel: '0.2%',  volumeLabel: '9,970 m³',     blurb: 'Forward-looking estimate. Waste the new build will generate over its operating life - not yet produced.',          accent: '#7d746a' },
 ];
 
 const SVG_URL = '/assets/006-waste-locations-processed_6ed9ecfd.svg';
 
-// CSS injected once into the document head — cleaner than inline
+// CSS injected once into the document head - cleaner than inline
 // styles when toggling classes on hover.
 const CSS_INJECTED_KEY = '__poster006_dendro_css';
 
@@ -62,7 +62,7 @@ function injectStyleOnce() {
 
 // Isolated, memoised wrapper for the source-SVG injection. Without
 // memoisation, React's dangerouslySetInnerHTML re-injects the entire
-// SVG markup on every parent re-render — including when `focused`
+// SVG markup on every parent re-render - including when `focused`
 // state changes during hover, which would tear down and rebuild the
 // whole dendrogram on every pointer move. Memoising on svgMarkup
 // means the SVG injection happens once when the markup string first
@@ -108,7 +108,7 @@ export default function Poster006Sellafield() {
           // measured live as bbox [305.7, 292.2, 891.9, 673.1] with a
           // small padding margin. Hardcoded so React's
           // dangerouslySetInnerHTML re-injection (on every parent
-          // re-render — hover focus state changes will trigger this)
+          // re-render - hover focus state changes will trigger this)
           // doesn't reset it back to the source viewBox.
           svg.setAttribute('viewBox', '290 280 920 700');
           svg.setAttribute('width', '100%');
@@ -123,7 +123,7 @@ export default function Poster006Sellafield() {
     return () => { cancelled = true; };
   }, []);
 
-  // Hover handlers — delegated to the container, not the SVG groups.
+  // Hover handlers - delegated to the container, not the SVG groups.
   // React's dangerouslySetInnerHTML may re-inject the SVG on parent
   // re-renders (e.g. when `focused` state changes), which would blow
   // away addEventListener listeners attached directly to <g> elements.
@@ -205,7 +205,7 @@ export default function Poster006Sellafield() {
       >
         {svgMarkup && <InjectedDendrogram markup={svgMarkup} />}
 
-        {/* Hover callout — populated from the focused producer. */}
+        {/* Hover callout - populated from the focused producer. */}
         {focusedMeta && (
           <div
             className="absolute top-3 right-3 max-w-[300px] p-4 rounded-sm border bg-card pointer-events-none"
@@ -245,7 +245,7 @@ export default function Poster006Sellafield() {
         Hover any node to focus it. Sellafield holds the bulk of UK radioactive waste.
       </p>
 
-      {/* Static Sellafield detail block — always visible */}
+      {/* Static Sellafield detail block - always visible */}
       <div
         className="mt-12 p-5 sm:p-6 rounded-sm border bg-card"
         style={{
@@ -276,7 +276,7 @@ export default function Poster006Sellafield() {
           6&nbsp;km² site. It was a plutonium-production reactor for the British weapons programme,
           then a civil reprocessing site from the 1960s until 2022. It is now a storage and cleanup
           operation. The Magnox Swarf Storage Silo has been leaking radioactive water into the ground
-          since 2018 — roughly an Olympic swimming pool every three years. The Nuclear Decommissioning
+          since 2018 - roughly an Olympic swimming pool every three years. The Nuclear Decommissioning
           Authority describes it as the most hazardous building in the UK.
         </p>
 

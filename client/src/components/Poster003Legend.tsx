@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster003Legend.tsx — designed legend for poster 003.
+// Poster003Legend.tsx - designed legend for poster 003.
 //
 // Source: client/public/assets/003-legend.svg. Three vertically-
 // stacked sections (top dots, middle forms, bottom dendrogram).
@@ -53,7 +53,7 @@ export default function Poster003Legend() {
           Legend
         </h3>
         <div className="grid grid-cols-1 gap-y-6">
-          <Section title="Top — dot circles">
+          <Section title="Top - dot circles">
             <IconRow
               icon={
                 <svg width={50} height={50} viewBox="0 0 50 50" aria-hidden>
@@ -75,7 +75,7 @@ export default function Poster003Legend() {
             />
           </Section>
 
-          <Section title="Middle — organic forms">
+          <Section title="Middle - organic forms">
             <IconRow
               icon={
                 <svg width={50} height={50} viewBox="0 0 50 50" aria-hidden>
@@ -91,7 +91,7 @@ export default function Poster003Legend() {
             />
           </Section>
 
-          <Section title="Bottom — dendrogram">
+          <Section title="Bottom - dendrogram">
             <IconRow
               icon={
                 <svg width={50} height={50} viewBox="0 0 50 50" aria-hidden>

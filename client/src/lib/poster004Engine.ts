@@ -5,7 +5,7 @@
 // tickAnimation each frame; the engine schedules its own internal
 // chain of cascade events via the .scheduled queue.
 //
-// Single shared cascade primitive — startCascade(branches, dim, now).
+// Single shared cascade primitive - startCascade(branches, dim, now).
 //   • startHubCascade fires all six branches with no dimming.
 //   • startCarrierFocus fires one branch and dims the other five.
 // In both cases pulses originate from the hub: hub physical-pulses,
@@ -27,7 +27,7 @@ import linksData from '@/assets/poster-004-forms.json';
 import { CARRIER_IDS, type CarrierId } from './poster004State';
 
 // ─── Timing & visual constants ───────────────────────────────────
-// Cascade end-to-end target ~3 s — slowed from the original ~1.8 s
+// Cascade end-to-end target ~3 s - slowed from the original ~1.8 s
 // so the eye can follow the construction. Tune to taste; everything
 // scales together.
 export const HUB_PHYSICAL_PULSE_MS    = 360;
@@ -36,7 +36,7 @@ export const HUB_PULSE_PEAK_SCALE     = 1.15;
 export const CARRIER_PULSE_PEAK_SCALE = 1.12;
 export const PULSE_LAUNCH_AT_MS       = 180;
 export const PULSE_TRAVEL_SPEED_PX_PER_MS = 0.20;
-// In CARRIER_FOCUS the hub→carrier segment is preamble — the user's
+// In CARRIER_FOCUS the hub→carrier segment is preamble - the user's
 // attention is on the destination carrier and its sectors, not on
 // watching the pulse trundle out from the centre. Carrier→sector
 // speed stays at base. CASCADE_FULL ignores this multiplier (initial
@@ -47,7 +47,7 @@ export const ABSORB_BLIP_PEAK_SCALE   = 1.15;
 // Sector dots grow from scale 0 → 1 the first time their pulse
 // arrives (i.e., when sectorScale was still 0). Duration scales
 // with the dot's final radius so big sectors visibly take longer
-// than small ones — clamped at both ends.
+// than small ones - clamped at both ends.
 // Subsequent arrivals (replays from FULL or CARRIER_FOCUS) skip the
 // grow and fire the absorb-blip instead.
 export const SECTOR_GROW_RATE_PX_PER_MS = 0.025;
@@ -64,12 +64,12 @@ export const INSTRUCTION_FADE_IN_MS   = 200;
 const REDUCED_FADE_MS = 200;
 
 // Pulse render constants. Pulses read as bright yellow-white
-// electricity — no carrier colour. Three layered elements compose
+// electricity - no carrier colour. Three layered elements compose
 // the pulse:
 //   1. Warm-yellow radial glow at the head.
-//   2. White-hot core dot at the head — focal point.
+//   2. White-hot core dot at the head - focal point.
 //   3. Warm-white bulge along the connector path centred on the
-//      head — reads as electricity flowing through the line.
+//      head - reads as electricity flowing through the line.
 // The bulge is elongated so each pulse reads as a sustained streak
 // rather than a moving spot.
 export const PULSE_BULGE_WIDTH        = 2.5;
@@ -77,7 +77,7 @@ export const PULSE_BULGE_HALF_LEN     = 14;   // 28 px total bulge length
 export const PULSE_GLOW_RADIUS        = 8;
 export const PULSE_CORE_RADIUS        = 1.4;
 // CSS colour strings used by the canvas pulse render. Tuned to read
-// as electrical arcing light — warm yellow at the head fading to
+// as electrical arcing light - warm yellow at the head fading to
 // white through the bulge.
 export const PULSE_GLOW_COLOR         = 'rgba(255, 235, 130, 1)';
 export const PULSE_GLOW_MID_COLOR     = 'rgba(255, 240, 170, 0.55)';
@@ -257,7 +257,7 @@ export function makeInitialAnimState(): AnimState {
     pulses: [],
     sectorScale: recordFromIds(ALL_SECTOR_IDS, 0),
     sectorBlip: recordFromIds(ALL_SECTOR_IDS, 0),
-    // Connectors default bright — drawProgress + dashoffset hide them
+    // Connectors default bright - drawProgress + dashoffset hide them
     // until a pulse traces them.
     connectorOpacity: recordFromIds(ALL_CONNECTOR_IDS, 1),
     labelOpacity: recordFromIds(ALL_SECTOR_IDS, 0),
@@ -425,7 +425,7 @@ function startCascade(
   const labelDuration = anim.reduced ? REDUCED_FADE_MS : LABEL_FADE_MS;
 
   // Form alphas: branches → 1, non-branches → DIM_OPACITY (if dim) or 1.
-  // Non-branches at 1 means "everything visible at full" — used by
+  // Non-branches at 1 means "everything visible at full" - used by
   // startHubCascade where the cascade is showing all six.
   for (const c of CARRIER_IDS) {
     const target = branchSet.has(c) ? 1 : (dimNonBranches ? DIM_OPACITY : 1);
@@ -457,7 +457,7 @@ function startCascade(
     if (!l.sectorId) continue;
     const onBranch = branchSet.has(l.carrier);
     // For branch sectors we let the per-arrival labelTween fade them in
-    // — sets up the cascade reveal naturally.  Non-branch labels tween
+    // - sets up the cascade reveal naturally.  Non-branch labels tween
     // to 0 (or stay at 1 if no dim).
     if (onBranch) {
       // Cancel any non-branch dim tween that might be in-flight; the
@@ -475,7 +475,7 @@ function startCascade(
   // Carrier-name labels. In CARRIER_FOCUS, dim non-branches to 0
   // and ensure the focused carrier's label is at 1. In CASCADE_FULL,
   // the per-arrival path in handlePulseArrival fades each label in
-  // alongside its blob — don't tween at startCascade time, but DO
+  // alongside its blob - don't tween at startCascade time, but DO
   // cancel any stale focus-dim tween so the per-arrival fade-in is
   // unimpeded.
   if (dimNonBranches) {
@@ -493,7 +493,7 @@ function startCascade(
   if (anim.reduced) {
     // Reduced motion: snap geometry; rely on the form/connector/label
     // tweens above for the visible fade. No pulse-tip travel and no
-    // chained timing — completion fires once the fades settle.
+    // chained timing - completion fires once the fades settle.
     for (const id of ALL_SECTOR_IDS) {
       anim.sectorScale[id] = 1;
     }
@@ -520,7 +520,7 @@ function startCascade(
         );
       }
     }
-    // No pulses ever fire under reduced motion — drain pending set so
+    // No pulses ever fire under reduced motion - drain pending set so
     // the completion check passes once the tweens settle.
     anim.cascadePending = new Set();
     return;
@@ -546,7 +546,7 @@ function startCascade(
 
   // cascadePending tracks the sector ids whose pulses still need to
   // arrive before the cascade is considered done. Only branch sectors
-  // are tracked — non-branches don't fire pulses in this cascade.
+  // are tracked - non-branches don't fire pulses in this cascade.
   const pending = new Set<string>();
   for (const l of SECTOR_LINKS) {
     if (l.sectorId && branchSet.has(l.carrier)) pending.add(l.sectorId);
@@ -661,14 +661,14 @@ export function tickAnimation(
       const t = (now - p.startTime) / p.duration;
       if (t >= 1) {
         p.progress = 1;
-        // Lock the trail at 1 — sticky once drawn.
+        // Lock the trail at 1 - sticky once drawn.
         anim.connectorDrawProgress[p.pathId] = 1;
         const arrivalT = p.startTime + p.duration;
         handlePulseArrival(anim, p, arrivalT);
         changed = true;
       } else if (t > 0) {
         if (p.progress !== t) { p.progress = t; changed = true; }
-        // Trail follows the pulse — only grows, never shrinks.
+        // Trail follows the pulse - only grows, never shrinks.
         const prev = anim.connectorDrawProgress[p.pathId] ?? 0;
         if (t > prev) anim.connectorDrawProgress[p.pathId] = t;
         survivors.push(p);
@@ -842,7 +842,7 @@ function handlePulseArrival(
 
   // Carrier→sector arrival. First-time arrival (sectorScale < 1)
   // grows the dot from its current scale to 1 over a duration that
-  // scales with the dot's final radius — big dots take ~1000 ms,
+  // scales with the dot's final radius - big dots take ~1000 ms,
   // small ones clamp to MIN. Subsequent arrivals (already at 1 from
   // a prior cascade or focus) fire the absorb-blip instead. Label
   // fade-in runs on every arrival.

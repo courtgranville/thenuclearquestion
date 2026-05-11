@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// poster005Hubs.ts — prepared hub-form data for the canvas overlay.
+// poster005Hubs.ts - prepared hub-form data for the canvas overlay.
 //
 // Reads status_blobs.form_paths (space-separated x y x y ... pairs)
 // from poster-005-forms.json and converts them to the same prepared-
@@ -10,7 +10,7 @@
 // rendered visual centre of each blob). Leaves are positioned at
 // dendrogram_leaf_cx / cy from each reactor.
 //
-// The motion magnitude per hub is derived from total_mw_sourced —
+// The motion magnitude per hub is derived from total_mw_sourced  -
 // larger fleets get more vigorous interior flow. We reuse posterMotion's
 // resolveMotion by passing the MW through a log-scale similar to
 // emissions; the absolute numbers are different but the shape of the
@@ -156,7 +156,7 @@ export interface HubLeaf {
   y: number;
 }
 
-// The dendrogram's leaf row sits at SVG y=800.993 — every leaf
+// The dendrogram's leaf row sits at SVG y=800.993 - every leaf
 // circle (72 of them) is on this line in the print. The JSON
 // extractor mistakenly stored the cancellation-dot y (which lives
 // on the timeline strip below) into dendrogram_leaf_cy for cancelled

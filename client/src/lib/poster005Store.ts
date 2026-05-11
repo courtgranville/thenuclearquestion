@@ -1,17 +1,17 @@
 // ─────────────────────────────────────────────────────────────────
-// poster005Store.ts — pub/sub store for the three Poster 005 views.
+// poster005Store.ts - pub/sub store for the three Poster 005 views.
 //
 // Mirrors poster003Store.ts: plain TS, Set<Subscriber>, no external
 // dependencies. The store holds the page's global interaction state:
 //
-//   - filteredStatus  one of underConstruction / operating / retired /
+// - filteredStatus  one of underConstruction / operating / retired /
 //                     cancelled / null. Click on a status legend
 //                     button toggles. When non-null, the map circles,
 //                     dendrogram leaves, and timeline bars whose
 //                     status doesn't match dim to 0.1 opacity. The
 //                     matched status stays full.
 //
-//   - hoveredReactor  canonical reactor id (matches Reactor.id and
+// - hoveredReactor  canonical reactor id (matches Reactor.id and
 //                     the `data-unit` attribute in every SVG). Set by
 //                     any view's pointerover; cleared on pointerout.
 //                     The reactor detail panel + the brushing across
@@ -19,7 +19,7 @@
 //
 // Composition rule (per brief): hover overrides filter. A hovered
 // reactor of a different status is rendered at full opacity even when
-// a filter dims its category — the filter resumes when hover ends.
+// a filter dims its category - the filter resumes when hover ends.
 // Components apply this by checking
 //   const visible = hoveredReactor === r.id || filteredStatus === null
 //                                            || filteredStatus === r.status;

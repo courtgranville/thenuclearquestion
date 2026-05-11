@@ -1,8 +1,8 @@
 export const TUNING = {
   // Per-form flow amplitude (px). Outermost line gets zero, innermost
   // line gets the full amount. Quadratically depth-weighted.
-  flowAmpMin:     4,         // nuclear — visible drift, still quiet
-  flowAmpMax:     30,        // coal — vigorous interior, kept under
+  flowAmpMin:     4,         // nuclear - visible drift, still quiet
+  flowAmpMax:     30,        // coal - vigorous interior, kept under
                              // the gradient threshold that produces
                              // visible kinks in sparse polyline
                              // segments (gradient ≈ amp × k).

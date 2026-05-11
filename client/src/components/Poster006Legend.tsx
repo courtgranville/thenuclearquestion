@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster006Legend.tsx — designed legend for poster 006.
+// Poster006Legend.tsx - designed legend for poster 006.
 //
 // Source: client/public/assets/006-legend.svg. Three form types:
 // producer circles, waste-category forms, and radiation-dose

@@ -124,7 +124,7 @@ interface PreparedLandLine {
   pts: Float32Array;
   n: number;
   dist: number;     // dist_from_centre, precomputed
-  distNorm: number;  // |dist| / maxDist in this surface, 0–1
+  distNorm: number;  // |dist| / maxDist in this surface, 0 - 1
 }
 
 interface PreparedForm {
@@ -220,7 +220,7 @@ const FORMS: PreparedForm[] = Object.entries(
 if (import.meta.env.DEV) {
   for (const f of FORMS) {
     if (f.landLines.length === 0) {
-      console.error(`[poster-002] Source "${f.id}" has 0 land_lines — extraction failed for this source.`);
+      console.error(`[poster-002] Source "${f.id}" has 0 land_lines - extraction failed for this source.`);
     }
   }
 }
@@ -280,7 +280,7 @@ export default function Poster002CanvasViz() {
   // Cycle time accumulator ref (so pause snap effect can write to it)
   const cycleTRef = useRef(0);
 
-  // Cursor tracking — tx/ty are raw target, x/y are smoothed (eased per frame)
+  // Cursor tracking - tx/ty are raw target, x/y are smoothed (eased per frame)
   const cursorRef = useRef({ x: -9999, y: -9999, tx: -9999, ty: -9999, speed: 0, smoothSpeed: 0 });
   const transformRef = useRef({ scale: 1, offsetX: 0, offsetY: 0 });
 
@@ -298,7 +298,7 @@ export default function Poster002CanvasViz() {
     landFadeDur: 1.0,
     landGapDur: 0.5,
     fadeInPerLine: 0.25,
-    // Water cycle — six phases (15s total)
+    // Water cycle - six phases (15s total)
     waterFallDur: 2.0,
     waterImpactDur: 0.8,
     waterExpandDur: 1.5,
@@ -370,7 +370,7 @@ export default function Poster002CanvasViz() {
     return () => { cancelled = true; };
   }, []);
 
-  // Pointer tracking — writes to tx/ty; RAF loop smooths to x/y
+  // Pointer tracking - writes to tx/ty; RAF loop smooths to x/y
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -465,7 +465,7 @@ export default function Poster002CanvasViz() {
       const ptr = cursorRef.current;
       const tune = tuningRef.current;
 
-      // Smooth cursor position per frame (NucleusHero pattern) — uses real dt
+      // Smooth cursor position per frame (NucleusHero pattern) - uses real dt
       if (ptr.tx > -9000) {
         if (ptr.x < -9000) { ptr.x = ptr.tx; ptr.y = ptr.ty; }
         const prevX = ptr.x;
@@ -713,7 +713,7 @@ export default function Poster002CanvasViz() {
               );
               if (lineBucket !== bucket) continue;
 
-              // Outline — static
+              // Outline - static
               if (line.path !== null) {
                 const pts = line.pts;
                 const n = line.n;
@@ -725,7 +725,7 @@ export default function Poster002CanvasViz() {
                 continue;
               }
 
-              // Interior — flow field + per-point cursor bulge
+              // Interior - flow field + per-point cursor bulge
               const pts = line.pts;
               const n = line.n;
               if (n < 2) continue;

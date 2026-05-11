@@ -1,19 +1,19 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005Viz.tsx — assembly only.
+// Poster005Viz.tsx - assembly only.
 //
 // Mirrors Poster006Viz's SectionFrame composition. Sections in
 // reading order:
 //
-//   1. Hero map — full-width UK reactor map.
-//   2. Status legend — drives the global filteredStatus that every
+//   1. Hero map - full-width UK reactor map.
+//   2. Status legend - drives the global filteredStatus that every
 //      section reads.
-//   3. Status dendrogram — hubs / connectors / leaves with cross-
+//   3. Status dendrogram - hubs / connectors / leaves with cross-
 //      view hover focus.
-//   4. Reactor detail panel — shows the currently hovered reactor,
+//   4. Reactor detail panel - shows the currently hovered reactor,
 //      sourced from any of the three views.
-//   5. Three editorial callouts — "31 years", "30+ reactors",
-//      "14,141 MW" — verbatim from the print.
-//   6. Reactor timeline — full-width bars 1953→2030.
+//   5. Three editorial callouts - "31 years", "30+ reactors",
+//      "14,141 MW" - verbatim from the print.
+//   6. Reactor timeline - full-width bars 1953→2030.
 //
 // The legend + detail panel are small persistent UI; the brief
 // flagged that we'd iterate on their exact placement. v1 puts them
@@ -79,7 +79,7 @@ export default function Poster005Viz() {
     <div className="w-full">
       <SectionFrame
         title="The map"
-        lead="Where Britain's nuclear fleet actually sits. Three clusters — Sellafield, Wylfa, and Sizewell — account for over half of the country's reactor history; the rest are scattered along the coast. Hover any reactor to highlight it across all three views below; click a status below to filter the whole page."
+        lead="Where Britain's nuclear fleet actually sits. Three clusters - Sellafield, Wylfa, and Sizewell - account for over half of the country's reactor history; the rest are scattered along the coast. Hover any reactor to highlight it across all three views below; click a status below to filter the whole page."
       >
         <Poster005Map />
       </SectionFrame>
@@ -101,7 +101,7 @@ export default function Poster005Viz() {
 
       <SectionFrame
         title="When each reactor was built and shut down"
-        lead="The full timeline, 1960 to 2030. Red is construction, green is operating life, navy is projected commissioning under-construction, grey hollow circles mark cancellations. Britain's last reactor came online in 1995 — nothing has been added since."
+        lead="The full timeline, 1960 to 2030. Red is construction, green is operating life, navy is projected commissioning under-construction, grey hollow circles mark cancellations. Britain's last reactor came online in 1995 - nothing has been added since."
       >
         <Poster005Timeline />
         {/* Designed legend: structured grid of map / dendrogram /

@@ -19,7 +19,7 @@ interface NucleusHeroProps {
 }
 
 /**
- * Hero canvas — full-bleed wide, height-driven sizing. Draws the nucleus
+ * Hero canvas - full-bleed wide, height-driven sizing. Draws the nucleus
  * every frame from the parsed polylines, applies cursor magnetism, breathing,
  * shake-detected fission with bounce + reform phases, and a particle burst.
  *
@@ -185,7 +185,7 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// drawFrame — extracted to keep the effect compact. Identical math to the
+// drawFrame - extracted to keep the effect compact. Identical math to the
 // canonical vite-port: state machine, half geometry, per-loop drawing.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -342,7 +342,7 @@ function drawFrame(a: DrawFrameArgs): void {
       const halfRadius = fieldR * TUNING.restRFrac * TUNING.halfScaleRest;
       const sxAng = fission.splitAng;
       spawnBurst(fission, ccx + driftX +  (sep + halfRadius), ccy + driftY, sxAng, 0.45);
-      spawnBurst(fission, ccx + driftX -  (sep + halfRadius), ccy + driftY, sxAng + Math.PI, 0.45);
+      spawnBurst(fission, ccx + driftX - (sep + halfRadius), ccy + driftY, sxAng + Math.PI, 0.45);
     }
   }
   if (fission.phase !== 'bouncing') fission.bouncedImpact = false;

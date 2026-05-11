@@ -80,7 +80,7 @@ const STORAGE_DATA = (formsData as unknown as {
 
 // Pad each icon's viewBox so all four cells share the same aspect
 // ratio. With preserveAspectRatio="xMidYMid meet" + a uniform outer
-// container size, equal aspect ratios mean equal visible heights —
+// container size, equal aspect ratios mean equal visible heights  -
 // landfill (wide / shallow in source) gets vertical padding instead of
 // scaling down to fit, so it sits at the same on-screen height as the
 // other three.
@@ -108,12 +108,12 @@ function buildIcon(id: RouteMeta['id']): StorageIcon {
   let viewX = minX;
   let viewY = minY;
   if (currentAspect < TARGET_ASPECT) {
-    // Too tall — pad horizontally.
+    // Too tall - pad horizontally.
     const newW = h * TARGET_ASPECT;
     viewX = minX - (newW - w) / 2;
     viewW = newW;
   } else if (currentAspect > TARGET_ASPECT) {
-    // Too wide — pad vertically.
+    // Too wide - pad vertically.
     const newH = w / TARGET_ASPECT;
     viewY = minY - (newH - h) / 2;
     viewH = newH;
@@ -142,7 +142,7 @@ export default function Poster006WasteStorage() {
 
   return (
     // Inline-popout layout. On hover, the cell's content swaps from
-    // illustration + title to the detail block — that means the
+    // illustration + title to the detail block - that means the
     // detail is always visible regardless of viewport size, zoom,
     // or column position. No more clipping past the page edge.
     <div className="w-full max-w-5xl mx-auto px-4">

@@ -1,9 +1,9 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005ReactorDetail.tsx — hover detail panel.
+// Poster005ReactorDetail.tsx - hover detail panel.
 //
 // Subscribes to poster005Store and renders details for whichever
 // reactor is currently hovered (across the map, dendrogram, or
-// timeline — they all set the same hoveredReactor). When nothing is
+// timeline - they all set the same hoveredReactor). When nothing is
 // hovered the panel shows a soft instruction. Empty-state height
 // matches populated-state so the layout doesn't jump.
 // ─────────────────────────────────────────────────────────────────
@@ -17,20 +17,20 @@ import {
 import { poster005Store } from '@/lib/poster005Store';
 
 function formatYear(y: number | null): string {
-  if (y === null) return '—';
+  if (y === null) return ' - ';
   return String(y);
 }
 
 function formatMw(mw: number | null): string {
-  if (mw === null) return '—';
+  if (mw === null) return ' - ';
   return `${mw.toLocaleString()} MW`;
 }
 
 function formatLifespan(start: number | null, end: number | null): string {
-  if (start === null && end === null) return '—';
+  if (start === null && end === null) return ' - ';
   if (start === null) return `up to ${end}`;
   if (end === null) return `from ${start}`;
-  return `${start}–${end}`;
+  return `${start} - ${end}`;
 }
 
 export default function Poster005ReactorDetail() {
@@ -91,7 +91,7 @@ export default function Poster005ReactorDetail() {
               <p className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">
                 Site
               </p>
-              <p className="text-foreground">{reactor.site ?? '—'}</p>
+              <p className="text-foreground">{reactor.site ?? ' - '}</p>
             </div>
 
             <div>

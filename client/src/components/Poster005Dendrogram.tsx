@@ -1,10 +1,10 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005Dendrogram.tsx — 2x2 status dendrogram grid.
+// Poster005Dendrogram.tsx - 2x2 status dendrogram grid.
 //
 // Court round-3 spec: split the single-row dendrogram into a 2x2
 // grid (Under Construction TL, Retired TR, Operating BL, Cancelled
 // BR). Each quadrant scales up its hub form to roughly half the
-// page width — gives the poster-001 / 006 / homepage level of
+// page width - gives the poster-001 / 006 / homepage level of
 // resolution Court asked for.
 //
 // All four DendroQuadrant instances share the same poster005Store,

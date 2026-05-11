@@ -12,9 +12,9 @@ import {
 } from '@/lib/poster003Data';
 
 /**
- * Poster 003 — three-stop scenario slider.
+ * Poster 003 - three-stop scenario slider.
  *
- * Continuous drag, snap on release. Anchors at 0 / 0.5 / 1 — the
+ * Continuous drag, snap on release. Anchors at 0 / 0.5 / 1 - the
  * fraction is a track position, not a linear nuclear-share scale
  * (tick LABELS show the actual shares 14% / 30% / 70%).
  *
@@ -24,7 +24,7 @@ import {
  */
 
 export interface Poster003SliderProps {
-  /** Controlled value, 0–1. */
+  /** Controlled value, 0 - 1. */
   value: number;
   /** Called continuously during drag and on snap-end. */
   onChange: (fraction: number) => void;
@@ -42,7 +42,7 @@ const TICKS: { id: 's1' | 's2' | 's3'; fraction: number; label: string; sub: str
 
 const SNAP_DURATION_MS = 250;
 
-// Cubic in-out ease — serious register (no overshoot, no spring).
+// Cubic in-out ease - serious register (no overshoot, no spring).
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
@@ -276,7 +276,7 @@ export default function Poster003Slider({
         />
       </div>
 
-      {/* Tick labels — endpoint labels anchor to the inside of their
+      {/* Tick labels - endpoint labels anchor to the inside of their
           tick (left fans right, right fans left) so they don't extend
           past the track and crowd the panel edge. */}
       <div className="relative w-full mt-2 px-3" style={{ height: 32 }}>

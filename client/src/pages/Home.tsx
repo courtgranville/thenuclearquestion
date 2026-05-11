@@ -31,7 +31,7 @@ const stagger = {
 
 export default function Home() {
   useEffect(() => {
-    document.title = 'The Nuclear Question — A Data Visualisation Series';
+    document.title = 'The Nuclear Question - A Data Visualisation Series';
   }, []);
 
   // Intro splash: only show on first visit per session (matches existing pattern).

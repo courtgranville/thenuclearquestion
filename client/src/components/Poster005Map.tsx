@@ -1,14 +1,14 @@
 // ─────────────────────────────────────────────────────────────────
-// Poster005Map.tsx — hero UK reactor map.
+// Poster005Map.tsx - hero UK reactor map.
 //
 // Mirrors Poster006Sellafield's pattern:
-//   - Fetches the annotated map SVG once and injects it via a
+// - Fetches the annotated map SVG once and injects it via a
 //     React.memo()'d wrapper so parent re-renders (caused by
 //     filter / hover state changes) don't tear down the SVG.
-//   - Container-delegated pointerover / pointerout on the persistent
+// - Container-delegated pointerover / pointerout on the persistent
 //     container; walks up to the nearest circle that carries
 //     data-unit and uses its first unit name as hoveredReactor.
-//   - CSS classes injected once into <head> drive .is-focused
+// - CSS classes injected once into <head> drive .is-focused
 //     (transform: scale 1.15) and .is-dimmed (opacity 0.25)
 //     transitions on the loc-* circles.
 //
@@ -16,10 +16,10 @@
 // filteredStatus or hoveredReactor changes, walks every annotated
 // circle and applies / clears the is-focused / is-dimmed classes
 // based on the composition rule from the brief:
-//   - hover overrides filter (hovered circle stays full opacity)
-//   - filter without hover: circles whose data-phase matches stay
+// - hover overrides filter (hovered circle stays full opacity)
+// - filter without hover: circles whose data-phase matches stay
 //     full, others dim
-//   - default: everything full opacity
+// - default: everything full opacity
 // ─────────────────────────────────────────────────────────────────
 
 import { memo, useEffect, useRef, useState } from 'react';
@@ -46,7 +46,7 @@ function injectStyleOnce() {
   const style = document.createElement('style');
   // Circles in the print SVG have fill-opacity 0.55 (past) or 1.0
   // (operating). On hover/filter focus we want the circle to read as
-  // unambiguously selected — bumping fill-opacity to 1.0 makes the
+  // unambiguously selected - bumping fill-opacity to 1.0 makes the
   // print's muted tones pop, and the 1.6× scale puts physical weight
   // behind the focus. On dim we drop ALL the way to 0.08 so the
   // filtered group reads as the sole carrier of meaning.
@@ -71,7 +71,7 @@ function injectStyleOnce() {
     .poster005-map circle[data-unit].is-dimmed {
       opacity: 0.04;
     }
-    /* Future / planned project markers — print bakes them in but
+    /* Future / planned project markers - print bakes them in but
        they aren't in REACTORS data. They follow the same dim rules
        as the regular project circles but never receive hover focus
        (no data-unit, no detail panel). */
@@ -87,13 +87,13 @@ function injectStyleOnce() {
 
 // Memoised wrapper around the SVG injection. Without memo, React's
 // dangerouslySetInnerHTML re-injects the full map on every parent
-// re-render (which happens on every store update) — that tears down
+// re-render (which happens on every store update) - that tears down
 // the listeners and re-runs the costly DOM build.
 const InjectedMap = memo(function InjectedMap({ markup }: { markup: string }) {
   return <div className="w-full" dangerouslySetInnerHTML={{ __html: markup }} />;
 });
 
-// Compact hover pill — sits between the map and the legend, fed by
+// Compact hover pill - sits between the map and the legend, fed by
 // poster005Store.hoveredReactor (which any of the three views can
 // set). Court's brief: name, status, and capacity, surfaced near the
 // legend so the colour-code reading happens in one glance.
@@ -143,7 +143,7 @@ function MapHoverPill() {
             className="text-sm tabular-nums text-foreground"
             style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
-            {r.capacityMw ? `${r.capacityMw.toLocaleString()} MW` : '— MW'}
+            {r.capacityMw ? `${r.capacityMw.toLocaleString()} MW` : ' - MW'}
           </span>
         </div>
       )}
@@ -157,7 +157,7 @@ export default function Poster005Map() {
 
   useEffect(() => { injectStyleOnce(); }, []);
 
-  // Fetch once. We don't tighten the viewBox here — the source map
+  // Fetch once. We don't tighten the viewBox here - the source map
   // has been laid out with its inset zoom circles in deliberate
   // positions; cropping would clip them.
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function Poster005Map() {
           // known reactor's project map position. The build-time
           // annotation script (scripts/annotate-poster-005-map.mjs)
           // matches by name + status group but misses circles in
-          // duplicate / decorative layers — those would otherwise
+          // duplicate / decorative layers - those would otherwise
           // not respond to hover. Walk all small circles and stamp
           // by nearest reactor within a tolerance.
           const annotated = new Set<SVGCircleElement>();
@@ -235,7 +235,7 @@ export default function Poster005Map() {
               annotated.add(c);
               return;
             }
-            // No close reactor — but the print SVG bakes some
+            // No close reactor - but the print SVG bakes some
             // 'Future' project markers (Llynfi, a separate Sizewell
             // Future site) that aren't in REACTORS data. These
             // would otherwise stay at full opacity while everything
@@ -262,7 +262,7 @@ export default function Poster005Map() {
     return () => { cancelled = true; };
   }, []);
 
-  // Hover handlers — delegated to the container. pointerover/out
+  // Hover handlers - delegated to the container. pointerover/out
   // bubble (unlike enter/leave), so a single listener on the
   // container handles every circle.
   useEffect(() => {
@@ -334,7 +334,7 @@ export default function Poster005Map() {
         c.classList.toggle('is-filter-match', isFilterMatch);
         c.classList.toggle('is-dimmed', isDimmed);
       });
-      // Future / planned project markers — same dim logic by phase,
+      // Future / planned project markers - same dim logic by phase,
       // but never focused (no data-unit, no hover interaction).
       const futures = container.querySelectorAll<SVGCircleElement>('circle.is-future-marker');
       futures.forEach((c) => {
@@ -367,7 +367,7 @@ export default function Poster005Map() {
       </div>
       {/* Hover pill: between the map and the legend, surfaces name /
           status / capacity for whichever reactor is currently hovered
-          on the map (or anywhere else — the same store backs the
+          on the map (or anywhere else - the same store backs the
           dendrogram and timeline). Reserves a fixed-height row so the
           legend doesn't jump up and down on hover. */}
       <MapHoverPill />

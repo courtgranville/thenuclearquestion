@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// poster005Data.ts — typed reactor manifest + status totals.
+// poster005Data.ts - typed reactor manifest + status totals.
 //
 // PROVENANCE (Court correction #2)
 // ────────────────────────────────────────────────────────────────
@@ -9,7 +9,7 @@
 // subset committed alongside scripts/extract-poster-005-forms.mjs).
 //
 // Per-reactor date source: client/public/assets/005-dendrogram-clean_
-// 336edeac.svg — the timeline bars and cancellation dots are the
+// 336edeac.svg - the timeline bars and cancellation dots are the
 // canonical artwork; their y-coordinates encode each reactor's
 // construction start, grid connection, retirement, or cancellation
 // year, calibrated against the SVG's 8 horizontal gridlines
@@ -35,7 +35,7 @@
 // fudged; it is documented here and visible to anyone reading the
 // per-reactor data.
 //
-// STATUS_TOTALS.cancelled.mw = 14141 verbatim — the page displays the
+// STATUS_TOTALS.cancelled.mw = 14141 verbatim - the page displays the
 // print's canonical headline. Per-reactor capacityMw values shown in
 // the detail panel are GEM-sourced and may not sum to the headline.
 //
@@ -49,11 +49,11 @@
 // the dendrogram's timeline encodes PER-UNIT dates. For example:
 //
 //   Sizewell B (operating): CSV start_year=1966 (Sizewell A1's COD),
-//   SVG grid=1994 (Sizewell B's actual COD) — diff 28 years.
+//   SVG grid=1994 (Sizewell B's actual COD) - diff 28 years.
 //   The SVG is correct; the CSV value is the wrong field for this row.
 //
 //   Hinkley Point C1 (underConstruction): CSV start_year=1965 (Hinkley
-//   Point A1's COD), SVG grid=2030 (HP C1's planned grid) — diff 65y.
+//   Point A1's COD), SVG grid=2030 (HP C1's planned grid) - diff 65y.
 //   SVG correct.
 //
 // The script prefers SVG (per-unit, canonical from print artwork)
@@ -64,16 +64,16 @@
 // Court wants any specific dates overridden, edit them here directly.
 //
 // Two genuine outliers that aren't site-level/unit-level
-// reconciliations — flag for review if the print's intent matters:
+// reconciliations - flag for review if the print's intent matters:
 //
-//   - Hinkley Point B1: SVG construction=1961, grid=1967 vs Wikipedia
+// - Hinkley Point B1: SVG construction=1961, grid=1967 vs Wikipedia
 //     B1 construction=1967, grid=1976. The print's HPB1 bar appears
 //     to start ~6 years too early. Possibly the print conflated A+B
 //     construction history into the B row.
 //
-//   - Pre-1953 cohorts (Calder Hall, Berkeley, Bradwell, Hunterston
+// - Pre-1953 cohorts (Calder Hall, Berkeley, Bradwell, Hunterston
 //     A, Hinkley Point A, Trawsfynydd, Wylfa): construction_start
-//     = 1953 because the print's chart top edge IS 1953 — pre-1953
+//     = 1953 because the print's chart top edge IS 1953 - pre-1953
 //     history is visually clipped. These are not real construction-
 //     start dates for those reactors; their values should be read as
 //     "≤ 1953".
@@ -89,7 +89,7 @@ export type ReactorStatus =
 export type ReactorCluster = 'sellafield' | 'wylfa' | 'sizewell' | null;
 
 export interface Reactor {
-  /** Canonical id — matches the `data-unit` attribute in every SVG. */
+  /** Canonical id - matches the `data-unit` attribute in every SVG. */
   id: string;
   /** Display name; usually identical to id. */
   name: string;
@@ -98,7 +98,7 @@ export interface Reactor {
   site: string | null;
   status: ReactorStatus;
   /** True for the 12 cancelled rows whose data-phase is
-   *  "cancelled - inferred 4 y" — the print's cancellation year is
+   *  "cancelled - inferred 4 y" - the print's cancellation year is
    *  inferred (construction-start + 4 years) rather than observed. */
   cancellationYearInferred: boolean;
   /** Per-reactor capacity in MW. Sourced from GEM via the CSV's
@@ -109,7 +109,7 @@ export interface Reactor {
   /** Construction start year. Read from the top of the red timeline
    *  bar (or the top of the dashed navy projection for
    *  underConstruction). Clipped to 1953 for reactors whose actual
-   *  start is pre-1953 — see provenance note above. */
+   *  start is pre-1953 - see provenance note above. */
   constructionStart: number | null;
   /** Grid connection / commercial operation year. Bottom of red bar /
    *  top of green bar / bottom of dashed projection. */
@@ -124,7 +124,7 @@ export interface Reactor {
   lat: number | null;
   lng: number | null;
   /** Project-level coords in the map SVG's viewBox (1694.98 × 1330.76).
-   *  Many reactors share one map circle — these match the cx/cy of
+   *  Many reactors share one map circle - these match the cx/cy of
    *  that circle. */
   mapX: number | null;
   mapY: number | null;
@@ -155,7 +155,7 @@ export const STATUS_LABEL: Record<ReactorStatus, string> = {
 
 /** Print colour palette per status. These are the EXACT fill hex
  *  values used by the map circles in 005-map_d6bf9e9f.svg and the
- *  hub fills in 005-dendrogram-clean_336edeac.svg — the page UI
+ *  hub fills in 005-dendrogram-clean_336edeac.svg - the page UI
  *  must match the print verbatim, so the legend chips, leaf circles,
  *  hover callouts, tooltip accents, and canvas hub strokes all
  *  resolve to these values rather than the visually-similar

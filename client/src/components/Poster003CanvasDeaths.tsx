@@ -10,15 +10,15 @@ import {
 import { poster003Store } from '@/lib/poster003Store';
 
 /**
- * Poster 003 — deaths-by-source canvas layer + label overlay.
+ * Poster 003 - deaths-by-source canvas layer + label overlay.
  *
- * Architecture (commit 18): decoupled from React render path —
+ * Architecture (commit 18): decoupled from React render path  -
  * subscribes to poster003Store, updates SVG labels via refs.
  *
  * RASTERISATION (commit 20): forms are now bitmap-cached. Each
  * form's Path2D is stroked ONCE into a sized OffscreenCanvas-style
  * cache at module load; per-frame draw is one ctx.drawImage per
- * form. drawImage is a GPU blit — near-free per frame. This
+ * form. drawImage is a GPU blit - near-free per frame. This
  * replaces the previous live-stroke approach, which was rasterising
  * ~41k anti-aliased line segments per frame at DPR=2 (verified via
  * Chrome DevTools Performance trace: 1374 ms of GPU rasterisation
@@ -27,7 +27,7 @@ import { poster003Store } from '@/lib/poster003Store';
  *
  * Trade-off: the cached bitmap has a fixed resolution and lineWidth.
  * As a form shrinks under drawImage, line weight scales down with it
- * — visually similar to the original "constant visible weight"
+ * - visually similar to the original "constant visible weight"
  * behaviour at the largest sizes, slightly thinner at very small
  * sizes (when the form is also alpha-fading toward zero anyway).
  *
@@ -44,7 +44,7 @@ import { poster003Store } from '@/lib/poster003Store';
 // case vertical extent is ~610 viewBox units (oil at angle π/2
 // reaches BY+424; hydro at angle ~244° reaches BY−187 with their
 // radii). 800 + an 8% margin gives ~672 usable, comfortable room.
-// Container aspectRatio follows W/H — drops from ~1.685 (widescreen)
+// Container aspectRatio follows W/H - drops from ~1.685 (widescreen)
 // to ~1.085 (close to square).
 const SVG_VIEW_X = 387.10;
 const SVG_VIEW_Y = 410.07;
@@ -70,7 +70,7 @@ const ACTIVE_THRESHOLD = 0.05;
 const STROKE_NUCLEAR = '#b5822e';
 const STROKE_OTHER = '#7d746a';
 
-// Alpha fade — shrink + fade is the decay treatment.
+// Alpha fade - shrink + fade is the decay treatment.
 const ALPHA_FADE_THRESHOLD = 0.3;
 
 // Bitmap cache resolution: how many cache pixels per viewBox unit.
@@ -474,7 +474,7 @@ function computeLabelLayouts(
 
 // Build a deaths label string from a per-source geometric value.
 // Editorial relaxation (commit 15): per-source death counts tick
-// continuously — same justification as the dot grid (commit 9) and
+// continuously - same justification as the dot grid (commit 9) and
 // dendrogram percentages (commit 14).
 function deathsLabelFor(geomDeaths: number): string {
   if (geomDeaths >= 1) {
@@ -618,7 +618,7 @@ function Poster003CanvasDeathsImpl() {
 
       // Single canvas-fit transform; per-form is just drawImage in
       // viewBox coordinates. The bitmaps have already been stroked
-      // at module load — per-frame canvas work is now GPU blits only.
+      // at module load - per-frame canvas work is now GPU blits only.
       const baseScaleFit = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * baseScaleFit) / 2;
       const offsetY = (cssH - SVG_VIEW_H * baseScaleFit) / 2;
@@ -719,7 +719,7 @@ function Poster003CanvasDeathsImpl() {
     // does the work aligned to the next animation frame.
     const unsubscribe = poster003Store.subscribe(() => scheduleFrame());
 
-    // Initial render — paint the layer at the current store state.
+    // Initial render - paint the layer at the current store state.
     scheduleFrame();
 
     return () => {
@@ -803,7 +803,7 @@ function Poster003CanvasDeathsImpl() {
   );
 }
 
-// memo() with no compare fn — props are empty so the default shallow
+// memo() with no compare fn - props are empty so the default shallow
 // compare always bails. Combined with the empty dependency-array
 // effect, the component renders exactly once per mount/unmount.
 export default memo(Poster003CanvasDeathsImpl);
