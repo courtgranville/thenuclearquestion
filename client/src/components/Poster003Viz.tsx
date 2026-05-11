@@ -281,7 +281,7 @@ export default function Poster003Viz() {
           className="mb-1"
           style={{
             fontFamily: "'Playfair', Georgia, serif",
-            fontSize: 11,
+            fontSize: 14,
             letterSpacing: '0.15em',
             color: '#0D1A1E',
             opacity: 0.8,

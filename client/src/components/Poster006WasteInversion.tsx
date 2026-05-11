@@ -558,7 +558,7 @@ export default function Poster006WasteInversion() {
             className="absolute top-2 right-2 z-30 px-2 py-1 rounded-sm pointer-events-none"
             style={{
               fontFamily: 'ui-monospace, monospace',
-              fontSize: 11,
+              fontSize: 14,
               background: 'rgba(13,26,30,0.85)',
               color: '#ece7df',
             }}

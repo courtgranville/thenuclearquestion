@@ -478,7 +478,7 @@ export default function Poster001CanvasViz() {
             right: 8,
             zIndex: 10,
             fontFamily: 'ui-monospace, monospace',
-            fontSize: 11,
+            fontSize: 14,
             padding: '2px 6px',
             background: 'rgba(13,26,30,0.85)',
             color: '#ece7df',

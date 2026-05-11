@@ -305,7 +305,7 @@ export default function Poster003Slider({
                 textAlign,
                 color: '#0D1A1E',
                 fontFamily: "'Playfair', Georgia, serif",
-                fontSize: 12,
+                fontSize: 14,
                 letterSpacing: '0.05em',
                 opacity: isActive ? 1 : 0.55,
                 fontWeight: isActive ? 600 : 400,
@@ -315,7 +315,7 @@ export default function Poster003Slider({
             >
               <div>{tick.label}</div>
               {tick.sub && (
-                <div style={{ opacity: 0.6, fontSize: 10, marginTop: 1 }}>
+                <div style={{ opacity: 0.6, fontSize: 14, marginTop: 1 }}>
                   {tick.sub}
                 </div>
               )}
