@@ -4,6 +4,9 @@ import { depthWeight, resolveMotion, TUNING } from '@/lib/posterMotion';
 import { TUNING as FISSION_TUNING } from '@/lib/fission';
 import formsData from '@/assets/poster-006-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { sampleCoalescedPointer } from '@/lib/cursorSampling';
+import { easeAlpha } from '@/lib/animationTiming';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -218,7 +221,6 @@ export default function Poster006WasteInversion() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
     let cssW = 0;
     let cssH = 0;
     // Per-form slot centres. Indexed in FORMS order: VLLW, LLW, ILW, HLW.
@@ -239,11 +241,8 @@ export default function Poster006WasteInversion() {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      canvas.width  = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width  = cssW + 'px';
-      canvas.style.height = cssH + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       const isStacked = cssW < 560;
       if (isStacked) {
@@ -282,12 +281,13 @@ export default function Poster006WasteInversion() {
 
     const onPointerMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
+      const sample = sampleCoalescedPointer(e);
       const ptr = ptrRef.current;
-      const nx = e.clientX - r.left;
-      const ny = e.clientY - r.top;
-      // First entry from "parked" state - snap the eased position to
-      // the new target so the velocity calc doesn't see a -1e6 → real
-      // jump and the magnetism centre starts where the cursor is.
+      const nx = sample.clientX - r.left;
+      const ny = sample.clientY - r.top;
+      // First entry from "parked" state - snap eased position to target
+      // so the velocity calc doesn't see a -1e6 -> real jump and the
+      // magnetism centre starts where the cursor is.
       if (ptr.xCss < -1000) {
         ptr.xCss = nx;
         ptr.yCss = ny;
@@ -311,24 +311,51 @@ export default function Poster006WasteInversion() {
     let loopGuard = false;
     let prevActiveIdx = -1;
 
+    // Dev-only diagnostic: ?frametiming in the URL logs average dt per
+    // second so we can compare actual RAF rates across browsers. See
+    // scripts/cross-browser-audit.md (Issue F.2).
+    const frameTiming =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('frametiming');
+    let ftFrames = 0;
+    let ftAccumMs = 0;
+    let ftLastReport = performance.now();
+
     const frame = (now: number) => {
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
+      if (frameTiming) {
+        ftFrames++;
+        ftAccumMs += dt * 1000;
+        if (now - ftLastReport >= 1000) {
+          const avgMs = ftAccumMs / ftFrames;
+          const avgHz = 1000 / avgMs;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Poster006WasteInversion] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
+            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+          );
+          ftFrames = 0;
+          ftAccumMs = 0;
+          ftLastReport = now;
+        }
+      }
 
-      // Cursor easing - match NucleusHero exactly (10% per frame).
-      // The "stops working" feel earlier was a side-effect of one
-      // global magnetism field across all four forms; that's fixed
-      // below by giving each form its own bbox-keyed activation.
+      // Cursor easing - match NucleusHero exactly. Easing coefficients
+      // tuned at REFERENCE_FRAMERATE_HZ (currently 45, Safari-dev
+      // calibration); easeAlpha rescales them for the current RAF dt
+      // so every browser converges to the same time constant.
       const ptr = ptrRef.current;
       const pxC = ptr.xCss;
       const pyC = ptr.yCss;
-      ptr.xCss += (ptr.txCss - ptr.xCss) * 0.10;
-      ptr.yCss += (ptr.tyCss - ptr.yCss) * 0.10;
+      const aPos = easeAlpha(dt, 0.10);
+      ptr.xCss += (ptr.txCss - ptr.xCss) * aPos;
+      ptr.yCss += (ptr.tyCss - ptr.yCss) * aPos;
       ptr.vxCss = (ptr.xCss - pxC) / dt;
       ptr.vyCss = (ptr.yCss - pyC) / dt;
       const speed = Math.hypot(ptr.vxCss, ptr.vyCss);
-      ptr.smoothSpeed += (speed - ptr.smoothSpeed) * 0.18;
+      ptr.smoothSpeed += (speed - ptr.smoothSpeed) * easeAlpha(dt, 0.18);
 
       // Per-form scale (interpolated if transitioning).
       const s = stateRef.current;
@@ -558,7 +585,7 @@ export default function Poster006WasteInversion() {
             className="absolute top-2 right-2 z-30 px-2 py-1 rounded-sm pointer-events-none"
             style={{
               fontFamily: 'ui-monospace, monospace',
-              fontSize: 11,
+              fontSize: 14,
               background: 'rgba(13,26,30,0.85)',
               color: '#ece7df',
             }}

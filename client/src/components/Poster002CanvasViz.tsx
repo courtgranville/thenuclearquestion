@@ -7,6 +7,9 @@ import {
 import formsData from '@/assets/poster-002-forms.json';
 import { Pause, Play } from 'lucide-react';
 import PosterControlButton from '@/components/PosterControlButton';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { sampleCoalescedPointer } from '@/lib/cursorSampling';
+import { easeAlpha } from '@/lib/animationTiming';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -378,8 +381,9 @@ export default function Poster002CanvasViz() {
 
     const onMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
-      const px = e.clientX - r.left;
-      const py = e.clientY - r.top;
+      const sample = sampleCoalescedPointer(e);
+      const px = sample.clientX - r.left;
+      const py = sample.clientY - r.top;
       const tf = transformRef.current;
       cursorRef.current.tx = (px - tf.offsetX) / tf.scale;
       cursorRef.current.ty = (py - tf.offsetY) / tf.scale;
@@ -411,23 +415,21 @@ export default function Poster002CanvasViz() {
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-
     const resize = () => {
       const r = container.getBoundingClientRect();
       const cssW = r.width;
       const cssH = r.height;
-      canvas.width = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width = cssW + 'px';
-      canvas.style.height = cssH + 'px';
+      // fitCanvasToDpr (canvasUtils) reads devicePixelRatio fresh
+      // each call, capped at MAX_DPR=3. Removes the previous 1.5
+      // clamp that was rendering Retina at 75% native resolution.
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
       const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
       const offsetY = (cssH - SVG_VIEW_H * scale) / 2;
       transformRef.current = { scale, offsetX, offsetY };
       ctx.setTransform(
-        scale * DPR, 0, 0, scale * DPR,
-        offsetX * DPR, offsetY * DPR,
+        scale * dpr, 0, 0, scale * dpr,
+        offsetX * dpr, offsetY * dpr,
       );
     };
     resize();
@@ -442,9 +444,35 @@ export default function Poster002CanvasViz() {
 
     const NUM_BUCKETS = 8;
 
+    // Dev-only diagnostic: ?frametiming in the URL logs average dt per
+    // second so we can compare actual RAF rates across browsers. See
+    // scripts/cross-browser-audit.md (Issue F.2).
+    const frameTiming =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('frametiming');
+    let ftFrames = 0;
+    let ftAccumMs = 0;
+    let ftLastReport = performance.now();
+
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - lastFrameNow) / 1000);
       lastFrameNow = now;
+      if (frameTiming) {
+        ftFrames++;
+        ftAccumMs += dt * 1000;
+        if (now - ftLastReport >= 1000) {
+          const avgMs = ftAccumMs / ftFrames;
+          const avgHz = 1000 / avgMs;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Poster002CanvasViz] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
+            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+          );
+          ftFrames = 0;
+          ftAccumMs = 0;
+          ftLastReport = now;
+        }
+      }
 
       if (!pausedRef.current) {
         cycleT += dt;
@@ -466,16 +494,20 @@ export default function Poster002CanvasViz() {
       const ptr = cursorRef.current;
       const tune = tuningRef.current;
 
-      // Smooth cursor position per frame (NucleusHero pattern) - uses real dt
+      // Smooth cursor position per frame. Easing coefficients tuned at
+      // REFERENCE_FRAMERATE_HZ (currently 45, Safari-dev calibration);
+      // easeAlpha rescales them for the current RAF dt so every browser
+      // converges to the same time constant.
       if (ptr.tx > -9000) {
         if (ptr.x < -9000) { ptr.x = ptr.tx; ptr.y = ptr.ty; }
         const prevX = ptr.x;
         const prevY = ptr.y;
-        ptr.x += (ptr.tx - ptr.x) * 0.10;
-        ptr.y += (ptr.ty - ptr.y) * 0.10;
+        const aPos = easeAlpha(dt, 0.10);
+        ptr.x += (ptr.tx - ptr.x) * aPos;
+        ptr.y += (ptr.ty - ptr.y) * aPos;
         const cursorDt = dt > 0 ? dt : 1 / 60;
         ptr.speed = Math.hypot((ptr.x - prevX) / cursorDt, (ptr.y - prevY) / cursorDt);
-        ptr.smoothSpeed += (ptr.speed - ptr.smoothSpeed) * 0.18;
+        ptr.smoothSpeed += (ptr.speed - ptr.smoothSpeed) * easeAlpha(dt, 0.18);
       }
 
       // Flow field time offsets use cycleT (accumulated time), not wall clock

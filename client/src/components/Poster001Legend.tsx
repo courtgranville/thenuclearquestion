@@ -84,12 +84,12 @@ export default function Poster001Legend() {
               <svg width={260} height={130} viewBox="0 0 260 130" aria-hidden>
                 {/* Nuclear: small green */}
                 <circle cx={26} cy={90} r={7} fill={NUCLEAR_GREEN} />
-                <text x={26} y={112} fontSize={11} textAnchor="middle" fill="rgba(13,26,30,0.78)" style={SERIF_STYLE}>Nuclear</text>
-                <text x={26} y={124} fontSize={10} textAnchor="middle" fill="rgba(13,26,30,0.55)" style={SERIF_STYLE}>5.6</text>
+                <text x={26} y={112} fontSize={14} textAnchor="middle" fill="rgba(13,26,30,0.78)" style={SERIF_STYLE}>Nuclear</text>
+                <text x={26} y={124} fontSize={14} textAnchor="middle" fill="rgba(13,26,30,0.55)" style={SERIF_STYLE}>5.6</text>
                 {/* Coal: large grey, area-proportional to ratio 173 */}
                 <circle cx={180} cy={62} r={45} fill={OTHER_GREY} fillOpacity={0.5} />
-                <text x={180} y={120} fontSize={11} textAnchor="middle" fill="rgba(13,26,30,0.78)" style={SERIF_STYLE}>Coal</text>
-                <text x={180} y={132} fontSize={10} textAnchor="middle" fill="rgba(13,26,30,0.55)" style={SERIF_STYLE}>970</text>
+                <text x={180} y={120} fontSize={14} textAnchor="middle" fill="rgba(13,26,30,0.78)" style={SERIF_STYLE}>Coal</text>
+                <text x={180} y={132} fontSize={14} textAnchor="middle" fill="rgba(13,26,30,0.55)" style={SERIF_STYLE}>970</text>
               </svg>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed italic">

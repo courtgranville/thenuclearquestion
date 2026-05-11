@@ -8,6 +8,9 @@ import {
   type FissionState,
 } from '@/lib/fission';
 import { spawnBurst, stepAndDrawParticles } from '@/lib/particles';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { sampleCoalescedPointer } from '@/lib/cursorSampling';
+import { easeAlpha } from '@/lib/animationTiming';
 
 interface NucleusHeroProps {
   /** SVG path d-strings extracted from the icon. */
@@ -47,7 +50,6 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       typeof window.matchMedia === 'function' &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
     let W = 0;
     let H = 0;
 
@@ -55,11 +57,8 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       const r = container.getBoundingClientRect();
       W = r.width;
       H = r.height;
-      canvas.width = Math.max(1, Math.floor(W * DPR));
-      canvas.height = Math.max(1, Math.floor(H * DPR));
-      canvas.style.width = W + 'px';
-      canvas.style.height = H + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const { dpr } = fitCanvasToDpr(canvas, W, H);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
 
@@ -75,19 +74,21 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
       vx: 0, vy: 0, speed: 0,
       active: false,
     };
-    // Raw event-level tracking. The visual-effect path (ptr.x/y → smoothSpeed)
-    // double-smooths velocity, which attenuates brisk shakes from high-DPI or
-    // high-polling mice below the fission gate. We sample velocity directly
-    // from pointermove and feed that into the trigger so a fast shake always
-    // registers, no matter how much faster than threshold the user goes.
+    // Raw event-level tracking for fission detection. With coalesced-
+    // sample averaging (sampleCoalescedPointer above), both this raw
+    // channel and the smoothed magnetism channel receive Firefox-
+    // equivalent input in every browser, so the fission gate triggers
+    // on the same effective gesture intensity regardless of pointer
+    // device sample rate.
     const rawLast = { x: 0, y: 0, dx: 0, dy: 0, t: 0 };
     let rawSpeed = 0;     // peak normalised-units/sec, decays per frame
     let rawReversals = 0; // pending reversal bumps, drained per frame
 
     const onPointerMove = (e: PointerEvent) => {
       const r = container.getBoundingClientRect();
-      const nx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
-      const ny = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+      const sample = sampleCoalescedPointer(e);
+      const nx = (sample.clientX - (r.left + r.width / 2)) / (r.width / 2);
+      const ny = (sample.clientY - (r.top + r.height / 2)) / (r.height / 2);
       ptr.tx = Math.max(-1.4, Math.min(1.4, nx));
       ptr.ty = Math.max(-1.4, Math.min(1.4, ny));
       ptr.active = true;
@@ -119,23 +120,54 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
     let lastT = t0;
     let rafId = 0;
 
+    // Dev-only diagnostic: ?frametiming in the URL logs average dt per
+    // second to the console so we can compare actual RAF rates across
+    // browsers. Used to diagnose the Chrome over-reactivity report -
+    // see scripts/cross-browser-audit.md (Issue F.2).
+    const frameTiming =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).has('frametiming');
+    let ftFrames = 0;
+    let ftAccumMs = 0;
+    let ftLastReport = performance.now();
+
     const frame = (now: number) => {
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
+      if (frameTiming) {
+        ftFrames++;
+        ftAccumMs += dt * 1000;
+        if (now - ftLastReport >= 1000) {
+          const avgMs = ftAccumMs / ftFrames;
+          const avgHz = 1000 / avgMs;
+          // eslint-disable-next-line no-console
+          console.log(
+            `[NucleusHero] ${ftFrames} frames in ${(now - ftLastReport).toFixed(0)}ms · ` +
+            `avg dt ${avgMs.toFixed(2)}ms · ~${avgHz.toFixed(1)} Hz`,
+          );
+          ftFrames = 0;
+          ftAccumMs = 0;
+          ftLastReport = now;
+        }
+      }
 
       // Resolve isotope-driven gates per frame (ref read, no re-mount).
       const { fastSpeed: FAST_SPEED, requiredT: REQUIRED_T, shakeNeeded: SHAKE_NEEDED } =
         isotopeToGates(isotopeRef.current);
 
-      // Ease cursor toward target; track velocity.
+      // Ease cursor toward target; track velocity. Easing coefficients
+      // were tuned at REFERENCE_FRAMERATE_HZ (currently 45, Safari-
+      // dev calibration); easeAlpha rescales them for the current RAF
+      // dt so every browser converges to the same time constant.
       const px = ptr.x, py = ptr.y;
-      ptr.x += (ptr.tx - ptr.x) * 0.10;
-      ptr.y += (ptr.ty - ptr.y) * 0.10;
+      const aPos = easeAlpha(dt, 0.10);
+      ptr.x += (ptr.tx - ptr.x) * aPos;
+      ptr.y += (ptr.ty - ptr.y) * aPos;
       ptr.vx = (ptr.x - px) / dt;
       ptr.vy = (ptr.y - py) / dt;
       ptr.speed = Math.hypot(ptr.vx, ptr.vy);
-      smoothSpeed += (ptr.speed - smoothSpeed) * 0.18;
+      smoothSpeed += (ptr.speed - smoothSpeed) * easeAlpha(dt, 0.18);
 
       // Drain raw input signals captured between frames; decay raw peak speed
       // (~100 ms half-life) so a single brisk flick doesn't latch indefinitely.
@@ -229,7 +261,7 @@ function drawFrame(a: DrawFrameArgs): void {
   let da = targetAng - cursorAngle;
   while (da > Math.PI) da -= 2 * Math.PI;
   while (da < -Math.PI) da += 2 * Math.PI;
-  cursorAngle += da * 0.12;
+  cursorAngle += da * easeAlpha(a.dt, 0.12);
   a.cursorAngleRef.set(cursorAngle);
 
   const impulse = Math.min(1.4, smoothSpeed * 0.45);

@@ -42,6 +42,7 @@ import {
 } from '@/lib/poster004Engine';
 import formsData from '@/assets/poster-004-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
+import { fitCanvasToDpr } from '@/lib/canvasUtils';
 
 // ─────────────────────────────────────────────────────────────────
 // Static asset typing + module-level pre-parse.
@@ -395,20 +396,16 @@ export default function Poster004CanvasViz() {
     }
     animRef.current.linkLengths = lengths;
 
-    // Cap at 2.0 for retina sharpness - pixel count goes up ~78% vs
-    // 1.5, but the silhouette-singleton + alpha-guard work in this
-    // commit recovers the budget. Verify on the dev FPS counter
-    // before pushing further.
-    const DPR = Math.min(window.devicePixelRatio || 1, 2.0);
-
+    // DPR via shared fitCanvasToDpr (MAX_DPR=3, fresh per call).
+    // Previously this clamped at 2.0; on 3x devices that rendered
+    // at 67% of native resolution. The earlier silhouette-singleton
+    // + alpha-guard work means the wider DPR ceiling stays within
+    // budget.
     const resize = () => {
       const r = stage.getBoundingClientRect();
       const cssW = r.width;
       const cssH = r.height;
-      canvas.width = Math.max(1, Math.floor(cssW * DPR));
-      canvas.height = Math.max(1, Math.floor(cssH * DPR));
-      canvas.style.width = cssW + 'px';
-      canvas.style.height = cssH + 'px';
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
       // Fit the viewBox (which is offset by VIEWBOX.x / VIEWBOX.y in
       // SVG units) into the canvas with letterboxing matching SVG's
       // preserveAspectRatio="xMidYMid meet".
@@ -416,9 +413,9 @@ export default function Poster004CanvasViz() {
       const offsetX = (cssW - VIEWBOX.w * scale) / 2;
       const offsetY = (cssH - VIEWBOX.h * scale) / 2;
       ctx.setTransform(
-        scale * DPR, 0, 0, scale * DPR,
-        (offsetX - VIEWBOX.x * scale) * DPR,
-        (offsetY - VIEWBOX.y * scale) * DPR,
+        scale * dpr, 0, 0, scale * dpr,
+        (offsetX - VIEWBOX.x * scale) * dpr,
+        (offsetY - VIEWBOX.y * scale) * dpr,
       );
     };
     resize();
@@ -875,7 +872,7 @@ export default function Poster004CanvasViz() {
             right: 8,
             zIndex: 10,
             fontFamily: 'ui-monospace, monospace',
-            fontSize: 11,
+            fontSize: 14,
             padding: '2px 6px',
             background: 'rgba(13,26,30,0.85)',
             color: '#ece7df',
