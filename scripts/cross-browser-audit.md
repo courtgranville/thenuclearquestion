@@ -134,3 +134,40 @@ Per the brief: "ship the audit plus the top three highest-impact fixes and flag 
 - Poster003Dendrogram fontSize 6 / 8 source labels - replace with hover tooltips or remove.
 - Firefox + Safari spot-checks (Court to verify).
 - Poster preview thumbnail srcSet (combine with asset compression PR).
+
+## AMENDMENT - late additions (Court's poster 005/006 work)
+
+Two gaps in the original audit, caught during a second pass:
+
+1. **Poster006WasteInversion was missed by the original audit.** The audit listed five canvas components; there are six. `client/src/components/Poster006WasteInversion.tsx` was added after the original audit ran and still has `const DPR = Math.min(window.devicePixelRatio || 1, 1.5)` hardcoded around line 221. Commit `bafb9c3` (the DPR migration) did not touch it. The next commit on this branch folds it into the same `fitCanvasToDpr` retrofit the other five received.
+
+2. **Issue F — cursor velocity inflation in Chrome** wasn't in the original five issue categories. Walking the velocity-deriving cursor handlers makes it clear this is a real cross-browser parity problem on its own.
+
+### ISSUE F - Cursor velocity inflation in Chrome
+
+**Symptom.** Cursor-driven force interactions (per-form bulge, magnetism, fission shake-trigger) feel twitchier in Chrome than Firefox. Chrome surfaces `pointermove` at hardware rate - up to 1000 Hz on a Magic Trackpad or gaming mouse. Firefox coalesces at the OS layer to roughly 60 Hz with averaged positions. Velocity computed from per-event positions therefore inflates in Chrome, saturating impulse curves and over-warping the forms on movements that should read as calm.
+
+**Fix.** New `client/src/lib/cursorSampling.ts` with `sampleCoalescedPointer(e)` that averages `event.getCoalescedEvents()` samples (and falls back to `e.clientX/e.clientY` when the API isn't available). Apply to every `pointermove` handler that feeds a velocity calculation. Discrete hover triggers (`pointerover` / `pointerout`, `onMouseEnter`) and position-as-fraction reads (sliders) are unaffected and should NOT use the helper.
+
+**Decision.** Behaviour-matching only. No retuning of `baseBulge`, `strength`, easing factors (`* 0.10` per frame), `smoothSpeed` mixing (`* 0.18`), or any field constants in `posterMotion` / `posterMotionLiquid` / `fission`. Every affected component already shares `NucleusHero`'s input pipeline; once both browsers receive Firefox-equivalent input, the existing tuning lands the same way in each.
+
+### Velocity-vs-discrete inventory
+
+The full inventory below confirms which components actually derive velocity from cursor input (and so need the helper) versus those that don't.
+
+| Component | Has cursor velocity? | Uses `fitCanvasToDpr`? | Needs coalesced-events fix | Audit notes |
+|---|---|---|---|---|
+| `NucleusHero.tsx` | yes (magnetism + raw-channel fission detect) | yes | **yes** | Reference component - gold standard |
+| `Poster001CanvasViz.tsx` | no - flow motion only | yes | no | Unaffected |
+| `Poster002CanvasViz.tsx` | yes (per-form bulge) | yes | **yes** | - |
+| `Poster003*.tsx` (Slider / Viz / Dots / Dendrogram / Ticker / CanvasDeaths) | no - position-as-fraction reads only | n/a | no | Slider math doesn't derive velocity |
+| `Poster004CanvasViz.tsx` | no - `pointerEnter`/`Leave` with debounce | yes | no | Discrete hover state |
+| `Poster005Map.tsx` / `Poster005Timeline.tsx` | no - `pointerover`/`pointerout` for discrete hover | n/a | no | Hover-state only |
+| `Poster005DendroQuadrant.tsx` | no - `pointerover`/`pointerout` for hub hot-zone, no velocity | yes | no | Discrete hover |
+| `Poster005ReactorDetail.tsx` / `Poster005Callouts.tsx` / `Poster005StatusLegend.tsx` | no | n/a | no | Click/hover only |
+| `Poster006WasteInversion.tsx` | yes (per-cell magnetism) | **NO - missed by `bafb9c3`** | **yes** | Audit gap - still has `DPR = Math.min(..., 1.5)` hardcoded |
+| `Poster006Sellafield.tsx` | no - SVG hover with CSS transitions | n/a | no | Hover-state only |
+| `Poster006RadiationDoses.tsx` | no - `onMouseEnter` triggers burst replay | n/a | no | Discrete trigger |
+| `Poster006WasteStorage.tsx` | no - `onMouseEnter` for popout | n/a | no | Discrete hover |
+
+**Net: three files for the cursor parity fix** (NucleusHero, Poster002CanvasViz, Poster006WasteInversion) + the same Poster006WasteInversion file also needs the DPR helper migration that the original audit's commit missed.
