@@ -312,11 +312,12 @@ export default function Poster001CanvasViz() {
       const r = container.getBoundingClientRect();
       cssW = r.width;
       cssH = r.height;
-      // fitCanvasToDpr reads window.devicePixelRatio fresh each
-      // call (capped at MAX_DPR=3) so display changes refresh
-      // correctly. Returned dpr is composed with the viewBox-fit
-      // scale into the final transform.
-      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH);
+      // Cap DPR at 1.5 - restores the pre-migration value. Poster 001's
+      // per-frame stroke work tipped Firefox/Safari from usable into 4-9 Hz
+      // at DPR 2.0 on retina. fitCanvasToDpr reads window.devicePixelRatio
+      // fresh each call so display changes refresh correctly. Returned dpr
+      // is composed with the viewBox-fit scale into the final transform.
+      const { dpr } = fitCanvasToDpr(canvas, cssW, cssH, 1.5);
       const scale = Math.min(cssW / SVG_VIEW_W, cssH / SVG_VIEW_H);
       const offsetX = (cssW - SVG_VIEW_W * scale) / 2;
       const offsetY = (cssH - SVG_VIEW_H * scale) / 2;

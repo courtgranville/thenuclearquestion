@@ -256,3 +256,41 @@ Chrome ~2x calmer.
 `REFERENCE_FRAMERATE_HZ` is a single tunable constant. Lower numbers
 = laggier feel; higher = snappier. If production framerates (typically
 faster than dev) shift the sweet spot, retune in one place.
+
+### ISSUE F.4 - DPR=3 ceiling regressed poster pages in Firefox + Safari
+
+The May 2026 migration to `fitCanvasToDpr` (commit bafb9c3) lifted
+DPR caps from per-component hardcoded values to a global ceiling of
+3.0. On retina displays this meant:
+
+| Component | DPR before | DPR after | Pixels per frame |
+|---|---|---|---|
+| NucleusHero | 2.0 | 2.0 | unchanged |
+| Poster001CanvasViz | 1.5 | 2.0 | +78% |
+| Poster002CanvasViz | 1.5 | 2.0 | +78% |
+| Poster004CanvasViz | 2.0 | 2.0 | unchanged |
+| Poster005DendroQuadrant | 1.5 | 2.0 | +78% |
+| Poster006WasteInversion | 1.5 | 2.0 | +78% |
+
+Production framerates measured after the migration:
+
+| Page | Chrome | Safari | Firefox |
+|---|---|---|---|
+| Homepage | 90 Hz | 47 Hz | 25 Hz |
+| Poster 002 | 57 Hz | 8.7 Hz | 4.3 Hz |
+| Poster 006 Inversion | 25 Hz | 13 Hz | 3.0 Hz |
+
+Firefox's canvas2D uses Cairo (significantly slower than Chrome's
+Skia); 78% more pixels per frame tipped Posters 002 and 006 below
+the RAF budget entirely, producing the 3-9 Hz "broken" state.
+
+### Fix
+
+`fitCanvasToDpr` now takes an optional `maxDpr` parameter. Each
+component caller passes its pre-migration value:
+- NucleusHero, Poster004CanvasViz: 2.0
+- Poster001CanvasViz, Poster002CanvasViz, Poster005DendroQuadrant,
+  Poster006WasteInversion: 1.5
+
+The global `MAX_DPR = 3` constant remains as the default for any
+new canvas that doesn't specify a cap.
