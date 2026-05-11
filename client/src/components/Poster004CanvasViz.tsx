@@ -41,6 +41,7 @@ import {
   type Link,
 } from '@/lib/poster004Engine';
 import formsData from '@/assets/poster-004-forms.json';
+import PosterControlButton from '@/components/PosterControlButton';
 
 // ─────────────────────────────────────────────────────────────────
 // Static asset typing + module-level pre-parse.
@@ -1119,38 +1120,24 @@ export default function Poster004CanvasViz() {
           : 'Hover the forms to see how the energy system flows'}
       </p>
 
-      {/* Buttons. Three muted text-link buttons separated by middots. */}
-      <div
-        className="mt-3 flex justify-center items-center gap-2 text-sm text-muted-foreground"
-        style={{ fontFamily: "'Playfair', Georgia, serif" }}
-      >
+      {/* Buttons - use the shared PosterControlButton so the three
+          controls read clearly as clickable instead of as middot-
+          separated text links. */}
+      <div className="mt-3 flex flex-wrap justify-center items-center gap-2">
         {showPlay && (
-          <>
-            <button
-              type="button"
-              onClick={handlePlay}
-              className="px-1 py-0.5 rounded-sm hover:text-foreground transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
-            >
-              Play animation
-            </button>
-            <span aria-hidden="true">·</span>
-          </>
+          <PosterControlButton
+            label="Play animation"
+            onClick={handlePlay}
+          />
         )}
-        <button
-          type="button"
+        <PosterControlButton
+          label="View as poster"
           onClick={handleSnap}
-          className="px-1 py-0.5 rounded-sm hover:text-foreground transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
-        >
-          View as poster
-        </button>
-        <span aria-hidden="true">·</span>
-        <button
-          type="button"
+        />
+        <PosterControlButton
+          label="Reset"
           onClick={handleReset}
-          className="px-1 py-0.5 rounded-sm hover:text-foreground transition-colors duration-200 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/40"
-        >
-          Reset
-        </button>
+        />
       </div>
 
       {/* Honesty caveat - verbatim from the printed poster. */}

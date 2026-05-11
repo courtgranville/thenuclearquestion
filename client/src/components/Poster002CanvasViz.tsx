@@ -6,6 +6,7 @@ import {
 } from '@/lib/posterMotionLiquid';
 import formsData from '@/assets/poster-002-forms.json';
 import { Pause, Play } from 'lucide-react';
+import PosterControlButton from '@/components/PosterControlButton';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -905,61 +906,40 @@ export default function Poster002CanvasViz() {
         )}
       </div>
 
-      {/* Mode toggle */}
-      <div className="mt-4 flex gap-2 justify-center">
-        {(['combined', 'land', 'water'] as Mode[]).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`
-              px-4 py-1.5 rounded-sm text-sm tracking-wide uppercase
-              transition-all duration-200 border cursor-pointer
-              ${mode === m
-                ? 'border-foreground shadow-sm bg-foreground/5'
-                : 'border-border/50 hover:border-foreground/50'
-              }
-            `}
-            style={{ fontFamily: "'Playfair', Georgia, serif" }}
-          >
-            {m === 'combined' ? 'Combined' : m === 'land' ? 'Land' : 'Water'}
-          </button>
-        ))}
+      {/* Mode toggle - segmented triple */}
+      <div className="mt-4 flex justify-center">
+        <div className="inline-flex" role="group" aria-label="Display mode">
+          {(['combined', 'land', 'water'] as Mode[]).map((m, i) => (
+            <PosterControlButton
+              key={m}
+              label={m === 'combined' ? 'Combined' : m === 'land' ? 'Land' : 'Water'}
+              isActive={mode === m}
+              onClick={() => setMode(m)}
+              segmentedPosition={i === 0 ? 'first' : i === 2 ? 'last' : 'middle'}
+            />
+          ))}
+        </div>
       </div>
 
-      {/* Source legend + pause/play */}
+      {/* Source legend (click reveals info panel below) + pause/play */}
       <div className="mt-3 flex flex-wrap gap-2 justify-center items-center">
         {REGIONS.map((r) => (
-          <button
+          <PosterControlButton
             key={r.id}
+            label={r.name}
+            isActive={selected === r.id}
+            accentColour={r.color}
+            leadingDot
+            revealsContentBelow
             onClick={() =>
               setSelected((prev) => (prev === r.id ? null : r.id))
             }
-            className={`
-              px-3 py-1.5 rounded-sm text-sm tracking-wide uppercase
-              transition-all duration-200 border cursor-pointer
-              active:scale-95
-              ${selected === r.id
-                ? 'border-current shadow-sm'
-                : 'border-border/50 hover:border-current'
-              }
-            `}
-            style={{
-              fontFamily: "'Playfair', Georgia, serif",
-              color: r.color,
-              backgroundColor:
-                selected === r.id ? `${r.color}12` : 'transparent',
-            }}
-          >
-            <span
-              className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
-              style={{ backgroundColor: r.color }}
-            />
-            {r.name}
-          </button>
+          />
         ))}
         <button
           onClick={() => setPaused((p) => !p)}
-          className="px-2 py-1.5 rounded-sm border border-border/50 hover:border-foreground/50 transition-all duration-200 cursor-pointer flex items-center justify-center"
+          className="px-3 py-2 rounded-sm border bg-card cursor-pointer flex items-center justify-center transition-colors duration-150 hover:bg-foreground/5"
+          style={{ borderColor: 'rgba(13,26,30,0.45)', borderWidth: 1.5 }}
           aria-label={paused ? 'Resume animation' : 'Pause animation'}
         >
           {paused ? <Play size={14} /> : <Pause size={14} />}

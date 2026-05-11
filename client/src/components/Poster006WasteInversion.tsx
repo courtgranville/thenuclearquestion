@@ -3,6 +3,7 @@ import { buildPolylines } from '@/lib/parseSvg';
 import { depthWeight, resolveMotion, TUNING } from '@/lib/posterMotion';
 import { TUNING as FISSION_TUNING } from '@/lib/fission';
 import formsData from '@/assets/poster-006-forms.json';
+import PosterControlButton from '@/components/PosterControlButton';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -600,42 +601,25 @@ export default function Poster006WasteInversion() {
         ))}
       </div>
 
-      {/* Toggle */}
-      <div className="flex justify-center gap-8 mt-8">
-        <button
-          type="button"
-          onClick={() => handleToggle('volume')}
-          disabled={state.transitioning}
-          className="bg-transparent border-0 outline-none cursor-pointer disabled:cursor-default"
-          style={{
-            fontFamily: "'Playfair', Georgia, serif",
-            fontStyle: 'italic',
-            fontSize: '1rem',
-            color: state.mode === 'volume' ? '#0d1a1e' : 'rgba(13,26,30,0.42)',
-            textDecoration: state.mode === 'volume' ? 'underline' : 'none',
-            textUnderlineOffset: '4px',
-            transition: 'color 200ms ease',
-          }}
-        >
-          By Volume
-        </button>
-        <button
-          type="button"
-          onClick={() => handleToggle('radioactivity')}
-          disabled={state.transitioning}
-          className="bg-transparent border-0 outline-none cursor-pointer disabled:cursor-default"
-          style={{
-            fontFamily: "'Playfair', Georgia, serif",
-            fontStyle: 'italic',
-            fontSize: '1rem',
-            color: state.mode === 'radioactivity' ? '#0d1a1e' : 'rgba(13,26,30,0.42)',
-            textDecoration: state.mode === 'radioactivity' ? 'underline' : 'none',
-            textUnderlineOffset: '4px',
-            transition: 'color 200ms ease',
-          }}
-        >
-          By Radioactivity
-        </button>
+      {/* Toggle - segmented pair so the two modes read as a single
+          choice rather than separate links. */}
+      <div className="flex justify-center mt-8">
+        <div className="inline-flex" role="group" aria-label="Display mode">
+          <PosterControlButton
+            label="By Volume"
+            isActive={state.mode === 'volume'}
+            onClick={() => handleToggle('volume')}
+            disabled={state.transitioning}
+            segmentedPosition="first"
+          />
+          <PosterControlButton
+            label="By Radioactivity"
+            isActive={state.mode === 'radioactivity'}
+            onClick={() => handleToggle('radioactivity')}
+            disabled={state.transitioning}
+            segmentedPosition="last"
+          />
+        </div>
       </div>
 
       <p

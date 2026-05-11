@@ -7,6 +7,7 @@ import {
   type FormMotion,
 } from '@/lib/posterMotion';
 import formsData from '@/assets/poster-001-forms.json';
+import PosterControlButton from '@/components/PosterControlButton';
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata - copied from the original Poster001Viz.tsx so the
@@ -521,34 +522,17 @@ export default function Poster001CanvasViz() {
       {/* Legend */}
       <div className="mt-4 flex flex-wrap gap-2 justify-center">
         {REGIONS.map((r) => (
-          <button
+          <PosterControlButton
             key={r.id}
+            label={r.name}
+            isActive={selected === r.id}
+            accentColour={r.color}
+            leadingDot
+            revealsContentBelow
             onClick={() =>
               setSelected((prev) => (prev === r.id ? null : r.id))
             }
-            className={`
-              px-3 py-1.5 rounded-sm text-sm tracking-wide uppercase
-              transition-all duration-200 border cursor-pointer
-              active:scale-95
-              ${
-                selected === r.id
-                  ? 'border-current shadow-sm'
-                  : 'border-border/50 hover:border-current'
-              }
-            `}
-            style={{
-              fontFamily: "'Playfair', Georgia, serif",
-              color: r.color,
-              backgroundColor:
-                selected === r.id ? `${r.color}12` : 'transparent',
-            }}
-          >
-            <span
-              className="inline-block w-2 h-2 rounded-full mr-2 align-middle"
-              style={{ backgroundColor: r.color }}
-            />
-            {r.name}
-          </button>
+          />
         ))}
       </div>
 

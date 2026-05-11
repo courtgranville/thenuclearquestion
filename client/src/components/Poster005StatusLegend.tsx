@@ -19,6 +19,7 @@ import {
   type ReactorStatus,
 } from '@/lib/poster005Data';
 import { poster005Store } from '@/lib/poster005Store';
+import PosterControlButton from '@/components/PosterControlButton';
 
 const STATUS_ORDER: ReactorStatus[] = [
   'underConstruction',
@@ -36,46 +37,23 @@ export default function Poster005StatusLegend() {
 
   return (
     <div className="w-full max-w-3xl mx-auto px-4">
-      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
         {STATUS_ORDER.map((status) => {
           const isActive = filtered === status;
           const count = STATUS_TOTALS[status].count;
           const mw = STATUS_TOTALS[status].mw;
           const colour = STATUS_COLOUR[status];
           return (
-            <button
+            <PosterControlButton
               key={status}
-              type="button"
+              label={STATUS_LABEL[status]}
+              isActive={isActive}
+              accentColour={colour}
               onClick={() => poster005Store.toggleFilteredStatus(status)}
-              className="group flex items-center gap-2 px-3 py-1.5 rounded-sm border bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-offset-2 cursor-pointer transition-colors duration-200"
-              style={{
-                borderColor: isActive ? colour : 'rgba(13,26,30,0.18)',
-                backgroundColor: isActive ? `${colour}14` : 'transparent',
-                fontFamily: "'Playfair', Georgia, serif",
-              }}
-              aria-pressed={isActive}
-              aria-label={`Filter to ${STATUS_LABEL[status]}, ${count} reactors, ${mw.toLocaleString()} MW`}
-            >
-              <span
-                className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: colour }}
-              />
-              <span
-                className="text-sm"
-                style={{
-                  color: isActive ? colour : 'rgba(13,26,30,0.78)',
-                  fontWeight: isActive ? 600 : 400,
-                }}
-              >
-                {STATUS_LABEL[status]}
-              </span>
-              <span
-                className="text-sm text-muted-foreground tabular-nums"
-                style={{ fontFamily: "'Playfair', Georgia, serif" }}
-              >
-                {count} · {mw.toLocaleString()} MW
-              </span>
-            </button>
+              leadingDot
+              aux={`${count} · ${mw.toLocaleString()} MW`}
+              ariaLabel={`Filter to ${STATUS_LABEL[status]}, ${count} reactors, ${mw.toLocaleString()} MW`}
+            />
           );
         })}
         {filtered !== null && (
