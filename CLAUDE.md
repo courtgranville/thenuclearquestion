@@ -208,6 +208,40 @@ The site uses a defined type scale (see `client/src/index.css`). Use these token
 
 The defence is on 21 May 2026. From now to then, the website is live and any change is visible to the supervisor and the wider audience the thesis intervention targets. Bias toward smaller, well-tested changes over ambitious refactors. If a change feels like it would benefit from more time than is available, flag it to Court and propose a smaller version.
 
+## Bundle structure (post May 2026 split)
+
+The site is route-split via React.lazy. Each route loads as a
+separate chunk; each poster's component and JSON load on-demand
+via `manualChunks` in `vite.config.ts`.
+
+### When adding a new top-level route
+
+Add a `lazy()` import in `client/src/App.tsx`, wrap the Switch in
+the existing Suspense boundary. Don't add static imports at the
+top of App.tsx - they break the split.
+
+### When adding new heavy dependencies
+
+Check if it fits an existing vendor chunk in `vite.config.ts`
+manualChunks. If not, add a case. Don't let it fall into the
+generic `vendor` chunk unless it's truly tiny.
+
+### When adding new poster-scale assets
+
+For per-poster JSON data, the `manualChunks` rule already splits
+files matching `poster-(\d{3})-forms.json` into their own chunks.
+Static imports of those JSON files inside a `lazy()`-loaded
+component get fetched as the component's transitive dependency,
+which is fine for navigation-on-demand. If a JSON is large enough
+that you'd rather render a skeleton while it loads, switch to
+`await import()` inside `useEffect` so the JSON fetch is async
+from the component render.
+
+### Inspecting the bundle
+
+`pnpm build` generates `dist/stats.html`. Open it to see the
+treemap with gzip/brotli sizes per chunk.
+
 ## Things that are NOT this project
 
 If asked about anything that doesn't fit the above — a different design project, a different thesis, generic web development questions unrelated to this repo, or edits to the written thesis document — answer normally without applying this project context. The written thesis is locked unless Court explicitly reopens it.
