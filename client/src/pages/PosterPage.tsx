@@ -4,22 +4,26 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ScrollProgress from "@/components/ScrollProgress";
 import PageTransition from "@/components/PageTransition";
-import Poster001Viz from "@/components/Poster001Viz";
-import Poster002Viz from "@/components/Poster002Viz";
-import Poster002CanvasViz from "@/components/Poster002CanvasViz";
-import Poster003Viz from "@/components/Poster003Viz";
-import Poster004CanvasViz from "@/components/Poster004CanvasViz";
-import Poster005Viz from "@/components/Poster005Viz";
-import Poster006Viz from "@/components/Poster006Viz";
-import Poster001Legend from "@/components/Poster001Legend";
-import Poster002Legend from "@/components/Poster002Legend";
-import Poster003Legend from "@/components/Poster003Legend";
-import Poster004Legend from "@/components/Poster004Legend";
-import Poster006Legend from "@/components/Poster006Legend";
 import { posters, posterSources } from "@/lib/posterData";
 import { ArrowLeft, ArrowRight, Download } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef, lazy } from "react";
 import { toast } from "sonner";
+
+// Lazy-load every poster's viz + legend so navigating to /poster/001
+// only fetches that poster's chunks (component + its forms JSON).
+// Previously every poster's component (and its JSON) was loaded the
+// moment any /poster/* route was visited.
+const Poster001Viz = lazy(() => import("@/components/Poster001Viz"));
+const Poster002CanvasViz = lazy(() => import("@/components/Poster002CanvasViz"));
+const Poster003Viz = lazy(() => import("@/components/Poster003Viz"));
+const Poster004CanvasViz = lazy(() => import("@/components/Poster004CanvasViz"));
+const Poster005Viz = lazy(() => import("@/components/Poster005Viz"));
+const Poster006Viz = lazy(() => import("@/components/Poster006Viz"));
+const Poster001Legend = lazy(() => import("@/components/Poster001Legend"));
+const Poster002Legend = lazy(() => import("@/components/Poster002Legend"));
+const Poster003Legend = lazy(() => import("@/components/Poster003Legend"));
+const Poster004Legend = lazy(() => import("@/components/Poster004Legend"));
+const Poster006Legend = lazy(() => import("@/components/Poster006Legend"));
 
 /*
   DESIGN: Editorial Archive - Light Scholarly Journal
@@ -239,14 +243,18 @@ export default function PosterPage() {
               </div>
             </div>
 
-            {/* The viz components now render SVG first, controls below */}
+            {/* The viz components now render SVG first, controls below.
+                Each is lazy-loaded - minHeight placeholder prevents
+                layout jump while the chunk arrives. */}
             <div className="w-full">
-              {poster.id === "001" && <Poster001Viz />}
-              {poster.id === "002" && <Poster002CanvasViz />}
-              {poster.id === "003" && <Poster003Viz />}
-              {poster.id === "004" && <Poster004CanvasViz />}
-              {poster.id === "005" && <Poster005Viz />}
-              {poster.id === "006" && <Poster006Viz />}
+              <Suspense fallback={<div style={{ minHeight: 600 }} aria-busy="true" />}>
+                {poster.id === "001" && <Poster001Viz />}
+                {poster.id === "002" && <Poster002CanvasViz />}
+                {poster.id === "003" && <Poster003Viz />}
+                {poster.id === "004" && <Poster004CanvasViz />}
+                {poster.id === "005" && <Poster005Viz />}
+                {poster.id === "006" && <Poster006Viz />}
+              </Suspense>
             </div>
 
             {/* Per-poster legend block - sits below the viz and above
@@ -255,11 +263,13 @@ export default function PosterPage() {
                 See client/src/components/Poster00*Legend.tsx for the
                 individual designs. */}
             <div className="w-full mt-16">
-              {poster.id === "001" && <Poster001Legend />}
-              {poster.id === "002" && <Poster002Legend />}
-              {poster.id === "003" && <Poster003Legend />}
-              {poster.id === "004" && <Poster004Legend />}
-              {poster.id === "006" && <Poster006Legend />}
+              <Suspense fallback={null}>
+                {poster.id === "001" && <Poster001Legend />}
+                {poster.id === "002" && <Poster002Legend />}
+                {poster.id === "003" && <Poster003Legend />}
+                {poster.id === "004" && <Poster004Legend />}
+                {poster.id === "006" && <Poster006Legend />}
+              </Suspense>
             </div>
           </motion.section>
 
