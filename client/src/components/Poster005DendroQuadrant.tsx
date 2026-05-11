@@ -58,6 +58,7 @@ import {
   PULSE_TRAVEL_SPEED_PX_PER_MS,
 } from '@/lib/poster004Engine';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 
 const DENDRO_URL = '/assets/005-dendrogram-clean_336edeac.svg';
 
@@ -632,9 +633,8 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
     if (!hub) return () => ro.disconnect();
 
     const t0 = performance.now();
-    let rafId = 0;
 
-    const frame = (now: number) => {
+    const frame = (now: number, _isResume: boolean) => {
       const t = (now - t0) / 1000;
 
       ctx.save();
@@ -715,11 +715,10 @@ export default function Poster005DendroQuadrant({ status }: QuadrantProps) {
         hubPulseRef.current = null;
       }
 
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(container, frame);
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       ro.disconnect();
     };
   }, [viewBox, status]);

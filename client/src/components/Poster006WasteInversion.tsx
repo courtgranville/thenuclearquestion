@@ -7,6 +7,7 @@ import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 import { easeAlpha } from '@/lib/animationTiming';
+import { setupVisibilityRaf } from '@/lib/rafLoop';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -237,8 +238,18 @@ export default function Poster006WasteInversion() {
     const slotMaxY: number[] = [0, 0, 0, 0];
     let baseRadiusCss = 1; // form half-extent in CSS px at scale=1
 
+    // Cache the container's screen position. getBoundingClientRect
+    // forces a layout flush on every call; in a high-poll-rate pointer
+    // event stream this is the dominant cost in the pointer handler.
+    // Refreshed on scroll/resize/ResizeObserver - where it can change.
+    let cachedRect = container.getBoundingClientRect();
+    const refreshRect = () => {
+      cachedRect = container.getBoundingClientRect();
+    };
+
     const resize = () => {
-      const r = container.getBoundingClientRect();
+      refreshRect();
+      const r = cachedRect;
       cssW = r.width;
       cssH = r.height;
       // Cap DPR at 1.5 - restores the pre-migration value. Poster 006
@@ -282,9 +293,11 @@ export default function Poster006WasteInversion() {
     resize();
     const ro = new ResizeObserver(resize);
     ro.observe(container);
+    window.addEventListener('scroll', refreshRect, { passive: true });
+    window.addEventListener('resize', refreshRect, { passive: true });
 
     const onPointerMove = (e: PointerEvent) => {
-      const r = container.getBoundingClientRect();
+      const r = cachedRect;
       const sample = sampleCoalescedPointer(e);
       const ptr = ptrRef.current;
       const nx = sample.clientX - r.left;
@@ -311,7 +324,6 @@ export default function Poster006WasteInversion() {
 
     const t0 = performance.now();
     let lastT = t0;
-    let rafId = 0;
     let loopGuard = false;
     let prevActiveIdx = -1;
 
@@ -324,7 +336,9 @@ export default function Poster006WasteInversion() {
     let ftFrames = 0;
     let ftLastReport = performance.now();
 
-    const frame = (now: number) => {
+    const frame = (now: number, isResume: boolean) => {
+      // Reset lastT on resume so dt is sensible after off-screen pause.
+      if (isResume) lastT = now;
       const dt = Math.max(0.001, Math.min(0.05, (now - lastT) / 1000));
       lastT = now;
       const t = (now - t0) / 1000;
@@ -560,13 +574,14 @@ export default function Poster006WasteInversion() {
         node.style.top = `${slotCy[i] + halfCss + 8}px`;
       }
 
-      rafId = requestAnimationFrame(frame);
     };
-    rafId = requestAnimationFrame(frame);
+    const stopRaf = setupVisibilityRaf(container, frame);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      stopRaf();
       ro.disconnect();
+      window.removeEventListener('scroll', refreshRect);
+      window.removeEventListener('resize', refreshRect);
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerleave', onPointerLeave);
     };
