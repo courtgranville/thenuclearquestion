@@ -37,10 +37,12 @@ export const TUNING = {
 // gates the Phase 5 post-processing stack per effect, `pointSize` is
 // the GLSL uPointSize starting value (re-tuned by eye against bloom).
 //
-// Bloom is the single most expensive effect; skipping it on Low is
-// the difference between 60fps and a slideshow on integrated GPUs.
-// Vignette is cheap and stays on at every quality - it's part of the
-// room's photographic register, not an opt-in effect.
+// Bloom config is per-quality. Low gets gentler bloom with
+// mipmapBlur disabled so the cheap glow softens hard pixel edges
+// without paying for the wide downsampled halo. Medium / High share
+// the brief's cinematic baseline. Vignette is cheap and stays on at
+// every quality - it's part of the room's photographic register, not
+// an opt-in effect.
 export const QUALITY: Record<
   Quality,
   {
@@ -49,7 +51,16 @@ export const QUALITY: Record<
     maxNeutrons: number;
     multiNucleus: boolean;
     pointSize: number;
-    postfx: { bloom: boolean; vignette: boolean };
+    postfx: {
+      bloom: {
+        enabled: boolean;
+        intensity: number;
+        luminanceThreshold: number;
+        luminanceSmoothing: number;
+        mipmapBlur: boolean;
+      };
+      vignette: boolean;
+    };
   }
 > = {
   low: {
@@ -58,7 +69,16 @@ export const QUALITY: Record<
     maxNeutrons: 150,
     multiNucleus: false,
     pointSize: 2.4,
-    postfx: { bloom: false, vignette: true },
+    postfx: {
+      bloom: {
+        enabled: true,
+        intensity: 0.5,
+        luminanceThreshold: 0.0,
+        luminanceSmoothing: 0.4,
+        mipmapBlur: false,
+      },
+      vignette: true,
+    },
   },
   medium: {
     particleScale: 0.66,
@@ -66,7 +86,16 @@ export const QUALITY: Record<
     maxNeutrons: 350,
     multiNucleus: true,
     pointSize: 1.8,
-    postfx: { bloom: true, vignette: true },
+    postfx: {
+      bloom: {
+        enabled: true,
+        intensity: 1.2,
+        luminanceThreshold: 0.0,
+        luminanceSmoothing: 0.4,
+        mipmapBlur: true,
+      },
+      vignette: true,
+    },
   },
   high: {
     particleScale: 1.0,
@@ -74,19 +103,21 @@ export const QUALITY: Record<
     maxNeutrons: 600,
     multiNucleus: true,
     pointSize: 1.4,
-    postfx: { bloom: true, vignette: true },
+    postfx: {
+      bloom: {
+        enabled: true,
+        intensity: 1.2,
+        luminanceThreshold: 0.0,
+        luminanceSmoothing: 0.4,
+        mipmapBlur: true,
+      },
+      vignette: true,
+    },
   },
 };
 
-// Post-processing tuning. Starting values from FISSION_BRIEF.md
-// Phase 5. Court will tune these by eye against screenshots.
-export const BLOOM = {
-  intensity: 1.2,
-  luminanceThreshold: 0.0,
-  luminanceSmoothing: 0.4,
-  mipmapBlur: true,
-} as const;
-
+// Vignette tuning is identical across qualities - cheap, part of the
+// room's photographic identity.
 export const VIGNETTE = {
   offset: 0.3,
   darkness: 0.4,

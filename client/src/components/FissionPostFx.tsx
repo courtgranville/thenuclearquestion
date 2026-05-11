@@ -1,6 +1,6 @@
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
-import { QUALITY, BLOOM, VIGNETTE, type Quality } from '@/lib/fissionTuning';
+import { QUALITY, VIGNETTE, type Quality } from '@/lib/fissionTuning';
 
 type Props = {
   quality: Quality;
@@ -8,7 +8,9 @@ type Props = {
 
 // Post-processing stack. Bloom makes the cream particles glow into
 // the surrounding dark; vignette adds photographic depth without
-// reading as a filter. Both gated per-quality in fissionTuning.ts.
+// reading as a filter. Bloom is per-quality (intensity + mipmapBlur
+// scale down on Low so the room reads the same softer at every tier,
+// rather than flipping between cinematic and graphic).
 //
 // multisampling={0} disables MSAA on the composer's render target.
 // With additive-blended points, MSAA helps very little and costs
@@ -20,12 +22,12 @@ export default function FissionPostFx({ quality }: Props) {
   return (
     <EffectComposer multisampling={0}>
       <>
-        {cfg.bloom && (
+        {cfg.bloom.enabled && (
           <Bloom
-            intensity={BLOOM.intensity}
-            luminanceThreshold={BLOOM.luminanceThreshold}
-            luminanceSmoothing={BLOOM.luminanceSmoothing}
-            mipmapBlur={BLOOM.mipmapBlur}
+            intensity={cfg.bloom.intensity}
+            luminanceThreshold={cfg.bloom.luminanceThreshold}
+            luminanceSmoothing={cfg.bloom.luminanceSmoothing}
+            mipmapBlur={cfg.bloom.mipmapBlur}
           />
         )}
         {cfg.vignette && (
