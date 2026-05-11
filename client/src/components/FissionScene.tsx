@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import type { Quality } from '@/lib/fissionTuning';
 import FissionParticles from './FissionParticles';
+import FissionPostFx from './FissionPostFx';
 
 type Props = {
   quality: Quality;
@@ -22,6 +23,7 @@ export default function FissionScene({ quality }: Props) {
     >
       <color attach="background" args={['#0A0A0A']} />
       <FissionParticles quality={quality} />
+      <FissionPostFx quality={quality} />
     </Canvas>
   );
 }

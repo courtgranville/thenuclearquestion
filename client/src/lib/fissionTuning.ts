@@ -33,42 +33,61 @@ export const TUNING = {
 } as const;
 
 // Per-quality render settings. `particleScale` thins the base point
-// cloud by even-stride sampling (so the outline survives), `bloom`
-// gates Phase 5's post-fx, `pointSize` is the GLSL uPointSize starting
-// value to be re-tuned by eye against bloom in Phase 5.
+// cloud by even-stride sampling (so the outline survives), `postfx`
+// gates the Phase 5 post-processing stack per effect, `pointSize` is
+// the GLSL uPointSize starting value (re-tuned by eye against bloom).
+//
+// Bloom is the single most expensive effect; skipping it on Low is
+// the difference between 60fps and a slideshow on integrated GPUs.
+// Vignette is cheap and stays on at every quality - it's part of the
+// room's photographic register, not an opt-in effect.
 export const QUALITY: Record<
   Quality,
   {
     particleScale: number;
-    bloom: boolean;
     pixelRatio: number;
     maxNeutrons: number;
     multiNucleus: boolean;
     pointSize: number;
+    postfx: { bloom: boolean; vignette: boolean };
   }
 > = {
   low: {
     particleScale: 0.33,
-    bloom: false,
     pixelRatio: 1.0,
     maxNeutrons: 150,
     multiNucleus: false,
     pointSize: 2.4,
+    postfx: { bloom: false, vignette: true },
   },
   medium: {
     particleScale: 0.66,
-    bloom: true,
     pixelRatio: 1.5,
     maxNeutrons: 350,
     multiNucleus: true,
     pointSize: 1.8,
+    postfx: { bloom: true, vignette: true },
   },
   high: {
     particleScale: 1.0,
-    bloom: true,
     pixelRatio: 2.0,
     maxNeutrons: 600,
     multiNucleus: true,
     pointSize: 1.4,
+    postfx: { bloom: true, vignette: true },
   },
 };
+
+// Post-processing tuning. Starting values from FISSION_BRIEF.md
+// Phase 5. Court will tune these by eye against screenshots.
+export const BLOOM = {
+  intensity: 1.2,
+  luminanceThreshold: 0.0,
+  luminanceSmoothing: 0.4,
+  mipmapBlur: true,
+} as const;
+
+export const VIGNETTE = {
+  offset: 0.3,
+  darkness: 0.4,
+} as const;
