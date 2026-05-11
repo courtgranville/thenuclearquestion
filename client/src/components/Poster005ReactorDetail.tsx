@@ -76,7 +76,7 @@ export default function Poster005ReactorDetail() {
               {reactor.name}
             </h4>
             <span
-              className="text-xs uppercase tracking-[0.12em] text-muted-foreground"
+              className="text-sm uppercase tracking-[0.12em] text-muted-foreground"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               {STATUS_LABEL[reactor.status]}
@@ -88,14 +88,14 @@ export default function Poster005ReactorDetail() {
             style={{ fontFamily: "'Playfair', Georgia, serif" }}
           >
             <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">
+              <p className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5">
                 Site
               </p>
               <p className="text-foreground">{reactor.site ?? ' - '}</p>
             </div>
 
             <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">
+              <p className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5">
                 Capacity
               </p>
               <p className="text-foreground tabular-nums">{formatMw(reactor.capacityMw)}</p>
@@ -103,13 +103,13 @@ export default function Poster005ReactorDetail() {
 
             {reactor.status === 'cancelled' && (
               <div>
-                <p className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">
+                <p className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5">
                   Cancelled
                 </p>
                 <p className="text-foreground tabular-nums">
                   {formatYear(reactor.cancellationYear)}
                   {reactor.cancellationYearInferred && (
-                    <span className="ml-1 italic text-xs text-muted-foreground">(inferred)</span>
+                    <span className="ml-1 italic text-sm text-muted-foreground">(inferred)</span>
                   )}
                 </p>
               </div>
@@ -118,7 +118,7 @@ export default function Poster005ReactorDetail() {
             {reactor.status !== 'cancelled' && (
               <>
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">
+                  <p className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5">
                     Construction
                   </p>
                   <p className="text-foreground tabular-nums">
@@ -126,7 +126,7 @@ export default function Poster005ReactorDetail() {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5">
+                  <p className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5">
                     {reactor.status === 'underConstruction' ? 'Planned grid' : 'Grid connection'}
                   </p>
                   <p className="text-foreground tabular-nums">
@@ -139,7 +139,7 @@ export default function Poster005ReactorDetail() {
 
           {reactor.status === 'retired' && (
             <p
-              className="mt-3 text-xs italic text-muted-foreground"
+              className="mt-3 text-sm italic text-muted-foreground"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Operating life: {formatLifespan(reactor.commercialOperation, reactor.shutdown)}
@@ -147,7 +147,7 @@ export default function Poster005ReactorDetail() {
           )}
           {reactor.status === 'operating' && (
             <p
-              className="mt-3 text-xs italic text-muted-foreground"
+              className="mt-3 text-sm italic text-muted-foreground"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               Operating since {reactor.commercialOperation}; current planning horizon{' '}

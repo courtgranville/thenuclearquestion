@@ -585,13 +585,13 @@ export default function Poster006WasteInversion() {
               {f.longName}
             </p>
             <p
-              className="text-xs font-medium mt-0.5"
+              className="text-sm font-medium mt-0.5"
               style={{ color: f.accent, fontFamily: "'Playfair', Georgia, serif" }}
             >
               {f.volumeLabel}
             </p>
             <p
-              className="text-xs text-muted-foreground italic mt-0.5"
+              className="text-sm text-muted-foreground italic mt-0.5"
               style={{ fontFamily: "'Playfair', Georgia, serif" }}
             >
               {f.pctLabel}
@@ -639,7 +639,7 @@ export default function Poster006WasteInversion() {
       </div>
 
       <p
-        className="text-center text-xs text-muted-foreground mt-4 max-w-2xl mx-auto px-4 leading-relaxed"
+        className="text-center text-sm text-muted-foreground mt-4 max-w-2xl mx-auto px-4 leading-relaxed"
         style={{ fontFamily: "'Playfair', Georgia, serif" }}
       >
         Forms scaled by the square root of value to preserve visibility - strict area scaling

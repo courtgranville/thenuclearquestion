@@ -45,7 +45,8 @@ function SectionBlock({
       className="mb-10"
     >
       <h2
-        className="font-serif text-xl mb-4"
+        className="font-serif text-2xl mb-4"
+        style={{ fontWeight: 600 }}
       >
         {title}
       </h2>

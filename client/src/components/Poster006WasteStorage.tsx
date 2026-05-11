@@ -206,7 +206,7 @@ export default function Poster006WasteStorage() {
                   {route.volume}
                 </p>
                 <p
-                  className="text-xs tracking-[0.08em] uppercase mt-1.5 text-muted-foreground"
+                  className="text-sm tracking-[0.08em] uppercase mt-1.5 text-muted-foreground"
                   style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   {route.subtitle}
@@ -232,7 +232,7 @@ export default function Poster006WasteStorage() {
                 <div className="grid grid-cols-2 gap-3 mb-3 w-full max-w-sm">
                   <div>
                     <p
-                      className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+                      className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
                       style={{ fontFamily: "'Playfair', Georgia, serif" }}
                     >
                       Volume
@@ -243,7 +243,7 @@ export default function Poster006WasteStorage() {
                   </div>
                   <div>
                     <p
-                      className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+                      className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
                       style={{ fontFamily: "'Playfair', Georgia, serif" }}
                     >
                       Location
@@ -254,7 +254,7 @@ export default function Poster006WasteStorage() {
                   </div>
                 </div>
                 <p
-                  className="text-xs uppercase tracking-wider text-muted-foreground mb-0.5"
+                  className="text-sm uppercase tracking-wider text-muted-foreground mb-0.5"
                   style={{ fontFamily: "'Playfair', Georgia, serif" }}
                 >
                   Waste types
