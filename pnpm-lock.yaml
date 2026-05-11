@@ -194,6 +194,9 @@ importers:
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
+      svg-path-properties:
+        specifier: ^2.0.2
+        version: 2.0.2
       tailwindcss:
         specifier: ^4.1.14
         version: 4.1.14
@@ -2205,6 +2208,10 @@ packages:
 
   std-env@3.9.0:
     resolution: {integrity: sha512-UGvjygr6F6tpH7o2qyqR6QYpwraIjKSdtzyBdyytFOHmPZY917kwdwLG0RbOjWOnKmnm3PeHjaoLLMie7kPLQw==}
+
+  svg-path-properties@2.0.2:
+    resolution: {integrity: sha512-NsSMBNZmod9Gr22gxa8FOiZUIzrI8o65veuCyppoNftNfpKjP5qoouA3ZyioOsQ2a4O8cRV8rHmG9LZF2HhXvw==}
+    engines: {node: '>=22.0.0'}
 
   tailwind-merge@3.3.1:
     resolution: {integrity: sha512-gBXpgUm/3rp1lMZZrM/w7D8GKqshif0zAymAhbCyIt8KMe+0v9DQ7cdYLR4FHH/cKpdTXb+A/tKKU3eolfsI+g==}
@@ -4268,6 +4275,8 @@ snapshots:
   stackback@0.0.2: {}
 
   std-env@3.9.0: {}
+
+  svg-path-properties@2.0.2: {}
 
   tailwind-merge@3.3.1: {}
 
