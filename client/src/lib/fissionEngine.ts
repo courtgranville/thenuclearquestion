@@ -1,16 +1,19 @@
 // Framework-free particle physics engine for the Fission Room.
 // Owns the canonical state arrays that the renderer reads each frame
 // via BufferAttributes. Step semantics, force model, and cascade
-// behaviour follow FISSION_BRIEF.md Phase 6. All dimensional values
-// are in normalised world units where the form spans [-1, +1].
+// behaviour follow FISSION_BRIEF.md Phase 6, with Phase 6.1 layering
+// in spent flags (for natural termination), a heat buffer (for the
+// thermal palette), and auto-reset on idle.
 
 import { TUNING, BREATHING, type Quality } from './fissionTuning';
 
 // State codes are floats so the WebGL shader can read them as a
-// vertex attribute without integer-conversion overhead.
-//   0 = bound       cream, resting
-//   1 = excited     red flash, about to fission
-//   2 = released    cool teal, drifting outward after fission
+// vertex attribute without integer-conversion overhead. Phase 6.1
+// kept this shape for parity even though the renderer now reads
+// `heat` instead of `states`.
+//   0 = bound       resting
+//   1 = excited     warming up, about to fission
+//   2 = released    drifting outward after fission
 //   3 = recohering  returning to bound, strongly spring-pulled
 export type ParticleState = 0 | 1 | 2 | 3;
 
@@ -27,6 +30,10 @@ function springScaleFor(state: number): number {
   if (state === STATE_EXCITED) return 0.6;
   return 0.3; // released
 }
+
+// Decay window for the released-state heat curve. Independent of the
+// recohere delay so the visual cools faster than the physical return.
+const HEAT_RELEASE_DECAY_MS = 1500;
 
 export type Neutron = {
   x: number;
@@ -51,17 +58,12 @@ class SpatialGrid {
 
   constructor(rests: Float32Array, count: number, cellSize: number) {
     this.cellSize = cellSize;
-    // World is roughly [-1, +1]; pad to [-1.2, +1.2] to absorb any
-    // particles that sit slightly outside (they shouldn't, but the
-    // pad costs nothing).
     this.originX = -1.2;
     this.originY = -1.2;
     this.gridW = Math.ceil(2.4 / cellSize);
     this.gridH = Math.ceil(2.4 / cellSize);
     const totalCells = this.gridW * this.gridH;
 
-    // Two-pass build: first count occupants per cell, then allocate
-    // exact-sized Int32Arrays. Avoids growing JS arrays.
     const counts = new Int32Array(totalCells);
     for (let i = 0; i < count; i++) {
       const cx = Math.floor((rests[i * 2] - this.originX) / cellSize);
@@ -87,9 +89,6 @@ class SpatialGrid {
     }
   }
 
-  // Push every particle index whose cell overlaps the query radius
-  // into `out`. Caller is responsible for filtering by precise
-  // distance and resetting `out.length = 0` before calling.
   queryRadius(x: number, y: number, radius: number, out: number[]): void {
     const minCx = Math.max(
       0,
@@ -133,25 +132,42 @@ export class FissionEngine {
   readonly states: Float32Array;
   readonly rests: Float32Array;
   readonly phases: Float32Array;
+  // Derived per-particle thermal energy in [0, 1], updated each frame
+  // from state + elapsed. Renderer reads this for the thermal
+  // gradient (cream → ochre → red); states stays as the state
+  // machine's source of truth.
+  readonly heat: Float32Array;
 
   // Public counters - the page reads these to update UI overlays.
   energyMeV = 0;
   liveNeutrons = 0;
   liveExcited = 0;
 
+  // Neutron pool is exposed publicly (read-only by convention) so the
+  // FissionNeutrons renderer can iterate and read positions/ages.
+  readonly neutrons: Neutron[];
+
   // Internal-only mutable state.
   private readonly velocities: Float32Array;
   private readonly forces: Float32Array;
   private readonly excitedSince: Float64Array;
   private readonly releasedSince: Float64Array;
-  private readonly neutrons: Neutron[];
+  // 1 = particle has already fissioned this cycle and cannot be
+  // re-excited until resetSpent runs (either via the idle auto-reset
+  // or an explicit engine.reset() call).
+  private readonly spent: Uint8Array;
   private readonly grid: SpatialGrid;
   private readonly neighbourBuffer: number[] = [];
 
   private cursorX: number | null = null;
   private cursorY: number | null = null;
-  private moderatorRatio = 0.5;
-  private elapsedMs = 0;
+  private moderatorRatio = TUNING.MODERATOR_DEFAULT;
+  private _elapsedMs = 0;
+  private idleMs = 0;
+
+  get elapsedMs(): number {
+    return this._elapsedMs;
+  }
 
   constructor(opts: EngineOpts) {
     this.count = opts.count;
@@ -161,10 +177,12 @@ export class FissionEngine {
     this.rests = new Float32Array(n * 2);
     this.phases = new Float32Array(n);
     this.states = new Float32Array(n);
+    this.heat = new Float32Array(n);
     this.velocities = new Float32Array(n * 2);
     this.forces = new Float32Array(n * 2);
     this.excitedSince = new Float64Array(n);
     this.releasedSince = new Float64Array(n);
+    this.spent = new Uint8Array(n);
 
     for (let i = 0; i < n; i++) {
       const x = opts.points[i * 2];
@@ -180,9 +198,6 @@ export class FissionEngine {
 
     this.grid = new SpatialGrid(this.rests, n, TUNING.CASCADE_RADIUS * 2);
 
-    // Pre-allocate the neutron pool at the maximum capacity. We mark
-    // dead neutrons rather than splicing the array - keeps the hot
-    // loop allocation-free.
     this.neutrons = new Array(TUNING.MAX_LIVE_NEUTRONS);
     for (let i = 0; i < this.neutrons.length; i++) {
       this.neutrons[i] = { x: 0, y: 0, vx: 0, vy: 0, bornAt: 0, alive: false };
@@ -192,7 +207,6 @@ export class FissionEngine {
   // ─── Inputs ────────────────────────────────────────────────────
 
   injectNeutron(x: number, y: number, vx: number, vy: number): void {
-    // Find a dead slot to recycle.
     for (let i = 0; i < this.neutrons.length; i++) {
       const n = this.neutrons[i];
       if (!n.alive) {
@@ -200,7 +214,7 @@ export class FissionEngine {
         n.y = y;
         n.vx = vx;
         n.vy = vy;
-        n.bornAt = this.elapsedMs;
+        n.bornAt = this._elapsedMs;
         n.alive = true;
         this.liveNeutrons++;
         return;
@@ -218,12 +232,36 @@ export class FissionEngine {
     this.moderatorRatio = Math.max(0, Math.min(1, r));
   }
 
-  // Phase 6 scaffolding. Picks the bound particle closest to (0, 0)
-  // and lights it; the cascade propagates from there.
+  // Returns the index of the closest bound, non-spent particle to the
+  // given world coordinate, using *current* positions (not rests) -
+  // because the user is clicking on what they see, and a recohered
+  // particle that drifted slightly should still register at its
+  // visible location. Returns null if no eligible particle exists.
+  findNearestBound(x: number, y: number): number | null {
+    let bestIdx = -1;
+    let bestD2 = Infinity;
+    for (let i = 0; i < this.count; i++) {
+      if (this.states[i] !== STATE_BOUND) continue;
+      if (this.spent[i] === 1) continue;
+      const dx = this.positions[i * 3] - x;
+      const dy = this.positions[i * 3 + 1] - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < bestD2) {
+        bestD2 = d2;
+        bestIdx = i;
+      }
+    }
+    return bestIdx === -1 ? null : bestIdx;
+  }
+
+  // Phase 6 scaffolding. Picks the bound, non-spent particle closest
+  // to (0, 0) and lights it; cascade propagates from there.
   triggerTestCascade(): void {
-    let bestIdx = 0;
+    let bestIdx = -1;
     let bestR2 = Infinity;
     for (let i = 0; i < this.count; i++) {
+      if (this.states[i] !== STATE_BOUND) continue;
+      if (this.spent[i] === 1) continue;
       const x = this.rests[i * 2];
       const y = this.rests[i * 2 + 1];
       const r2 = x * x + y * y;
@@ -232,27 +270,58 @@ export class FissionEngine {
         bestIdx = i;
       }
     }
-    if (this.states[bestIdx] === STATE_BOUND) {
+    if (bestIdx >= 0) {
       this.states[bestIdx] = STATE_EXCITED;
-      this.excitedSince[bestIdx] = this.elapsedMs;
+      this.excitedSince[bestIdx] = this._elapsedMs;
       this.liveExcited++;
     }
+  }
+
+  // Clears all spent flags so the form is ready to fission again.
+  // Called automatically when the room has been idle, or manually via
+  // reset() for a hard restart.
+  private resetSpent(): void {
+    this.spent.fill(0);
+  }
+
+  // Public hard reset: forget everything that happened. The state
+  // machine itself is unaffected (it's already at STATE_BOUND when
+  // idle), so this is effectively "clear the energy counter and let
+  // every particle fire again." Not wired to any UI in Phase 6.1.
+  reset(): void {
+    this.resetSpent();
+    this.energyMeV = 0;
+    this.idleMs = 0;
   }
 
   // ─── Tick ──────────────────────────────────────────────────────
 
   step(dtMs: number): void {
-    // Clamp to defend against frame stutters (tab-foregrounding,
-    // GC pauses). Larger frame intervals are integrated as MAX_DT_MS
-    // so a 100ms hitch doesn't explode the simulation.
+    // Clamp to defend against frame stutters.
     const dt = Math.min(dtMs, TUNING.MAX_DT_MS) / 1000;
-    this.elapsedMs += dtMs;
+    this._elapsedMs += dtMs;
 
     this.updateNeutrons(dt);
     this.processCascade();
     this.applyForces();
     this.integrate(dt);
     this.processRecohere();
+    this.updateHeat();
+
+    // Auto-reset: when the room has been quiet for AUTO_RESET_IDLE_MS,
+    // wipe the spent flags so a new cascade can start fresh. Silent
+    // to the user - just gives the room a natural rhythm between
+    // clicks.
+    const isIdle = this.liveExcited === 0 && this.liveNeutrons === 0;
+    if (isIdle) {
+      this.idleMs += dtMs;
+      if (this.idleMs > TUNING.AUTO_RESET_IDLE_MS) {
+        this.resetSpent();
+        this.idleMs = 0;
+      }
+    } else {
+      this.idleMs = 0;
+    }
   }
 
   // ─── Step passes ───────────────────────────────────────────────
@@ -266,8 +335,7 @@ export class FissionEngine {
       n.x += n.vx * dt;
       n.y += n.vy * dt;
 
-      // Lifetime / out-of-bounds cull.
-      const aliveMs = this.elapsedMs - n.bornAt;
+      const aliveMs = this._elapsedMs - n.bornAt;
       if (
         aliveMs > TUNING.NEUTRON_LIFE_MS ||
         n.x < -1.5 ||
@@ -280,20 +348,16 @@ export class FissionEngine {
         continue;
       }
 
-      // Brute-force collision against particles within hit radius.
-      // At ~10 live neutrons and 42k particles that's 420k checks
-      // per frame, well inside budget. The spatial grid is keyed on
-      // rest positions, so it doesn't help for current-position
-      // collision (a released particle isn't where its rest is).
       for (let p = 0; p < this.count; p++) {
         if (this.states[p] !== STATE_BOUND) continue;
+        if (this.spent[p] === 1) continue;
         const dx = this.positions[p * 3] - n.x;
         const dy = this.positions[p * 3 + 1] - n.y;
         if (dx * dx + dy * dy < radius2) {
           n.alive = false;
           this.liveNeutrons--;
           this.states[p] = STATE_EXCITED;
-          this.excitedSince[p] = this.elapsedMs;
+          this.excitedSince[p] = this._elapsedMs;
           this.liveExcited++;
           break;
         }
@@ -307,10 +371,9 @@ export class FissionEngine {
 
     for (let i = 0; i < this.count; i++) {
       if (this.states[i] !== STATE_EXCITED) continue;
-      const elapsed = this.elapsedMs - this.excitedSince[i];
+      const elapsed = this._elapsedMs - this.excitedSince[i];
       if (elapsed < TUNING.REACTION_WINDOW_MS) continue;
 
-      // Transition excited -> released.
       const rx = this.rests[i * 2];
       const ry = this.rests[i * 2 + 1];
 
@@ -321,17 +384,18 @@ export class FissionEngine {
         const j = this.neighbourBuffer[k];
         if (j === i) continue;
         if (this.states[j] !== STATE_BOUND) continue;
+        if (this.spent[j] === 1) continue;
         const dx = this.rests[j * 2] - rx;
         const dy = this.rests[j * 2 + 1] - ry;
         if (dx * dx + dy * dy > cascadeR2) continue;
         if (Math.random() < cascadeP) {
           this.states[j] = STATE_EXCITED;
-          this.excitedSince[j] = this.elapsedMs;
+          this.excitedSince[j] = this._elapsedMs;
           this.liveExcited++;
         }
       }
 
-      // 2) Spawn neutrons. Radial-ish outward directions with jitter.
+      // 2) Spawn NEUTRONS_PER_FISSION neutrons radially outward.
       for (let k = 0; k < TUNING.NEUTRONS_PER_FISSION; k++) {
         const angle = Math.random() * Math.PI * 2;
         const vx = Math.cos(angle) * TUNING.NEUTRON_SPEED;
@@ -342,24 +406,21 @@ export class FissionEngine {
       // 3) Energy ledger.
       this.energyMeV += TUNING.ENERGY_PER_FISSION_MEV;
 
-      // 4) Outward kick at the moment of release. Angle is from the
-      // form's centre (0, 0) toward this particle's rest, plus
-      // jitter, so released particles disperse outward rather than
-      // pile in one direction.
+      // 4) Outward kick at the moment of release.
       const restAngle = Math.atan2(ry, rx);
       const kickAngle = restAngle + (Math.random() - 0.5) * 0.6;
       this.velocities[i * 2] = Math.cos(kickAngle) * TUNING.RELEASE_KICK_SPEED;
       this.velocities[i * 2 + 1] = Math.sin(kickAngle) * TUNING.RELEASE_KICK_SPEED;
 
-      // 5) Transition.
+      // 5) Transition excited → released.
       this.states[i] = STATE_RELEASED;
-      this.releasedSince[i] = this.elapsedMs;
+      this.releasedSince[i] = this._elapsedMs;
       this.liveExcited--;
     }
   }
 
   private applyForces(): void {
-    const elapsed = this.elapsedMs;
+    const elapsed = this._elapsedMs;
     const cursorActive = this.cursorX !== null && this.cursorY !== null;
     const cx = this.cursorX ?? 0;
     const cy = this.cursorY ?? 0;
@@ -401,11 +462,7 @@ export class FissionEngine {
       }
 
       // Brownian breath - same two-octave noise as Phase 3, applied
-      // as a force at full SPRING_K coefficient. For bound particles
-      // (springScale 1.0), this effectively shifts the spring rest
-      // target by (breathDx, breathDy). For released particles
-      // (springScale 0.3) the breath still perturbs them even when
-      // far from rest.
+      // as a force at full SPRING_K coefficient.
       const breathDx =
         Math.sin(elapsed * 0.001 * BREATHING.FREQ_PRIMARY + phase) *
           BREATHING.AMP_PRIMARY +
@@ -426,8 +483,6 @@ export class FissionEngine {
 
   private integrate(dt: number): void {
     for (let i = 0; i < this.count; i++) {
-      // Symplectic Euler: update velocity from force, then update
-      // position from new velocity.
       const fx = this.forces[i * 2];
       const fy = this.forces[i * 2 + 1];
       const vx = this.velocities[i * 2] + fx * dt;
@@ -436,7 +491,6 @@ export class FissionEngine {
       this.velocities[i * 2 + 1] = vy;
       this.positions[i * 3] += vx * dt;
       this.positions[i * 3 + 1] += vy * dt;
-      // z stays 0.
     }
   }
 
@@ -449,7 +503,7 @@ export class FissionEngine {
       const state = this.states[i];
 
       if (state === STATE_RELEASED) {
-        if (this.elapsedMs - this.releasedSince[i] < TUNING.RECOHERE_DELAY_MS) continue;
+        if (this._elapsedMs - this.releasedSince[i] < TUNING.RECOHERE_DELAY_MS) continue;
         const dx = this.positions[i * 3] - this.rests[i * 2];
         const dy = this.positions[i * 3 + 1] - this.rests[i * 2 + 1];
         if (dx * dx + dy * dy < recohereBand2) {
@@ -460,9 +514,37 @@ export class FissionEngine {
         const dy = this.positions[i * 3 + 1] - this.rests[i * 2 + 1];
         if (dx * dx + dy * dy < bandHalf2) {
           this.states[i] = STATE_BOUND;
+          this.spent[i] = 1; // mark as having fissioned this cycle
           this.excitedSince[i] = 0;
           this.releasedSince[i] = 0;
         }
+      }
+    }
+  }
+
+  // Per-particle thermal energy in [0, 1]. Computed from state +
+  // elapsed time. Drives the cream → ochre → red gradient + size bump
+  // in the fragment shader.
+  private updateHeat(): void {
+    for (let i = 0; i < this.count; i++) {
+      const state = this.states[i];
+      if (state === STATE_BOUND) {
+        this.heat[i] = 0;
+      } else if (state === STATE_EXCITED) {
+        // Ramp 0.5 → 1.0 over the reaction window: particle visibly
+        // "warms up" before it fissions.
+        const elapsed = this._elapsedMs - this.excitedSince[i];
+        const t = Math.min(1, elapsed / TUNING.REACTION_WINDOW_MS);
+        this.heat[i] = 0.5 + t * 0.5;
+      } else if (state === STATE_RELEASED) {
+        // Decay 1.0 → 0 over HEAT_RELEASE_DECAY_MS while the particle
+        // drifts outward.
+        const elapsed = this._elapsedMs - this.releasedSince[i];
+        this.heat[i] = Math.max(0, 1.0 - elapsed / HEAT_RELEASE_DECAY_MS);
+      } else {
+        // STATE_RECOHERING: heat already decayed to ~0 by this point;
+        // hold there.
+        this.heat[i] = 0;
       }
     }
   }

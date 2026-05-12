@@ -11,32 +11,41 @@ export const TUNING = {
   SPRING_K: 4.5,
   DAMPING: 0.86,
 
-  // Cursor magnetism (Phase 6).
-  CURSOR_RADIUS: 0.12,
-  CURSOR_FORCE: 0.8,
+  // Cursor: significantly stronger and reach-ier so the effect is
+  // legible. Combined with the visible cursor indicator, this takes
+  // equilibrium particle displacement to roughly 7% of form width.
+  CURSOR_RADIUS: 0.18,
+  CURSOR_FORCE: 1.5,
 
-  // Cascade behaviour (Phase 6).
+  // Cascade: sub-critical at default moderator so a single click
+  // produces a short visible chain that decays, not a runaway.
   CASCADE_RADIUS: 0.025,
-  CASCADE_PROBABILITY_BASE: 0.18,
-  REACTION_WINDOW_MS: 120,
+  CASCADE_PROBABILITY_BASE: 0.06,
+  // Slow each fission so it's individually visible.
+  REACTION_WINDOW_MS: 280,
   RECOHERE_DELAY_MS: 1800,
   RECOHERE_BAND: 0.015,
 
-  // Neutrons (Phase 6 / 7).
-  NEUTRON_SPEED: 1.8,
-  NEUTRON_HIT_RADIUS: 0.012,
-  NEUTRONS_PER_FISSION: 2,
-  MAX_LIVE_NEUTRONS: 600,
-  // Lifetime cap on a free neutron. After this, the neutron is
-  // silently removed even if it never struck a particle.
-  NEUTRON_LIFE_MS: 3000,
+  // Neutrons: one per fission, smaller hit radius, slower so they're
+  // visible in flight as discrete travelling points.
+  NEUTRON_SPEED: 1.4,
+  NEUTRON_HIT_RADIUS: 0.006,
+  NEUTRONS_PER_FISSION: 1,
+  NEUTRON_LIFE_MS: 2200,
+  MAX_LIVE_NEUTRONS: 80,
 
   // Energy (Phase 10).
   ENERGY_PER_FISSION_MEV: 200,
 
-  // Velocity of a fission release - the radial outward kick imparted
-  // to a particle at the moment it transitions excited -> released.
-  RELEASE_KICK_SPEED: 0.8,
+  // Release kick - reduced so released particles don't overshoot the
+  // recohere band and oscillate (was tuned for the old runaway).
+  RELEASE_KICK_SPEED: 0.5,
+
+  // Sub-critical default; the slider takes the user supercritical.
+  MODERATOR_DEFAULT: 0.35,
+  // After this idle period (no live excited, no live neutrons), spent
+  // flags reset silently so the next click starts fresh.
+  AUTO_RESET_IDLE_MS: 4000,
 
   // Time clamp inside the engine to defend against frame stutters.
   // dtMs above this is integrated as MAX_DT_MS instead, so a single
