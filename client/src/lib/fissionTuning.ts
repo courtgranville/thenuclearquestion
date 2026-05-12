@@ -17,8 +17,18 @@ export const TUNING = {
   CURSOR_RADIUS: 0.18,
   CURSOR_FORCE: 1.5,
 
-  // Cascade: sub-critical at default moderator so a single click
-  // produces a short visible chain that decays, not a runaway.
+  // Click ergonomics. When a click lands within this distance of the
+  // nearest bound particle (in world units, so 6% of form width),
+  // excite the particle directly rather than launching a neutron
+  // projectile. Without this, clicks ON the cloud usually overshoot
+  // their target in the first frame and produce no reaction.
+  CLICK_DIRECT_RADIUS: 0.06,
+
+  // Cascade radius + base probability are retained from Phase 6.1
+  // but no longer drive propagation - the invisible direct-cascade
+  // mechanism was removed in Phase 6.2 in favour of neutrons-only.
+  // Kept around in case Phase 9's multi-nucleus work wants them back
+  // as a moderator-slider physics nuance.
   CASCADE_RADIUS: 0.025,
   CASCADE_PROBABILITY_BASE: 0.06,
   // Slow each fission so it's individually visible.
@@ -26,12 +36,14 @@ export const TUNING = {
   RECOHERE_DELAY_MS: 1800,
   RECOHERE_BAND: 0.015,
 
-  // Neutrons: one per fission, smaller hit radius, slower so they're
-  // visible in flight as discrete travelling points.
-  NEUTRON_SPEED: 1.4,
-  NEUTRON_HIT_RADIUS: 0.006,
-  NEUTRONS_PER_FISSION: 1,
-  NEUTRON_LIFE_MS: 2200,
+  // Neutrons: slower so they're visibly trackable, shorter-lived so
+  // missed neutrons stop polluting the next click, smaller hit
+  // radius so chains aren't auto-propagating through dense regions.
+  // Count per fission is now moderator-scaled (see NEUTRONS_BASE).
+  NEUTRON_SPEED: 1.0,
+  NEUTRON_HIT_RADIUS: 0.005,
+  NEUTRONS_BASE: 1,
+  NEUTRON_LIFE_MS: 1400,
   MAX_LIVE_NEUTRONS: 80,
 
   // Energy (Phase 10).
@@ -41,8 +53,10 @@ export const TUNING = {
   // recohere band and oscillate (was tuned for the old runaway).
   RELEASE_KICK_SPEED: 0.5,
 
-  // Sub-critical default; the slider takes the user supercritical.
-  MODERATOR_DEFAULT: 0.35,
+  // Default moderator. Slightly higher than 6.1's 0.35 so a click at
+  // default produces a visible chain rather than a single isolated
+  // fission; the slider takes the user supercritical from here.
+  MODERATOR_DEFAULT: 0.4,
   // After this idle period (no live excited, no live neutrons), spent
   // flags reset silently so the next click starts fresh.
   AUTO_RESET_IDLE_MS: 4000,
@@ -89,7 +103,7 @@ export const QUALITY: Record<
     pixelRatio: 1.0,
     maxNeutrons: 150,
     multiNucleus: false,
-    pointSize: 2.4,
+    pointSize: 3.2,
     postfx: {
       bloom: {
         enabled: true,
@@ -106,7 +120,7 @@ export const QUALITY: Record<
     pixelRatio: 1.5,
     maxNeutrons: 350,
     multiNucleus: true,
-    pointSize: 1.8,
+    pointSize: 2.5,
     postfx: {
       bloom: {
         enabled: true,
@@ -123,7 +137,7 @@ export const QUALITY: Record<
     pixelRatio: 2.0,
     maxNeutrons: 600,
     multiNucleus: true,
-    pointSize: 1.4,
+    pointSize: 2.0,
     postfx: {
       bloom: {
         enabled: true,

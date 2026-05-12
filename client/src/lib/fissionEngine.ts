@@ -6,6 +6,7 @@
 // thermal palette), and auto-reset on idle.
 
 import { TUNING, BREATHING, type Quality } from './fissionTuning';
+import { spawnBurstRing } from '@/components/FissionBurstRings';
 
 // State codes are floats so the WebGL shader can read them as a
 // vertex attribute without integer-conversion overhead. Phase 6.1
@@ -48,6 +49,10 @@ export type Neutron = {
 // from rests at engine construction; never rebuilt. Cell size is
 // CASCADE_RADIUS * 2 so any neighbour within radius lives in this
 // cell or an adjacent one.
+//
+// NOTE: unused after Phase 6.2 - retained for Phase 9 multi-nucleus
+// spatial queries (when neutrons need to find target nuclei). The
+// constructor still allocates the grid; the per-frame cost is zero.
 class SpatialGrid {
   private cells: Int32Array[];
   private readonly cellSize: number;
@@ -232,6 +237,20 @@ export class FissionEngine {
     this.moderatorRatio = Math.max(0, Math.min(1, r));
   }
 
+  // Directly excite a bound, non-spent particle. Backs the click
+  // handler when the click lands close enough to the cloud that
+  // launching a neutron would skip past its target in the first
+  // frame; this guarantees a reaction on every click landing on the
+  // cloud, no matter how dense the local region is.
+  exciteDirect(idx: number): void {
+    if (idx < 0 || idx >= this.count) return;
+    if (this.states[idx] !== STATE_BOUND) return;
+    if (this.spent[idx] === 1) return;
+    this.states[idx] = STATE_EXCITED;
+    this.excitedSince[idx] = this._elapsedMs;
+    this.liveExcited++;
+  }
+
   // Returns the index of the closest bound, non-spent particle to the
   // given world coordinate, using *current* positions (not rests) -
   // because the user is clicking on what they see, and a recohered
@@ -366,9 +385,6 @@ export class FissionEngine {
   }
 
   private processCascade(): void {
-    const cascadeP = TUNING.CASCADE_PROBABILITY_BASE * this.moderatorRatio;
-    const cascadeR2 = TUNING.CASCADE_RADIUS * TUNING.CASCADE_RADIUS;
-
     for (let i = 0; i < this.count; i++) {
       if (this.states[i] !== STATE_EXCITED) continue;
       const elapsed = this._elapsedMs - this.excitedSince[i];
@@ -377,40 +393,34 @@ export class FissionEngine {
       const rx = this.rests[i * 2];
       const ry = this.rests[i * 2 + 1];
 
-      // 1) Direct cascade to neighbours within CASCADE_RADIUS.
-      this.neighbourBuffer.length = 0;
-      this.grid.queryRadius(rx, ry, TUNING.CASCADE_RADIUS, this.neighbourBuffer);
-      for (let k = 0; k < this.neighbourBuffer.length; k++) {
-        const j = this.neighbourBuffer[k];
-        if (j === i) continue;
-        if (this.states[j] !== STATE_BOUND) continue;
-        if (this.spent[j] === 1) continue;
-        const dx = this.rests[j * 2] - rx;
-        const dy = this.rests[j * 2 + 1] - ry;
-        if (dx * dx + dy * dy > cascadeR2) continue;
-        if (Math.random() < cascadeP) {
-          this.states[j] = STATE_EXCITED;
-          this.excitedSince[j] = this._elapsedMs;
-          this.liveExcited++;
-        }
-      }
-
-      // 2) Spawn NEUTRONS_PER_FISSION neutrons radially outward.
-      for (let k = 0; k < TUNING.NEUTRONS_PER_FISSION; k++) {
+      // 1) Spawn neutrons, count scaled by moderator. At moderator 0
+      // we emit 1 neutron; at moderator 0.5, ~1-2; at moderator 1, ~2-3.
+      // This is the *only* propagation mechanism in Phase 6.2 - the
+      // invisible direct-cascade fallback was removed so every chain
+      // step has a visible cause.
+      const neutronCount = Math.max(
+        1,
+        Math.round(TUNING.NEUTRONS_BASE * (0.5 + this.moderatorRatio * 1.5)),
+      );
+      for (let k = 0; k < neutronCount; k++) {
         const angle = Math.random() * Math.PI * 2;
         const vx = Math.cos(angle) * TUNING.NEUTRON_SPEED;
         const vy = Math.sin(angle) * TUNING.NEUTRON_SPEED;
         this.injectNeutron(rx, ry, vx, vy);
       }
 
-      // 3) Energy ledger.
+      // 2) Energy ledger.
       this.energyMeV += TUNING.ENERGY_PER_FISSION_MEV;
 
-      // 4) Outward kick at the moment of release.
+      // 3) Outward kick at the moment of release.
       const restAngle = Math.atan2(ry, rx);
       const kickAngle = restAngle + (Math.random() - 0.5) * 0.6;
       this.velocities[i * 2] = Math.cos(kickAngle) * TUNING.RELEASE_KICK_SPEED;
       this.velocities[i * 2 + 1] = Math.sin(kickAngle) * TUNING.RELEASE_KICK_SPEED;
+
+      // 4) Visible punctuation - an expanding cream ring at the
+      // fission site, drained by FissionBurstRings.
+      spawnBurstRing(rx, ry);
 
       // 5) Transition excited → released.
       this.states[i] = STATE_RELEASED;

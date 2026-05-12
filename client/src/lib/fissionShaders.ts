@@ -25,15 +25,24 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
 
-  // Size scales mildly with heat (hot particles read bigger) and
-  // breathing.
+  // Breathing - subtle low-frequency size modulation.
   float breath = 0.92 + 0.08 * sin(uTime * 0.6 + aPhase);
-  float heatBonus = 1.0 + aHeat * 0.6;
+
+  // Heat-driven size: cool particles stay near base, hot particles
+  // grow significantly larger. A spike near peak heat (aHeat > 0.85)
+  // adds a sharp punch at the moment of fission so the eye catches
+  // each event as a discrete beat.
+  float heatBonus = 1.0 + aHeat * 2.5;
+  float spike = smoothstep(0.85, 1.0, aHeat) * 2.0;
+  heatBonus += spike;
+
   gl_PointSize = uPointSize * breath * heatBonus;
 
-  // Forward-compat: reference aRest so the attribute survives
-  // linking. Future GPU spring-force passes will use it.
-  gl_PointSize += 0.0 * (aRest.x + aRest.y);
+  // Phase 6.2 tried removing the aRest reference; the linker still
+  // strips it cleanly with no warning when no shader code uses the
+  // attribute, but FissionParticles continues to upload aRest as a
+  // BufferAttribute for Phase 9's planned GPU spring-force pass.
+  // Keep the attribute declaration, drop the trivial reference.
 
   vHeat = aHeat;
 }

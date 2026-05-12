@@ -6,6 +6,7 @@ import FissionParticles from './FissionParticles';
 import FissionNeutrons from './FissionNeutrons';
 import FissionCursorIndicator from './FissionCursorIndicator';
 import FissionClickFlash, { spawnClickFlash } from './FissionClickFlash';
+import FissionBurstRings from './FissionBurstRings';
 import FissionPostFx from './FissionPostFx';
 
 type Props = {
@@ -43,22 +44,36 @@ function CursorPlane({
 
         const target = engine.findNearestBound(cx, cy);
         if (target === null) {
-          // No bound particle to aim at - still flash so the click is
-          // not silent.
+          // No bound, non-spent particle exists - everything has
+          // fissioned and we're in the idle-reset window. Flash so
+          // the click isn't silent.
           spawnClickFlash(cx, cy);
           return;
         }
 
-        const tx = engine.rests[target * 2];
-        const ty = engine.rests[target * 2 + 1];
+        // Use the particle's *current* position (not rest) so a
+        // recohered particle that drifted slightly still registers
+        // at its visible location.
+        const tx = engine.positions[target * 3];
+        const ty = engine.positions[target * 3 + 1];
+        const d = Math.hypot(tx - cx, ty - cy);
 
-        const dx = tx - cx;
-        const dy = ty - cy;
-        const d = Math.hypot(dx, dy) || 0.0001;
-        const vx = (dx / d) * TUNING.NEUTRON_SPEED;
-        const vy = (dy / d) * TUNING.NEUTRON_SPEED;
-
-        engine.injectNeutron(cx, cy, vx, vy);
+        if (d < TUNING.CLICK_DIRECT_RADIUS) {
+          // Click landed on or near a particle - excite it directly.
+          // No flying neutron; the chain starts from this particle.
+          engine.exciteDirect(target);
+        } else {
+          // Click landed off the cloud - launch a visible neutron
+          // projectile aimed at the nearest bound particle.
+          const ux = (tx - cx) / (d || 0.0001);
+          const uy = (ty - cy) / (d || 0.0001);
+          engine.injectNeutron(
+            cx,
+            cy,
+            ux * TUNING.NEUTRON_SPEED,
+            uy * TUNING.NEUTRON_SPEED,
+          );
+        }
         spawnClickFlash(cx, cy);
       }}
       position={[0, 0, -0.1]}
@@ -107,6 +122,7 @@ export default function FissionScene({ engine, quality }: Props) {
       <FissionNeutrons engine={engine} />
       <FissionCursorIndicator cursor={cursor} />
       <FissionClickFlash />
+      <FissionBurstRings />
       <FissionPostFx quality={quality} />
       <TestCascadeTrigger engine={engine} />
     </Canvas>

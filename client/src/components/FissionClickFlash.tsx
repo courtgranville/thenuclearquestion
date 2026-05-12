@@ -16,7 +16,7 @@ export function spawnClickFlash(x: number, y: number): void {
   flashes.push({ id: ++flashId, x, y, bornAt: performance.now() });
 }
 
-const FLASH_LIFETIME_MS = 250;
+const FLASH_LIFETIME_MS = 600;
 
 export default function FissionClickFlash() {
   // Force a render whenever the flash list changes (e.g. on spawn or
@@ -50,7 +50,7 @@ export default function FissionClickFlash() {
       if (!mesh) continue;
       const age = now - f.bornAt;
       const t = age / FLASH_LIFETIME_MS;
-      const opacity = 0.6 * (1 - t);
+      const opacity = 1.0 * (1 - t);
       const scale = 1 + t * 0.6;
       (mesh.material as THREE.MeshBasicMaterial).opacity = opacity;
       mesh.scale.setScalar(scale);
@@ -68,11 +68,11 @@ export default function FissionClickFlash() {
             else meshRefs.current.delete(f.id);
           }}
         >
-          <circleGeometry args={[0.02, 32]} />
+          <circleGeometry args={[0.05, 32]} />
           <meshBasicMaterial
             color="#ECE7DF"
             transparent
-            opacity={0.6}
+            opacity={1.0}
             blending={THREE.AdditiveBlending}
             depthWrite={false}
           />
