@@ -6,7 +6,7 @@
 // thermal palette), and auto-reset on idle.
 
 import { TUNING, BREATHING, type Quality } from './fissionTuning';
-import { spawnBurstRing } from '@/components/FissionBurstRings';
+import { spawnFlash } from '@/components/FissionFlash';
 
 // State codes are floats so the WebGL shader can read them as a
 // vertex attribute without integer-conversion overhead. Phase 6.1
@@ -161,17 +161,49 @@ export class FissionEngine {
   // re-excited until resetSpent runs (either via the idle auto-reset
   // or an explicit engine.reset() call).
   private readonly spent: Uint8Array;
+  // 1 = this particle's nucleus is fissile (rolled on enrichment
+  // change). Non-fissile particles get pushed by neutron collisions
+  // but don't fission. Re-rolled by setEnrichmentLevel(); about
+  // `enrichmentLevel` fraction of the cloud is fissile at any time.
+  private readonly fissile: Uint8Array;
+  // Allocated but unused after Phase 6.2 - retained for Phase 9
+  // multi-nucleus spatial queries.
   private readonly grid: SpatialGrid;
+  // Allocated but unused after Phase 6.2 (direct-cascade removed).
   private readonly neighbourBuffer: number[] = [];
 
+  // Tracked for "downstream listener" use; the engine no longer
+  // reads cursor in its force loop (cursor magnetism removed in 6.3).
   private cursorX: number | null = null;
   private cursorY: number | null = null;
-  private moderatorRatio = TUNING.MODERATOR_DEFAULT;
+  // 0 = fast neutrons (low fission prob), 1 = slow neutrons (high
+  // fission prob). The actual speed + probability are derived via
+  // the currentNeutronSpeed / currentFissionProbability getters.
+  private neutronSpeedRatio = 0.5;
+  private enrichmentLevel = 0.05;
   private _elapsedMs = 0;
   private idleMs = 0;
 
   get elapsedMs(): number {
     return this._elapsedMs;
+  }
+
+  // Derived from the neutron-speed slider position. Fast neutrons
+  // (ratio 0) travel quickly and almost never fission on impact;
+  // slow neutrons (ratio 1) drift and fission reliably. This is the
+  // physics that distinguishes a moderated reactor from a fast-
+  // neutron bomb.
+  get currentNeutronSpeed(): number {
+    return (
+      TUNING.NEUTRON_SPEED_FAST +
+      (TUNING.NEUTRON_SPEED_SLOW - TUNING.NEUTRON_SPEED_FAST) * this.neutronSpeedRatio
+    );
+  }
+  get currentFissionProbability(): number {
+    return (
+      TUNING.FISSION_PROB_FAST +
+      (TUNING.FISSION_PROB_SLOW - TUNING.FISSION_PROB_FAST) * this.neutronSpeedRatio
+    );
   }
 
   constructor(opts: EngineOpts) {
@@ -188,6 +220,7 @@ export class FissionEngine {
     this.excitedSince = new Float64Array(n);
     this.releasedSince = new Float64Array(n);
     this.spent = new Uint8Array(n);
+    this.fissile = new Uint8Array(n);
 
     for (let i = 0; i < n; i++) {
       const x = opts.points[i * 2];
@@ -201,11 +234,25 @@ export class FissionEngine {
       this.states[i] = STATE_BOUND;
     }
 
-    this.grid = new SpatialGrid(this.rests, n, TUNING.CASCADE_RADIUS * 2);
+    this.applyEnrichment();
+
+    // Grid is kept (dead code) for Phase 9. Cell size 0.05 was the
+    // previous TUNING.CASCADE_RADIUS * 2; we hard-code it now that
+    // CASCADE_RADIUS is gone from TUNING.
+    this.grid = new SpatialGrid(this.rests, n, 0.05);
 
     this.neutrons = new Array(TUNING.MAX_LIVE_NEUTRONS);
     for (let i = 0; i < this.neutrons.length; i++) {
       this.neutrons[i] = { x: 0, y: 0, vx: 0, vy: 0, bornAt: 0, alive: false };
+    }
+  }
+
+  // Re-roll the fissile flags across the cloud. About `enrichmentLevel`
+  // fraction of particles will be fissile after the call. Called from
+  // the constructor and whenever the enrichment slider changes.
+  private applyEnrichment(): void {
+    for (let i = 0; i < this.count; i++) {
+      this.fissile[i] = Math.random() < this.enrichmentLevel ? 1 : 0;
     }
   }
 
@@ -233,15 +280,21 @@ export class FissionEngine {
     this.cursorY = y;
   }
 
-  setModeratorRatio(r: number): void {
-    this.moderatorRatio = Math.max(0, Math.min(1, r));
+  setNeutronSpeedRatio(r: number): void {
+    this.neutronSpeedRatio = Math.max(0, Math.min(1, r));
   }
 
-  // Directly excite a bound, non-spent particle. Backs the click
-  // handler when the click lands close enough to the cloud that
-  // launching a neutron would skip past its target in the first
-  // frame; this guarantees a reaction on every click landing on the
-  // cloud, no matter how dense the local region is.
+  // Re-roll fissile flags at the new enrichment level. Different
+  // slider position, different sample - so clicking after moving the
+  // slider produces a different cloud, not the same one.
+  setEnrichmentLevel(level: number): void {
+    this.enrichmentLevel = Math.max(0, Math.min(1, level));
+    this.applyEnrichment();
+  }
+
+  // Unused after Phase 6.3 - click handler now fires neutron
+  // projectiles from the screen edge rather than directly exciting
+  // particles near the click. Kept for potential future use.
   exciteDirect(idx: number): void {
     if (idx < 0 || idx >= this.count) return;
     if (this.states[idx] !== STATE_BOUND) return;
@@ -251,11 +304,8 @@ export class FissionEngine {
     this.liveExcited++;
   }
 
-  // Returns the index of the closest bound, non-spent particle to the
-  // given world coordinate, using *current* positions (not rests) -
-  // because the user is clicking on what they see, and a recohered
-  // particle that drifted slightly should still register at its
-  // visible location. Returns null if no eligible particle exists.
+  // Unused after Phase 6.3 - same reason as exciteDirect. Kept for
+  // potential future use.
   findNearestBound(x: number, y: number): number | null {
     let bestIdx = -1;
     let bestD2 = Infinity;
@@ -367,20 +417,55 @@ export class FissionEngine {
         continue;
       }
 
+      // Two-tier neutron-particle interaction in one loop:
+      //   - Direct hit (d < HIT_RADIUS): roll for fission. If fissile
+      //     AND the neutron-speed-dependent probability passes, excite
+      //     the particle and consume the neutron. Otherwise push the
+      //     particle along the neutron's velocity and let the neutron
+      //     continue (it might fission something deeper in the cloud).
+      //   - Near miss (HIT_RADIUS <= d < NEAR_MISS_RADIUS): push the
+      //     particle outward from the neutron's path, falloff quadratic
+      //     with closeness. Visible "particles deflect in the neutron's
+      //     wake" effect.
+      const nearMissRadius2 =
+        TUNING.NEUTRON_NEAR_MISS_RADIUS * TUNING.NEUTRON_NEAR_MISS_RADIUS;
+      const fissionP = this.currentFissionProbability;
+      const speedMag = Math.hypot(n.vx, n.vy);
+      const speedFactor = speedMag / TUNING.NEUTRON_SPEED_FAST;
+      let neutronConsumed = false;
       for (let p = 0; p < this.count; p++) {
         if (this.states[p] !== STATE_BOUND) continue;
         if (this.spent[p] === 1) continue;
         const dx = this.positions[p * 3] - n.x;
         const dy = this.positions[p * 3 + 1] - n.y;
-        if (dx * dx + dy * dy < radius2) {
-          n.alive = false;
-          this.liveNeutrons--;
-          this.states[p] = STATE_EXCITED;
-          this.excitedSince[p] = this._elapsedMs;
-          this.liveExcited++;
-          break;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < radius2) {
+          const isFissile = this.fissile[p] === 1;
+          if (isFissile && Math.random() < fissionP) {
+            n.alive = false;
+            this.liveNeutrons--;
+            this.states[p] = STATE_EXCITED;
+            this.excitedSince[p] = this._elapsedMs;
+            this.liveExcited++;
+            neutronConsumed = true;
+            break;
+          } else {
+            // No fission - push the particle along the neutron's
+            // velocity. Neutron continues through.
+            const kick = 0.4 * speedFactor;
+            this.velocities[p * 2] += n.vx * kick;
+            this.velocities[p * 2 + 1] += n.vy * kick;
+          }
+        } else if (d2 < nearMissRadius2) {
+          const d = Math.sqrt(d2);
+          const closeness = 1 - d / TUNING.NEUTRON_NEAR_MISS_RADIUS;
+          const kick = 0.15 * closeness * closeness * speedFactor;
+          const norm = d || 0.0001;
+          this.velocities[p * 2] += (dx / norm) * kick;
+          this.velocities[p * 2 + 1] += (dy / norm) * kick;
         }
       }
+      if (neutronConsumed) continue;
     }
   }
 
@@ -393,19 +478,15 @@ export class FissionEngine {
       const rx = this.rests[i * 2];
       const ry = this.rests[i * 2 + 1];
 
-      // 1) Spawn neutrons, count scaled by moderator. At moderator 0
-      // we emit 1 neutron; at moderator 0.5, ~1-2; at moderator 1, ~2-3.
-      // This is the *only* propagation mechanism in Phase 6.2 - the
-      // invisible direct-cascade fallback was removed so every chain
-      // step has a visible cause.
-      const neutronCount = Math.max(
-        1,
-        Math.round(TUNING.NEUTRONS_BASE * (0.5 + this.moderatorRatio * 1.5)),
-      );
-      for (let k = 0; k < neutronCount; k++) {
+      // 1) Spawn NEUTRONS_BASE neutrons at the engine's current
+      // neutron speed (driven by the slider). At default 1 per
+      // fission; with FISSION_PROB now driving criticality, count
+      // stays constant rather than scaling with the slider.
+      const speed = this.currentNeutronSpeed;
+      for (let k = 0; k < TUNING.NEUTRONS_BASE; k++) {
         const angle = Math.random() * Math.PI * 2;
-        const vx = Math.cos(angle) * TUNING.NEUTRON_SPEED;
-        const vy = Math.sin(angle) * TUNING.NEUTRON_SPEED;
+        const vx = Math.cos(angle) * speed;
+        const vy = Math.sin(angle) * speed;
         this.injectNeutron(rx, ry, vx, vy);
       }
 
@@ -418,9 +499,24 @@ export class FissionEngine {
       this.velocities[i * 2] = Math.cos(kickAngle) * TUNING.RELEASE_KICK_SPEED;
       this.velocities[i * 2 + 1] = Math.sin(kickAngle) * TUNING.RELEASE_KICK_SPEED;
 
-      // 4) Visible punctuation - an expanding cream ring at the
-      // fission site, drained by FissionBurstRings.
-      spawnBurstRing(rx, ry);
+      // 4) Visible punctuation - a bright cream flash at the fission
+      // site (drained by FissionFlash) plus a kinetic punch on every
+      // nearby bound particle so the neighbourhood visibly recoils.
+      spawnFlash(rx, ry, 'fission');
+      const punchR = TUNING.FISSION_PUNCH_RADIUS;
+      const punchR2 = punchR * punchR;
+      for (let q = 0; q < this.count; q++) {
+        if (q === i) continue;
+        if (this.states[q] !== STATE_BOUND) continue;
+        const qdx = this.positions[q * 3] - rx;
+        const qdy = this.positions[q * 3 + 1] - ry;
+        const qd2 = qdx * qdx + qdy * qdy;
+        if (qd2 >= punchR2) continue;
+        const qd = Math.sqrt(qd2) || 0.0001;
+        const punch = TUNING.FISSION_PUNCH_STRENGTH * (1 - qd / punchR);
+        this.velocities[q * 2] += (qdx / qd) * punch;
+        this.velocities[q * 2 + 1] += (qdy / qd) * punch;
+      }
 
       // 5) Transition excited → released.
       this.states[i] = STATE_RELEASED;
@@ -431,10 +527,6 @@ export class FissionEngine {
 
   private applyForces(): void {
     const elapsed = this._elapsedMs;
-    const cursorActive = this.cursorX !== null && this.cursorY !== null;
-    const cx = this.cursorX ?? 0;
-    const cy = this.cursorY ?? 0;
-    const cursorR2 = TUNING.CURSOR_RADIUS * TUNING.CURSOR_RADIUS;
 
     for (let i = 0; i < this.count; i++) {
       const state = this.states[i];
@@ -456,20 +548,10 @@ export class FissionEngine {
       fx -= TUNING.DAMPING * vx;
       fy -= TUNING.DAMPING * vy;
 
-      // Cursor magnetism - particles pushed AWAY from cursor, force
-      // quadratic falloff to zero at CURSOR_RADIUS.
-      if (cursorActive) {
-        const dx = px - cx;
-        const dy = py - cy;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < cursorR2) {
-          const d = Math.sqrt(d2) || 0.0001;
-          const falloff = 1.0 - d / TUNING.CURSOR_RADIUS;
-          const strength = TUNING.CURSOR_FORCE * falloff * falloff;
-          fx += (dx / d) * strength;
-          fy += (dy / d) * strength;
-        }
-      }
+      // Cursor magnetism was removed in Phase 6.3 - the cloud's only
+      // response to the user is through fired neutrons. setCursor()
+      // on the engine still exists but the value isn't consulted
+      // here.
 
       // Brownian breath - same two-octave noise as Phase 3, applied
       // as a force at full SPRING_K coefficient.

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { QUALITY, type Quality } from '@/lib/fissionTuning';
 import { useFissionEngine } from '@/lib/useFissionEngine';
+import { enrichmentFromSliderValue } from './FissionEnrichmentSlider';
 import FissionScene from './FissionScene';
 
 export type FormPoints = {
@@ -18,13 +19,11 @@ export type FormPoints = {
 type Props = {
   formPoints: FormPoints;
   quality: Quality;
+  neutronSpeed: number;
+  enrichment: number;
   onEnergyChange: (mev: number) => void;
 };
 
-// Builds a thinned Float32Array of points at this quality, by even-
-// stride sampling of the base cloud. Outline survives because srcIdx
-// walks the source array uniformly rather than removing a contiguous
-// chunk.
 function thinPoints(
   formPoints: FormPoints,
   quality: Quality,
@@ -42,21 +41,34 @@ function thinPoints(
   return { points, count: effectiveCount };
 }
 
-// Owns the engine for the duration the cloud is mounted. Plumbs
-// engine.energyMeV back to the parent at 4 Hz via callback so the
-// energy counter overlay can stay React-stateful without React
-// touching the engine's mutable arrays.
-//
-// Parent renders this only when formPoints AND quality are both set;
-// keying it on `quality` makes a quality switch tear down the engine
-// and rebuild from scratch.
-export default function FissionRoom({ formPoints, quality, onEnergyChange }: Props) {
+// Owns the engine. Mirrors both slider values into the engine each
+// time they change. Polls engine.energyMeV at 4 Hz and bubbles it
+// back so the energy counter overlay stays React-stateful without
+// React touching the engine's mutable arrays.
+export default function FissionRoom({
+  formPoints,
+  quality,
+  neutronSpeed,
+  enrichment,
+  onEnergyChange,
+}: Props) {
   const { points, count } = useMemo(
     () => thinPoints(formPoints, quality),
     [formPoints, quality],
   );
 
   const engine = useFissionEngine({ points, count, quality });
+
+  // Mirror neutron-speed slider into the engine.
+  useEffect(() => {
+    engine.setNeutronSpeedRatio(neutronSpeed);
+  }, [engine, neutronSpeed]);
+
+  // Mirror enrichment slider into the engine. The slider value is a
+  // normalised 0..1; the engine takes an actual fissile fraction.
+  useEffect(() => {
+    engine.setEnrichmentLevel(enrichmentFromSliderValue(enrichment));
+  }, [engine, enrichment]);
 
   useEffect(() => {
     const id = window.setInterval(() => {

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
-import { TUNING, type Quality } from '@/lib/fissionTuning';
+import * as THREE from 'three';
+import { type Quality } from '@/lib/fissionTuning';
 import type { FissionEngine } from '@/lib/fissionEngine';
 import FissionParticles from './FissionParticles';
 import FissionNeutrons from './FissionNeutrons';
-import FissionCursorIndicator from './FissionCursorIndicator';
-import FissionClickFlash, { spawnClickFlash } from './FissionClickFlash';
-import FissionBurstRings from './FissionBurstRings';
+import FissionAimArrow from './FissionAimArrow';
+import FissionFlash, { spawnFlash } from './FissionFlash';
 import FissionPostFx from './FissionPostFx';
 
 type Props = {
@@ -16,11 +16,10 @@ type Props = {
 
 type CursorState = { x: number; y: number } | null;
 
-// Invisible quad behind the particles. Receives pointer events from
-// the canvas and forwards them to the engine (cursor magnetism) and
-// to local state (cursor indicator). Also fields clicks: each click
-// spawns a neutron aimed at the nearest bound particle and a brief
-// cream flash at the click point.
+// Invisible quad behind the particles. Tracks pointer movement so the
+// aim arrow follows the cursor. On click, computes which screen edge
+// the click points away from and fires a neutron from that edge
+// inward toward the form's centre.
 function CursorPlane({
   engine,
   setCursor,
@@ -41,40 +40,50 @@ function CursorPlane({
       onClick={(e: ThreeEvent<MouseEvent>) => {
         const cx = e.point.x;
         const cy = e.point.y;
+        const cursorDist = Math.hypot(cx, cy);
+        // Direction is undefined when clicking at the form's centre;
+        // silently ignore.
+        if (cursorDist < 0.02) return;
 
-        const target = engine.findNearestBound(cx, cy);
-        if (target === null) {
-          // No bound, non-spent particle exists - everything has
-          // fissioned and we're in the idle-reset window. Flash so
-          // the click isn't silent.
-          spawnClickFlash(cx, cy);
-          return;
-        }
+        // Compute the viewport bounds in world units from the ortho
+        // camera. The neutron will spawn just outside whichever edge
+        // is on the far side of the cursor from origin.
+        const cam = e.camera as THREE.OrthographicCamera;
+        const halfW = (cam.right - cam.left) / 2 / cam.zoom;
+        const halfH = (cam.top - cam.bottom) / 2 / cam.zoom;
 
-        // Use the particle's *current* position (not rest) so a
-        // recohered particle that drifted slightly still registers
-        // at its visible location.
-        const tx = engine.positions[target * 3];
-        const ty = engine.positions[target * 3 + 1];
-        const d = Math.hypot(tx - cx, ty - cy);
+        // Ray from origin through cursor, normalised. Find the t where
+        // that ray crosses the nearest viewport edge.
+        const rayDx = cx / cursorDist;
+        const rayDy = cy / cursorDist;
+        const margin = 0.3; // spawn just offscreen so the appearance reads as "from the edge"
+        const tX =
+          rayDx > 0
+            ? (halfW + margin - cx) / rayDx
+            : rayDx < 0
+            ? (-halfW - margin - cx) / rayDx
+            : Infinity;
+        const tY =
+          rayDy > 0
+            ? (halfH + margin - cy) / rayDy
+            : rayDy < 0
+            ? (-halfH - margin - cy) / rayDy
+            : Infinity;
+        const t = Math.min(tX, tY);
 
-        if (d < TUNING.CLICK_DIRECT_RADIUS) {
-          // Click landed on or near a particle - excite it directly.
-          // No flying neutron; the chain starts from this particle.
-          engine.exciteDirect(target);
-        } else {
-          // Click landed off the cloud - launch a visible neutron
-          // projectile aimed at the nearest bound particle.
-          const ux = (tx - cx) / (d || 0.0001);
-          const uy = (ty - cy) / (d || 0.0001);
-          engine.injectNeutron(
-            cx,
-            cy,
-            ux * TUNING.NEUTRON_SPEED,
-            uy * TUNING.NEUTRON_SPEED,
-          );
-        }
-        spawnClickFlash(cx, cy);
+        const sourceX = cx + t * rayDx;
+        const sourceY = cy + t * rayDy;
+
+        // Aim straight at origin.
+        const sourceDist = Math.hypot(sourceX, sourceY) || 0.0001;
+        const speed = engine.currentNeutronSpeed;
+        const vx = (-sourceX / sourceDist) * speed;
+        const vy = (-sourceY / sourceDist) * speed;
+
+        engine.injectNeutron(sourceX, sourceY, vx, vy);
+        // Flash at the cursor (where the user's attention is), not at
+        // the offscreen spawn point.
+        spawnFlash(cx, cy, 'click');
       }}
       position={[0, 0, -0.1]}
     >
@@ -99,8 +108,6 @@ function TestCascadeTrigger({ engine }: { engine: FissionEngine }) {
 }
 
 export default function FissionScene({ engine, quality }: Props) {
-  // Cursor in world coordinates. Local mirror of the engine's cursor
-  // state so the visible ring can render without polling the engine.
   const [cursor, setCursor] = useState<CursorState>(null);
 
   return (
@@ -120,9 +127,8 @@ export default function FissionScene({ engine, quality }: Props) {
       <CursorPlane engine={engine} setCursor={setCursor} />
       <FissionParticles engine={engine} quality={quality} />
       <FissionNeutrons engine={engine} />
-      <FissionCursorIndicator cursor={cursor} />
-      <FissionClickFlash />
-      <FissionBurstRings />
+      <FissionAimArrow cursor={cursor} />
+      <FissionFlash />
       <FissionPostFx quality={quality} />
       <TestCascadeTrigger engine={engine} />
     </Canvas>

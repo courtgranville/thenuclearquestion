@@ -3,20 +3,41 @@ import FissionQualityGate, { type Quality } from '@/components/FissionQualityGat
 import FissionReturn from '@/components/FissionReturn';
 import FissionRoom, { type FormPoints } from '@/components/FissionRoom';
 import FissionEnergyCounter from '@/components/FissionEnergyCounter';
-import FissionModeratorSlider from '@/components/FissionModeratorSlider';
+import FissionNeutronSpeedSlider from '@/components/FissionNeutronSpeedSlider';
+import FissionEnrichmentSlider from '@/components/FissionEnrichmentSlider';
 import FissionFpsOverlay from '@/components/FissionFpsOverlay';
 
 const TITLE = 'Fission, observed - The Nuclear Question';
 const ROOM_BG = '#0A0A0A';
 
+const NEUTRON_SPEED_KEY = 'fission.neutronSpeed';
+const ENRICHMENT_KEY = 'fission.enrichment';
+
+function readSlider(key: string, fallback: number): number {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) return fallback;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0, Math.min(1, n));
+  } catch {
+    return fallback;
+  }
+}
+
 export default function Fission() {
   const [quality, setQuality] = useState<Quality | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
-  const [moderator, setModerator] = useState(0.5);
+  const [neutronSpeed, setNeutronSpeed] = useState<number>(() =>
+    readSlider(NEUTRON_SPEED_KEY, 0.5),
+  );
+  const [enrichment, setEnrichment] = useState<number>(() =>
+    readSlider(ENRICHMENT_KEY, 0.025),
+  );
   const [formPoints, setFormPoints] = useState<FormPoints | null>(null);
   const [displayEnergy, setDisplayEnergy] = useState(0);
 
-  // Tab title — set on mount, restore on unmount.
   useEffect(() => {
     const previous = document.title;
     document.title = TITLE;
@@ -25,9 +46,6 @@ export default function Fission() {
     };
   }, []);
 
-  // Body background — useLayoutEffect so the swap lands before the
-  // first paint of the route, avoiding a cream flash behind the
-  // page-transition fade-in.
   useLayoutEffect(() => {
     const previousBg = document.body.style.backgroundColor;
     const previousHtmlBg = document.documentElement.style.backgroundColor;
@@ -39,9 +57,6 @@ export default function Fission() {
     };
   }, []);
 
-  // Load the form-points JSON dynamically. Until it arrives the scene
-  // is dark; FissionRoom only mounts once formPoints and quality are
-  // both ready.
   useEffect(() => {
     let cancelled = false;
     import('@/assets/fission-form-points.json').then((m) => {
@@ -53,19 +68,36 @@ export default function Fission() {
     };
   }, []);
 
+  const handleNeutronSpeed = (v: number) => {
+    setNeutronSpeed(v);
+    try {
+      window.localStorage.setItem(NEUTRON_SPEED_KEY, String(v));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleEnrichment = (v: number) => {
+    setEnrichment(v);
+    try {
+      window.localStorage.setItem(ENRICHMENT_KEY, String(v));
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div
       className="fixed inset-0 bg-[#0A0A0A] text-[#ECE7DF] overflow-hidden"
       onPointerDown={() => setHasInteracted(true)}
     >
-      {/* Engine + scene mount only when both formPoints and quality
-          are ready. Keying on `quality` forces a teardown + rebuild
-          if quality changes (it shouldn't, in normal use). */}
       {quality && formPoints && (
         <FissionRoom
           key={quality}
           formPoints={formPoints}
           quality={quality}
+          neutronSpeed={neutronSpeed}
+          enrichment={enrichment}
           onEnergyChange={setDisplayEnergy}
         />
       )}
@@ -80,16 +112,18 @@ export default function Fission() {
         <FissionEnergyCounter energyMeV={displayEnergy} />
       </div>
 
-      <div className="pointer-events-none hidden md:block absolute bottom-8 right-8 z-30 w-72">
-        <FissionModeratorSlider value={moderator} onChange={setModerator} />
+      {/* Two stacked sliders, bottom-right. Neutron speed on top,
+          enrichment below. */}
+      <div className="pointer-events-none hidden md:flex absolute bottom-8 right-8 z-30 w-72 flex-col gap-5">
+        <FissionNeutronSpeedSlider value={neutronSpeed} onChange={handleNeutronSpeed} />
+        <FissionEnrichmentSlider value={enrichment} onChange={handleEnrichment} />
       </div>
 
-      {/* Mobile-only stacked bottom panel. The desktop absolute-positioned
-          UI is hidden on small viewports because corner anchoring breaks
-          below ~720px. */}
-      <div className="pointer-events-none md:hidden absolute bottom-6 inset-x-4 z-30 flex flex-col gap-6">
+      {/* Mobile stacked panel - counter on top, both sliders below. */}
+      <div className="pointer-events-none md:hidden absolute bottom-6 inset-x-4 z-30 flex flex-col gap-5">
         <FissionEnergyCounter energyMeV={displayEnergy} />
-        <FissionModeratorSlider value={moderator} onChange={setModerator} />
+        <FissionNeutronSpeedSlider value={neutronSpeed} onChange={handleNeutronSpeed} />
+        <FissionEnrichmentSlider value={enrichment} onChange={handleEnrichment} />
       </div>
 
       <div
@@ -99,13 +133,10 @@ export default function Fission() {
       >
         <p>Click anywhere on the form to inject a neutron.</p>
         <p>Slow the neutron with the moderator to see chains run away.</p>
-        <p>Spacing the nuclei changes everything.</p>
       </div>
 
       {!quality && <FissionQualityGate onSelect={setQuality} />}
 
-      {/* Dev-only FPS readout, gated by ?fps=1 in the URL. Mounted
-          after the slider so source order keeps it below visually. */}
       <FissionFpsOverlay />
     </div>
   );

@@ -11,52 +11,44 @@ export const TUNING = {
   SPRING_K: 4.5,
   DAMPING: 0.86,
 
-  // Cursor: significantly stronger and reach-ier so the effect is
-  // legible. Combined with the visible cursor indicator, this takes
-  // equilibrium particle displacement to roughly 7% of form width.
-  CURSOR_RADIUS: 0.18,
-  CURSOR_FORCE: 1.5,
-
-  // Click ergonomics. When a click lands within this distance of the
-  // nearest bound particle (in world units, so 6% of form width),
-  // excite the particle directly rather than launching a neutron
-  // projectile. Without this, clicks ON the cloud usually overshoot
-  // their target in the first frame and produce no reaction.
-  CLICK_DIRECT_RADIUS: 0.06,
-
-  // Cascade radius + base probability are retained from Phase 6.1
-  // but no longer drive propagation - the invisible direct-cascade
-  // mechanism was removed in Phase 6.2 in favour of neutrons-only.
-  // Kept around in case Phase 9's multi-nucleus work wants them back
-  // as a moderator-slider physics nuance.
-  CASCADE_RADIUS: 0.025,
-  CASCADE_PROBABILITY_BASE: 0.06,
-  // Slow each fission so it's individually visible.
+  // Cascade behaviour - direct cascade removed in 6.2; constants
+  // CASCADE_RADIUS and CASCADE_PROBABILITY_BASE deleted in 6.3.
   REACTION_WINDOW_MS: 280,
   RECOHERE_DELAY_MS: 1800,
   RECOHERE_BAND: 0.015,
 
-  // Neutrons: slower so they're visibly trackable, shorter-lived so
-  // missed neutrons stop polluting the next click, smaller hit
-  // radius so chains aren't auto-propagating through dense regions.
-  // Count per fission is now moderator-scaled (see NEUTRONS_BASE).
-  NEUTRON_SPEED: 1.0,
+  // Neutron speed range - slider 0..1 maps FAST → SLOW. Fast neutrons
+  // pass through with low fission probability (4%); slow neutrons
+  // drift and fission reliably (92%). This is the real physics that
+  // distinguishes a reactor from a weapon.
+  NEUTRON_SPEED_FAST: 2.4,
+  NEUTRON_SPEED_SLOW: 0.5,
+  FISSION_PROB_FAST: 0.04,
+  FISSION_PROB_SLOW: 0.92,
+
+  // Direct-hit radius. Near-miss radius is wider: particles passing
+  // close to a neutron get kicked along its velocity even without a
+  // direct hit, creating the "particles deflect in the neutron's
+  // wake" effect.
   NEUTRON_HIT_RADIUS: 0.005,
-  NEUTRONS_BASE: 1,
+  NEUTRON_NEAR_MISS_RADIUS: 0.025,
   NEUTRON_LIFE_MS: 1400,
+  NEUTRONS_BASE: 1,
   MAX_LIVE_NEUTRONS: 80,
 
-  // Energy (Phase 10).
+  // Energy (Phase 10 will format this).
   ENERGY_PER_FISSION_MEV: 200,
 
-  // Release kick - reduced so released particles don't overshoot the
-  // recohere band and oscillate (was tuned for the old runaway).
+  // Release kick at the moment of fission.
   RELEASE_KICK_SPEED: 0.5,
 
-  // Default moderator. Slightly higher than 6.1's 0.35 so a click at
-  // default produces a visible chain rather than a single isolated
-  // fission; the slider takes the user supercritical from here.
-  MODERATOR_DEFAULT: 0.4,
+  // Kinetic punch radius + strength. Each fission pushes nearby
+  // bound particles outward, replacing the discrete burst-ring
+  // outline of 6.2 with disruption made of the same particle
+  // material as the cloud.
+  FISSION_PUNCH_RADIUS: 0.04,
+  FISSION_PUNCH_STRENGTH: 1.2,
+
   // After this idle period (no live excited, no live neutrons), spent
   // flags reset silently so the next click starts fresh.
   AUTO_RESET_IDLE_MS: 4000,
