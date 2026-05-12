@@ -72,7 +72,11 @@ function CursorPlane({ engine }: { engine: FissionEngine }) {
         const vx = (-sourceX / sourceDist) * speed;
         const vy = (-sourceY / sourceDist) * speed;
 
-        engine.injectNeutron(sourceX, sourceY, vx, vy);
+        // Click neutrons need 8000 ms - they spawn at the viewport
+        // edge (~2.3 wu from origin) and need to reach the form
+        // (radius ~1.0). At slow speed (0.5 wu/s) that's a 4.6 s
+        // journey, far longer than cascade neutrons' 900 ms default.
+        engine.injectNeutron(sourceX, sourceY, vx, vy, 8000);
         // Sparks at the cursor (where the user's attention is), not
         // at the offscreen spawn point.
         spawnClickSparks(cx, cy);

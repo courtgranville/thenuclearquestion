@@ -121,7 +121,10 @@ export default function FissionNeutrons({ engine }: Props) {
       const n = neutrons[i];
       if (n.alive) {
         const ageMs = elapsed - n.bornAt;
-        const age = Math.min(1, ageMs / TUNING.NEUTRON_LIFE_MS);
+        // Per-neutron lifetime: click neutrons live 8 s, cascade
+        // neutrons 900 ms. Trail fade tracks each neutron's actual
+        // lifespan.
+        const age = Math.min(1, ageMs / n.lifeMs);
         for (let s = 0; s < SLOTS_PER_NEUTRON; s++) {
           const slot = i * SLOTS_PER_NEUTRON + s;
           const dt = TRAIL_DT[s];

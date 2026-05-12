@@ -44,6 +44,8 @@ export type Neutron = {
   vx: number;
   vy: number;
   bornAt: number; // engine elapsedMs when spawned
+  lifeMs: number; // per-neutron lifetime; click neutrons get 8000,
+                  // cascade neutrons default to TUNING.NEUTRON_LIFE_MS
   alive: boolean;
 };
 
@@ -234,7 +236,15 @@ export class FissionEngine {
 
     this.neutrons = new Array(TUNING.MAX_LIVE_NEUTRONS);
     for (let i = 0; i < this.neutrons.length; i++) {
-      this.neutrons[i] = { x: 0, y: 0, vx: 0, vy: 0, bornAt: 0, alive: false };
+      this.neutrons[i] = {
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        bornAt: 0,
+        lifeMs: TUNING.NEUTRON_LIFE_MS,
+        alive: false,
+      };
     }
   }
 
@@ -249,7 +259,13 @@ export class FissionEngine {
 
   // ─── Inputs ────────────────────────────────────────────────────
 
-  injectNeutron(x: number, y: number, vx: number, vy: number): void {
+  injectNeutron(
+    x: number,
+    y: number,
+    vx: number,
+    vy: number,
+    lifeMs: number = TUNING.NEUTRON_LIFE_MS,
+  ): void {
     // If the engine was idle since the last neutron, treat this as
     // the first neutron of a new cascade: zero the visible stats so
     // the overlay shows just THIS cascade's counts.
@@ -268,6 +284,7 @@ export class FissionEngine {
         n.vx = vx;
         n.vy = vy;
         n.bornAt = this._elapsedMs;
+        n.lifeMs = lifeMs;
         n.alive = true;
         this.liveNeutrons++;
         this.statsTotalNeutronsFired++;
@@ -467,11 +484,11 @@ export class FissionEngine {
 
       const aliveMs = this._elapsedMs - n.bornAt;
       if (
-        aliveMs > TUNING.NEUTRON_LIFE_MS ||
-        n.x < -1.5 ||
-        n.x > 1.5 ||
-        n.y < -1.5 ||
-        n.y > 1.5
+        aliveMs > n.lifeMs ||
+        n.x < -3.0 ||
+        n.x > 3.0 ||
+        n.y < -3.0 ||
+        n.y > 3.0
       ) {
         n.alive = false;
         this.liveNeutrons--;
