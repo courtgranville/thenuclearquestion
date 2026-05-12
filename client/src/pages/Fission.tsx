@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import FissionQualityGate, { type Quality } from '@/components/FissionQualityGate';
 import FissionReturn from '@/components/FissionReturn';
-import FissionScene from '@/components/FissionScene';
+import FissionRoom, { type FormPoints } from '@/components/FissionRoom';
 import FissionEnergyCounter from '@/components/FissionEnergyCounter';
 import FissionModeratorSlider from '@/components/FissionModeratorSlider';
 import FissionFpsOverlay from '@/components/FissionFpsOverlay';
@@ -13,6 +13,8 @@ export default function Fission() {
   const [quality, setQuality] = useState<Quality | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [moderator, setModerator] = useState(0.5);
+  const [formPoints, setFormPoints] = useState<FormPoints | null>(null);
+  const [displayEnergy, setDisplayEnergy] = useState(0);
 
   // Tab title — set on mount, restore on unmount.
   useEffect(() => {
@@ -37,12 +39,36 @@ export default function Fission() {
     };
   }, []);
 
+  // Load the form-points JSON dynamically. Until it arrives the scene
+  // is dark; FissionRoom only mounts once formPoints and quality are
+  // both ready.
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/fission-form-points.json').then((m) => {
+      if (cancelled) return;
+      setFormPoints((m.default ?? m) as FormPoints);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div
       className="fixed inset-0 bg-[#0A0A0A] text-[#ECE7DF] overflow-hidden"
       onPointerDown={() => setHasInteracted(true)}
     >
-      {quality && <FissionScene quality={quality} />}
+      {/* Engine + scene mount only when both formPoints and quality
+          are ready. Keying on `quality` forces a teardown + rebuild
+          if quality changes (it shouldn't, in normal use). */}
+      {quality && formPoints && (
+        <FissionRoom
+          key={quality}
+          formPoints={formPoints}
+          quality={quality}
+          onEnergyChange={setDisplayEnergy}
+        />
+      )}
 
       <div className="pointer-events-none absolute top-6 left-4 md:left-6 z-30 font-sans text-sm tracking-[0.25em] uppercase text-[#ECE7DF]/80">
         //07 - Fission, observed
@@ -51,7 +77,7 @@ export default function Fission() {
       <FissionReturn />
 
       <div className="pointer-events-none hidden md:block absolute bottom-8 left-8 z-30">
-        <FissionEnergyCounter energyMeV={0} />
+        <FissionEnergyCounter energyMeV={displayEnergy} />
       </div>
 
       <div className="pointer-events-none hidden md:block absolute bottom-8 right-8 z-30 w-72">
@@ -62,7 +88,7 @@ export default function Fission() {
           UI is hidden on small viewports because corner anchoring breaks
           below ~720px. */}
       <div className="pointer-events-none md:hidden absolute bottom-6 inset-x-4 z-30 flex flex-col gap-6">
-        <FissionEnergyCounter energyMeV={0} />
+        <FissionEnergyCounter energyMeV={displayEnergy} />
         <FissionModeratorSlider value={moderator} onChange={setModerator} />
       </div>
 

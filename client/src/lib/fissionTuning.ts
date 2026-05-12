@@ -27,9 +27,21 @@ export const TUNING = {
   NEUTRON_HIT_RADIUS: 0.012,
   NEUTRONS_PER_FISSION: 2,
   MAX_LIVE_NEUTRONS: 600,
+  // Lifetime cap on a free neutron. After this, the neutron is
+  // silently removed even if it never struck a particle.
+  NEUTRON_LIFE_MS: 3000,
 
   // Energy (Phase 10).
   ENERGY_PER_FISSION_MEV: 200,
+
+  // Velocity of a fission release - the radial outward kick imparted
+  // to a particle at the moment it transitions excited -> released.
+  RELEASE_KICK_SPEED: 0.8,
+
+  // Time clamp inside the engine to defend against frame stutters.
+  // dtMs above this is integrated as MAX_DT_MS instead, so a single
+  // long hitch can't explode the simulation.
+  MAX_DT_MS: 32,
 } as const;
 
 // Per-quality render settings. `particleScale` thins the base point
@@ -121,4 +133,17 @@ export const QUALITY: Record<
 export const VIGNETTE = {
   offset: 0.3,
   darkness: 0.4,
+} as const;
+
+// Brownian breath. Two octaves of sin/cos around each particle's
+// phase, applied as a force in Phase 6 rather than as a direct
+// position assignment (Phase 3's approach). Amplitudes and base
+// frequencies mirror Phase 3 so the resting cloud looks visually
+// identical; the difference is that the engine now produces the
+// breathing through spring + force, not by clobbering position.
+export const BREATHING = {
+  AMP_PRIMARY: 0.003,
+  AMP_SECONDARY: 0.001,
+  FREQ_PRIMARY: 0.6, // rad/s
+  FREQ_SECONDARY: 1.4, // rad/s
 } as const;
