@@ -326,7 +326,10 @@ export class FissionEngine {
   }
 
   // Phase 6 scaffolding. Picks the bound, non-spent particle closest
-  // to (0, 0) and lights it; cascade propagates from there.
+  // to (0, 0) and lights it; cascade propagates from there. Treats
+  // the test cascade as the start of a new cascade for stats: zeroes
+  // the counters and clears the wasIdle flag so the seed fission's
+  // increment isn't blown away by the first neutron emission.
   triggerTestCascade(): void {
     let bestIdx = -1;
     let bestR2 = Infinity;
@@ -342,6 +345,13 @@ export class FissionEngine {
       }
     }
     if (bestIdx >= 0) {
+      if (this.wasIdleSinceLastInject) {
+        this.statsTotalFissions = 0;
+        this.statsTotalNeutronsFired = 0;
+        this.statsTotalHits = 0;
+        this.statsCascadeStartMs = this._elapsedMs;
+        this.wasIdleSinceLastInject = false;
+      }
       this.states[bestIdx] = STATE_EXCITED;
       this.excitedSince[bestIdx] = this._elapsedMs;
       this.liveExcited++;

@@ -32,7 +32,12 @@ export const TUNING = {
   // regime alive at high enrichment.
   NEUTRON_HIT_RADIUS: 0.011,
   NEUTRON_NEAR_MISS_RADIUS: 0.07,
-  NEUTRON_LIFE_MS: 1400,
+  // Phase 7.3: walked 1400 → 1000 to land bomb-regime chain length
+  // in the 100-500 fissions band. 800 ms left the bomb sub-critical;
+  // 1000 ms keeps it dramatic without running away to 8k+. The
+  // reduced lifetime + the spatial grid keep FPS at display refresh
+  // throughout the cascade.
+  NEUTRON_LIFE_MS: 1000,
   NEUTRONS_BASE: 2,
   MAX_LIVE_NEUTRONS: 80,
 
