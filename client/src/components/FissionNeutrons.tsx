@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { TUNING } from '@/lib/fissionTuning';
 import type { FissionEngine } from '@/lib/fissionEngine';
+import { spawnNeutronTrailSpark } from './FissionSparks';
 
 // Separate <points> mesh sized to 4x the neutron pool: each live
 // neutron renders as 4 trailing points (head + 3 tail samples) along
@@ -128,6 +129,18 @@ export default function FissionNeutrons({ engine }: Props) {
           positions[slot * 3 + 1] = n.y - n.vy * dt;
           positions[slot * 3 + 2] = 0;
           ages[slot] = age;
+        }
+        // Drop a warm spark behind the neutron with ~40% probability
+        // per frame. Combined with the 4-slot trail, the projectile
+        // reads as a luminous bullet shedding sparks - highly
+        // trackable across the screen.
+        if (Math.random() < 0.4) {
+          const speedMag = Math.hypot(n.vx, n.vy) || 0.0001;
+          const back = 0.03 + Math.random() * 0.06;
+          const perpScale = (Math.random() - 0.5) * 0.02;
+          const px = n.x - n.vx * back + (-n.vy / speedMag) * perpScale;
+          const py = n.y - n.vy * back + (n.vx / speedMag) * perpScale;
+          spawnNeutronTrailSpark(px, py);
         }
       } else {
         for (let s = 0; s < SLOTS_PER_NEUTRON; s++) {

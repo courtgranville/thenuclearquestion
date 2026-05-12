@@ -6,7 +6,7 @@
 // thermal palette), and auto-reset on idle.
 
 import { TUNING, BREATHING, type Quality } from './fissionTuning';
-import { spawnFlash } from '@/components/FissionFlash';
+import { spawnFissionSparks } from '@/components/FissionSparks';
 
 // State codes are floats so the WebGL shader can read them as a
 // vertex attribute without integer-conversion overhead. Phase 6.1
@@ -46,6 +46,57 @@ export type Neutron = {
   bornAt: number; // engine elapsedMs when spawned
   alive: boolean;
 };
+
+// Spatial hash over current particle positions. Rebuilt every frame
+// inside updateNeutrons so neutron-particle collision queries are
+// O(local candidates) instead of O(all particles). Cell size matches
+// NEUTRON_NEAR_MISS_RADIUS so any particle within the wider of the
+// two collision radii is in the neutron's cell or an immediate
+// neighbour - one 3×3 cell sweep covers the whole query.
+class SpatialGrid {
+  private cells: Map<number, number[]> = new Map();
+
+  constructor(private cellSize: number) {}
+
+  // Pack 2D cell coords into a single integer. Range assumption:
+  // |cx|, |cy| < 1000 cells (form spans ~30 cells at our scale).
+  private hash(cx: number, cy: number): number {
+    return (cx + 1000) * 10000 + (cy + 1000);
+  }
+
+  clear(): void {
+    this.cells.clear();
+  }
+
+  insert(p: number, x: number, y: number): void {
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    const key = this.hash(cx, cy);
+    let bucket = this.cells.get(key);
+    if (!bucket) {
+      bucket = [];
+      this.cells.set(key, bucket);
+    }
+    bucket.push(p);
+  }
+
+  // Returns particle indices in cells overlapping the query disc.
+  // Caller filters by exact distance.
+  query(x: number, y: number, radius: number, out: number[]): void {
+    out.length = 0;
+    const cellsRadius = Math.ceil(radius / this.cellSize);
+    const cx = Math.floor(x / this.cellSize);
+    const cy = Math.floor(y / this.cellSize);
+    for (let dx = -cellsRadius; dx <= cellsRadius; dx++) {
+      for (let dy = -cellsRadius; dy <= cellsRadius; dy++) {
+        const bucket = this.cells.get(this.hash(cx + dx, cy + dy));
+        if (bucket) {
+          for (let i = 0; i < bucket.length; i++) out.push(bucket[i]);
+        }
+      }
+    }
+  }
+}
 
 type EngineOpts = {
   points: Float32Array; // flat [x0,y0,x1,y1,...], length count*2
@@ -90,6 +141,11 @@ export class FissionEngine {
   // but don't fission. Re-rolled by setEnrichmentLevel(); about
   // `enrichmentLevel` fraction of the cloud is fissile at any time.
   private readonly fissile: Uint8Array;
+  // Spatial hash over current particle positions. Rebuilt per frame
+  // for neutron-particle collision queries.
+  private readonly grid: SpatialGrid;
+  // Scratch buffer for grid query results; reused each call.
+  private readonly candidates: number[] = [];
 
   // Tracked for "downstream listener" use; the engine no longer
   // reads cursor in its force loop (cursor magnetism removed in 6.3).
@@ -103,12 +159,18 @@ export class FissionEngine {
   private _elapsedMs = 0;
   private idleMs = 0;
 
-  // Dev-only cascade statistics. Reset on idle auto-reset alongside
-  // the spent flags. Read by the ?stats=1 overlay for live tuning.
+  // Dev-only cascade statistics. Persist across the idle auto-reset
+  // so the user can read the result of a cascade after it ends.
+  // Cleared only when a NEW cascade is started (next click after the
+  // engine has gone idle since the previous cascade).
   private statsTotalFissions = 0;
   private statsTotalNeutronsFired = 0;
   private statsTotalHits = 0;
   private statsCascadeStartMs = 0;
+  // Becomes true when the engine has been idle since the most recent
+  // injectNeutron. The next injectNeutron sees this and zeroes the
+  // stats counters before incrementing.
+  private wasIdleSinceLastInject = true;
 
   get elapsedMs(): number {
     return this._elapsedMs;
@@ -168,6 +230,8 @@ export class FissionEngine {
 
     this.applyEnrichment();
 
+    this.grid = new SpatialGrid(TUNING.NEUTRON_NEAR_MISS_RADIUS);
+
     this.neutrons = new Array(TUNING.MAX_LIVE_NEUTRONS);
     for (let i = 0; i < this.neutrons.length; i++) {
       this.neutrons[i] = { x: 0, y: 0, vx: 0, vy: 0, bornAt: 0, alive: false };
@@ -186,6 +250,16 @@ export class FissionEngine {
   // ─── Inputs ────────────────────────────────────────────────────
 
   injectNeutron(x: number, y: number, vx: number, vy: number): void {
+    // If the engine was idle since the last neutron, treat this as
+    // the first neutron of a new cascade: zero the visible stats so
+    // the overlay shows just THIS cascade's counts.
+    if (this.wasIdleSinceLastInject) {
+      this.statsTotalFissions = 0;
+      this.statsTotalNeutronsFired = 0;
+      this.statsTotalHits = 0;
+      this.statsCascadeStartMs = this._elapsedMs;
+      this.wasIdleSinceLastInject = false;
+    }
     for (let i = 0; i < this.neutrons.length; i++) {
       const n = this.neutrons[i];
       if (!n.alive) {
@@ -197,9 +271,6 @@ export class FissionEngine {
         n.alive = true;
         this.liveNeutrons++;
         this.statsTotalNeutronsFired++;
-        if (this.statsCascadeStartMs === 0) {
-          this.statsCascadeStartMs = this._elapsedMs;
-        }
         return;
       }
     }
@@ -278,14 +349,12 @@ export class FissionEngine {
   }
 
   // Clears all spent flags so the form is ready to fission again.
-  // Called automatically when the room has been idle, or manually via
-  // reset() for a hard restart. Resets dev cascade stats alongside.
+  // Called automatically when the room has been idle, or manually
+  // via reset() for a hard restart. Phase 7.2: stats are NOT cleared
+  // here - they persist until the next click so the user can read
+  // the result of a cascade after it ends.
   private resetSpent(): void {
     this.spent.fill(0);
-    this.statsTotalFissions = 0;
-    this.statsTotalNeutronsFired = 0;
-    this.statsTotalHits = 0;
-    this.statsCascadeStartMs = 0;
   }
 
   // Read-only snapshot of cascade statistics for the ?stats=1
@@ -343,10 +412,13 @@ export class FissionEngine {
     // Auto-reset: when the room has been quiet for AUTO_RESET_IDLE_MS,
     // wipe the spent flags so a new cascade can start fresh. Silent
     // to the user - just gives the room a natural rhythm between
-    // clicks.
+    // clicks. Stats are NOT reset here in Phase 7.2 - they persist
+    // until the next click so the user can read the result of a
+    // cascade after it ends.
     const isIdle = this.liveExcited === 0 && this.liveNeutrons === 0;
     if (isIdle) {
       this.idleMs += dtMs;
+      this.wasIdleSinceLastInject = true;
       if (this.idleMs > TUNING.AUTO_RESET_IDLE_MS) {
         this.resetSpent();
         this.idleMs = 0;
@@ -359,7 +431,21 @@ export class FissionEngine {
   // ─── Step passes ───────────────────────────────────────────────
 
   private updateNeutrons(dt: number): void {
+    // Rebuild the spatial grid each frame over current bound, non-spent
+    // particle positions. With ~46k particles this is ~46k inserts -
+    // fast, and saves us from doing 46k distance checks per neutron.
+    this.grid.clear();
+    for (let p = 0; p < this.count; p++) {
+      if (this.states[p] !== STATE_BOUND) continue;
+      if (this.spent[p] === 1) continue;
+      this.grid.insert(p, this.positions[p * 3], this.positions[p * 3 + 1]);
+    }
+
     const radius2 = TUNING.NEUTRON_HIT_RADIUS * TUNING.NEUTRON_HIT_RADIUS;
+    const nearMissRadius2 =
+      TUNING.NEUTRON_NEAR_MISS_RADIUS * TUNING.NEUTRON_NEAR_MISS_RADIUS;
+    const fissionP = this.currentFissionProbability;
+
     for (let i = 0; i < this.neutrons.length; i++) {
       const n = this.neutrons[i];
       if (!n.alive) continue;
@@ -380,23 +466,18 @@ export class FissionEngine {
         continue;
       }
 
-      // Two-tier neutron-particle interaction in one loop:
-      //   - Direct hit (d < HIT_RADIUS): roll for fission. If fissile
-      //     AND the neutron-speed-dependent probability passes, excite
-      //     the particle and consume the neutron. Otherwise push the
-      //     particle along the neutron's velocity and let the neutron
-      //     continue (it might fission something deeper in the cloud).
-      //   - Near miss (HIT_RADIUS <= d < NEAR_MISS_RADIUS): push the
-      //     particle outward from the neutron's path, falloff quadratic
-      //     with closeness. Visible "particles deflect in the neutron's
-      //     wake" effect.
-      const nearMissRadius2 =
-        TUNING.NEUTRON_NEAR_MISS_RADIUS * TUNING.NEUTRON_NEAR_MISS_RADIUS;
-      const fissionP = this.currentFissionProbability;
+      // Two-tier neutron-particle interaction. The grid hands us
+      // local candidates within near-miss radius; we filter by exact
+      // distance into direct-hit vs near-miss branches.
       const speedMag = Math.hypot(n.vx, n.vy);
       const speedFactor = speedMag / TUNING.NEUTRON_SPEED_FAST;
       let neutronConsumed = false;
-      for (let p = 0; p < this.count; p++) {
+      this.grid.query(n.x, n.y, TUNING.NEUTRON_NEAR_MISS_RADIUS, this.candidates);
+      for (let c = 0; c < this.candidates.length; c++) {
+        const p = this.candidates[c];
+        // Grid was built from bound non-spent particles, but states
+        // can change within the same frame from other neutrons'
+        // collisions; re-check.
         if (this.states[p] !== STATE_BOUND) continue;
         if (this.spent[p] === 1) continue;
         const dx = this.positions[p * 3] - n.x;
@@ -467,10 +548,11 @@ export class FissionEngine {
       this.velocities[i * 2] = Math.cos(kickAngle) * TUNING.RELEASE_KICK_SPEED;
       this.velocities[i * 2 + 1] = Math.sin(kickAngle) * TUNING.RELEASE_KICK_SPEED;
 
-      // 4) Visible punctuation - a bright cream flash at the fission
-      // site (drained by FissionFlash) plus a kinetic punch on every
-      // nearby bound particle so the neighbourhood visibly recoils.
-      spawnFlash(rx, ry, 'fission');
+      // 4) Visible punctuation - a burst of warm-coloured sparks at
+      // the fission site (drained by FissionSparks) plus a kinetic
+      // punch on every nearby bound particle so the neighbourhood
+      // visibly recoils.
+      spawnFissionSparks(rx, ry);
       const punchR = TUNING.FISSION_PUNCH_RADIUS;
       const punchR2 = punchR * punchR;
       for (let q = 0; q < this.count; q++) {
@@ -496,6 +578,10 @@ export class FissionEngine {
 
   private applyForces(): void {
     const elapsed = this._elapsedMs;
+    const cursorActive = this.cursorX !== null && this.cursorY !== null;
+    const ccx = this.cursorX ?? 0;
+    const ccy = this.cursorY ?? 0;
+    const cursorR2 = TUNING.CURSOR_RADIUS * TUNING.CURSOR_RADIUS;
 
     for (let i = 0; i < this.count; i++) {
       const state = this.states[i];
@@ -517,10 +603,23 @@ export class FissionEngine {
       fx -= TUNING.DAMPING * vx;
       fy -= TUNING.DAMPING * vy;
 
-      // Cursor magnetism was removed in Phase 6.3 - the cloud's only
-      // response to the user is through fired neutrons. setCursor()
-      // on the engine still exists but the value isn't consulted
-      // here.
+      // Cursor magnetism - gentle outward push on hover. Restored
+      // in Phase 7.2 with weaker force + wider reach (was Phase 6's
+      // 0.18 / 1.5; now 0.22 / 0.6). Hovering visibly perturbs
+      // particles without violent disruption. Does NOT trigger
+      // fission - only clicks fire neutrons.
+      if (cursorActive) {
+        const cdx = px - ccx;
+        const cdy = py - ccy;
+        const cd2 = cdx * cdx + cdy * cdy;
+        if (cd2 < cursorR2) {
+          const cd = Math.sqrt(cd2) || 0.0001;
+          const falloff = 1.0 - cd / TUNING.CURSOR_RADIUS;
+          const strength = TUNING.CURSOR_FORCE * falloff * falloff;
+          fx += (cdx / cd) * strength;
+          fy += (cdy / cd) * strength;
+        }
+      }
 
       // Brownian breath - same two-octave noise as Phase 3, applied
       // as a force at full SPRING_K coefficient.

@@ -6,7 +6,7 @@ import type { FissionEngine } from '@/lib/fissionEngine';
 import { setCursorWorld } from '@/lib/fissionCursorBus';
 import FissionParticles from './FissionParticles';
 import FissionNeutrons from './FissionNeutrons';
-import FissionFlash, { spawnFlash } from './FissionFlash';
+import FissionSparks, { spawnClickSparks } from './FissionSparks';
 import FissionPostFx from './FissionPostFx';
 
 type Props = {
@@ -73,9 +73,9 @@ function CursorPlane({ engine }: { engine: FissionEngine }) {
         const vy = (-sourceY / sourceDist) * speed;
 
         engine.injectNeutron(sourceX, sourceY, vx, vy);
-        // Flash at the cursor (where the user's attention is), not at
-        // the offscreen spawn point.
-        spawnFlash(cx, cy, 'click');
+        // Sparks at the cursor (where the user's attention is), not
+        // at the offscreen spawn point.
+        spawnClickSparks(cx, cy);
       }}
       position={[0, 0, -0.1]}
     >
@@ -117,7 +117,7 @@ export default function FissionScene({ engine, quality }: Props) {
       <CursorPlane engine={engine} />
       <FissionParticles engine={engine} quality={quality} />
       <FissionNeutrons engine={engine} />
-      <FissionFlash />
+      <FissionSparks />
       <FissionPostFx quality={quality} />
       <TestCascadeTrigger engine={engine} />
     </Canvas>

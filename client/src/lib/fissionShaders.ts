@@ -77,12 +77,16 @@ void main() {
   } else if (vHeat < 0.85) {
     color = mix(uColorWarm, uColorHot, (vHeat - 0.5) / 0.35);
   } else {
-    vec3 whiteHot = vec3(1.4, 1.2, 1.0);
+    // Peak: lerp toward yellow-white, not over-saturated white. The
+    // earlier (1.4, 1.2, 1.0) value blew out under bloom and turned
+    // the supercritical form into a featureless white blob.
+    vec3 whiteHot = vec3(1.15, 1.05, 0.75);
     color = mix(uColorHot, whiteHot, (vHeat - 0.85) / 0.15);
   }
 
-  // Boost peak brightness so the white-hot moment really pops.
-  float intensity = 0.55 + vHeat * 1.0;
+  // Intensity boost reduced 1.0 → 0.65 for the same reason - lets
+  // bloom amplify the peak without saturating.
+  float intensity = 0.55 + vHeat * 0.65;
 
   gl_FragColor = vec4(color * intensity, alpha);
 }

@@ -24,13 +24,13 @@ export const TUNING = {
   FISSION_PROB_FAST: 0.04,
   FISSION_PROB_SLOW: 0.92,
 
-  // Phase 7.1 stacked two fixes to lift the supercritical multiplier
-  // above 1.0: hit radius up so the form's path-traced voids stop
-  // hiding fissile particles, and neutrons-per-fission up so one of
-  // two outbound neutrons usually finds a target. Sub-critical
-  // regimes are unaffected because they're still gated by the
-  // enrichment fraction.
-  NEUTRON_HIT_RADIUS: 0.014,
+  // Phase 7.2: walked HIT_RADIUS back from 7.1's 0.014. 0.010
+  // proved too far (both regimes went sub-critical), 0.011 is the
+  // sweet spot found empirically: reactor regime stays in single
+  // digits, bomb regime sustains a visible chain. NEUTRONS_BASE
+  // stays at 2 - the two-emission margin is what keeps the bomb
+  // regime alive at high enrichment.
+  NEUTRON_HIT_RADIUS: 0.011,
   NEUTRON_NEAR_MISS_RADIUS: 0.07,
   NEUTRON_LIFE_MS: 1400,
   NEUTRONS_BASE: 2,
@@ -45,12 +45,19 @@ export const TUNING = {
   RELEASE_KICK_SPEED: 2.5,
 
   // Kinetic punch radius + strength. Each fission pushes nearby
-  // bound particles outward, replacing the discrete burst-ring
-  // outline of 6.2 with disruption made of the same particle
-  // material as the cloud. Phase 7 enlarged radius 2.5x and
-  // strengthened 3x.
+  // bound particles outward. Phase 7.2 dropped strength 4.0 → 2.5
+  // because the new spark system now carries most of the visual
+  // explosion - the punch can be gentler so the form's structure
+  // remains recognisable through cascade peak.
   FISSION_PUNCH_RADIUS: 0.1,
-  FISSION_PUNCH_STRENGTH: 4.0,
+  FISSION_PUNCH_STRENGTH: 2.5,
+
+  // Cursor magnetism - gentle outward push on hover. Restored in
+  // Phase 7.2 with weaker force + larger reach than the Phase 6
+  // values (was 0.18 / 1.5). Particles visibly perturb without
+  // violent disruption. Hover does NOT trigger fission.
+  CURSOR_RADIUS: 0.22,
+  CURSOR_FORCE: 0.6,
 
   // After this idle period (no live excited, no live neutrons), spent
   // flags reset silently so the next click starts fresh.
