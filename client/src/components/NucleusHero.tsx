@@ -19,6 +19,10 @@ interface NucleusHeroProps {
   isotope: 0 | 1;
   /** Children rendered absolutely on top of the canvas (e.g. tweaks anchor). */
   children?: ReactNode;
+  /** Fired the moment the nucleus begins splitting (phase: idle → splitting).
+   * Used by the homepage to surface the Fission Room invitation after the
+   * user earns the interaction. */
+  onFissionFire?: () => void;
 }
 
 /**
@@ -30,12 +34,15 @@ interface NucleusHeroProps {
  * same state machine, same magnetism math. The isotope prop is read through a
  * ref so toggling it never restarts the loop.
  */
-export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
+export function NucleusHero({ paths, isotope, children, onFissionFire }: NucleusHeroProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Live ref so the loop reads the latest isotope without restarting.
   const isotopeRef = useRef<number>(isotope);
   isotopeRef.current = isotope;
+  // Live ref for the fire callback so changes don't restart the effect.
+  const onFissionFireRef = useRef<(() => void) | undefined>(onFissionFire);
+  onFissionFireRef.current = onFissionFire;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -188,6 +195,8 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
         return;
       }
 
+      const phaseBefore = fission.phase;
+
       drawFrame({
         ctx, W, H, t, dt,
         ptr, smoothSpeed, effectiveSpeed, reversalsThisFrame,
@@ -197,6 +206,13 @@ export function NucleusHero({ paths, isotope, children }: NucleusHeroProps) {
         FAST_SPEED, REQUIRED_T, SHAKE_NEEDED,
         reduced: prefersReduced,
       });
+
+      // Detect the idle → splitting transition: the moment the user
+      // earned the fission. Forwarded to the homepage so it can
+      // surface the room invitation after the visual settles.
+      if (phaseBefore === 'idle' && fission.phase === 'splitting') {
+        onFissionFireRef.current?.();
+      }
 
       stepAndDrawParticles(ctx, fission, dt, H);
 

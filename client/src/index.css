@@ -514,6 +514,45 @@
   .iso-switch button { transition: none; }
 }
 
+/* ── FISSION INVITATION (homepage) ────────────────────────────────────── */
+/* Cream prompt that appears 1.2 s after the user triggers the hero
+   fission. Desktop: anchored right side of the hero, vertically
+   centred via translateY(-50%). Mobile (< md): full-width strip
+   pinned to the bottom of the hero. Both use the same fade-in keyframe;
+   desktop adds a small slide-from-right, which reduced-motion strips. */
+.fission-invitation {
+  opacity: 0;
+  animation: fissionInviteIn 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .fission-invitation {
+    transform: translateY(-50%);
+    animation-name: fissionInviteInDesktop;
+  }
+}
+
+@keyframes fissionInviteIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fissionInviteInDesktop {
+  from { opacity: 0; transform: translateY(-50%) translateX(8px); }
+  to { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes fissionInviteIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fissionInviteInDesktop {
+    from { opacity: 0; transform: translateY(-50%); }
+    to { opacity: 1; transform: translateY(-50%); }
+  }
+}
+
 /* ── FISSION ROOM ─────────────────────────────────────────────────────── */
 /* Thin cream line track, small filled cream circle thumb. The dark
    room is the only place this slider style appears; scoped via the

@@ -4,11 +4,11 @@ import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
-import FissionEntrance from '@/components/FissionEntrance';
 import IntroAnimation from '@/components/IntroAnimation';
 import ScrollProgress from '@/components/ScrollProgress';
 import PageTransition from '@/components/PageTransition';
 import { NucleusHero } from '@/components/NucleusHero';
+import FissionInvitation from '@/components/FissionInvitation';
 import { IsotopeToggle } from '@/components/IsotopeToggle';
 import { posters } from '@/lib/posterData';
 import nucleusPaths from '@/assets/nucleus-paths.json';
@@ -51,6 +51,11 @@ export default function Home() {
     localStorage.setItem(ISOTOPE_KEY, String(isotope));
   }, [isotope]);
 
+  // Set true the first time the hero's nucleus splits. Drives the
+  // FissionInvitation prompt below. Once set it stays set so the
+  // invitation can re-appear on subsequent fissions if dismissed.
+  const [fissionFired, setFissionFired] = useState(false);
+
   // Fission hint: visible for 10s after switching to U-238.
   const [hintVisible, setHintVisible] = useState(false);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -84,6 +89,7 @@ export default function Home() {
               <NucleusHero
                 paths={nucleusPaths as string[]}
                 isotope={isotope}
+                onFissionFire={() => setFissionFired(true)}
               >
                 <div className="tweaks-anchor">
                   <IsotopeToggle value={isotope} onChange={setIsotope} />
@@ -104,6 +110,8 @@ export default function Home() {
                     </motion.div>
                   )}
                 </AnimatePresence>
+
+                <FissionInvitation fissionFired={fissionFired} />
               </NucleusHero>
 
               <motion.div
@@ -161,8 +169,6 @@ export default function Home() {
             </div>
           </section>
         </main>
-
-        <FissionEntrance />
       </PageTransition>
 
       <SiteFooter />
