@@ -325,37 +325,39 @@ export class FissionEngine {
     return bestIdx === -1 ? null : bestIdx;
   }
 
-  // Phase 6 scaffolding. Picks the bound, non-spent particle closest
-  // to (0, 0) and lights it; cascade propagates from there. Treats
-  // the test cascade as the start of a new cascade for stats: zeroes
-  // the counters and clears the wasIdle flag so the seed fission's
-  // increment isn't blown away by the first neutron emission.
+  // Test cascade for ?test=cascade. Phase 7.4 changed the seed
+  // selection from "centermost particle" (which sat in a path-
+  // traced void and produced misleading sub-critical cascades at
+  // every NEUTRON_LIFE_MS value) to "random particle in the dense
+  // annulus 0.5 <= r <= 0.85". That puts the seed in the form's
+  // outer-ring concentrations where real clicks' neutrons typically
+  // first hit a fissile target, making the test cascade
+  // representative for calibration.
   triggerTestCascade(): void {
-    let bestIdx = -1;
-    let bestR2 = Infinity;
+    const candidates: number[] = [];
     for (let i = 0; i < this.count; i++) {
       if (this.states[i] !== STATE_BOUND) continue;
       if (this.spent[i] === 1) continue;
-      const x = this.rests[i * 2];
-      const y = this.rests[i * 2 + 1];
-      const r2 = x * x + y * y;
-      if (r2 < bestR2) {
-        bestR2 = r2;
-        bestIdx = i;
+      const rx = this.rests[i * 2];
+      const ry = this.rests[i * 2 + 1];
+      const r = Math.hypot(rx, ry);
+      if (r >= 0.5 && r <= 0.85) {
+        candidates.push(i);
       }
     }
-    if (bestIdx >= 0) {
-      if (this.wasIdleSinceLastInject) {
-        this.statsTotalFissions = 0;
-        this.statsTotalNeutronsFired = 0;
-        this.statsTotalHits = 0;
-        this.statsCascadeStartMs = this._elapsedMs;
-        this.wasIdleSinceLastInject = false;
-      }
-      this.states[bestIdx] = STATE_EXCITED;
-      this.excitedSince[bestIdx] = this._elapsedMs;
-      this.liveExcited++;
+    if (candidates.length === 0) return;
+    const seed = candidates[Math.floor(Math.random() * candidates.length)];
+
+    if (this.wasIdleSinceLastInject) {
+      this.statsTotalFissions = 0;
+      this.statsTotalNeutronsFired = 0;
+      this.statsTotalHits = 0;
+      this.statsCascadeStartMs = this._elapsedMs;
+      this.wasIdleSinceLastInject = false;
     }
+    this.states[seed] = STATE_EXCITED;
+    this.excitedSince[seed] = this._elapsedMs;
+    this.liveExcited++;
   }
 
   // Clears all spent flags so the form is ready to fission again.
