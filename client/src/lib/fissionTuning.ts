@@ -11,8 +11,6 @@ export const TUNING = {
   SPRING_K: 4.5,
   DAMPING: 0.86,
 
-  // Cascade behaviour - direct cascade removed in 6.2; constants
-  // CASCADE_RADIUS and CASCADE_PROBABILITY_BASE deleted in 6.3.
   REACTION_WINDOW_MS: 280,
   RECOHERE_DELAY_MS: 1800,
   RECOHERE_BAND: 0.015,
@@ -26,13 +24,16 @@ export const TUNING = {
   FISSION_PROB_FAST: 0.04,
   FISSION_PROB_SLOW: 0.92,
 
-  // Direct-hit radius slightly widened in Phase 7 for more reliable
-  // hits. Near-miss radius widened ~3x so the visible wake of
-  // deflected particles is unmistakable.
-  NEUTRON_HIT_RADIUS: 0.008,
+  // Phase 7.1 stacked two fixes to lift the supercritical multiplier
+  // above 1.0: hit radius up so the form's path-traced voids stop
+  // hiding fissile particles, and neutrons-per-fission up so one of
+  // two outbound neutrons usually finds a target. Sub-critical
+  // regimes are unaffected because they're still gated by the
+  // enrichment fraction.
+  NEUTRON_HIT_RADIUS: 0.014,
   NEUTRON_NEAR_MISS_RADIUS: 0.07,
   NEUTRON_LIFE_MS: 1400,
-  NEUTRONS_BASE: 1,
+  NEUTRONS_BASE: 2,
   MAX_LIVE_NEUTRONS: 80,
 
   // Energy (Phase 10 will format this).

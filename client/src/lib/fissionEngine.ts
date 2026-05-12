@@ -47,84 +47,6 @@ export type Neutron = {
   alive: boolean;
 };
 
-// Uniform grid over world space, keyed on rest position. Built once
-// from rests at engine construction; never rebuilt. Cell size is
-// CASCADE_RADIUS * 2 so any neighbour within radius lives in this
-// cell or an adjacent one.
-//
-// NOTE: unused after Phase 6.2 - retained for Phase 9 multi-nucleus
-// spatial queries (when neutrons need to find target nuclei). The
-// constructor still allocates the grid; the per-frame cost is zero.
-class SpatialGrid {
-  private cells: Int32Array[];
-  private readonly cellSize: number;
-  private readonly gridW: number;
-  private readonly gridH: number;
-  private readonly originX: number;
-  private readonly originY: number;
-
-  constructor(rests: Float32Array, count: number, cellSize: number) {
-    this.cellSize = cellSize;
-    this.originX = -1.2;
-    this.originY = -1.2;
-    this.gridW = Math.ceil(2.4 / cellSize);
-    this.gridH = Math.ceil(2.4 / cellSize);
-    const totalCells = this.gridW * this.gridH;
-
-    const counts = new Int32Array(totalCells);
-    for (let i = 0; i < count; i++) {
-      const cx = Math.floor((rests[i * 2] - this.originX) / cellSize);
-      const cy = Math.floor((rests[i * 2 + 1] - this.originY) / cellSize);
-      if (cx >= 0 && cx < this.gridW && cy >= 0 && cy < this.gridH) {
-        counts[cy * this.gridW + cx]++;
-      }
-    }
-
-    this.cells = new Array(totalCells);
-    for (let c = 0; c < totalCells; c++) {
-      this.cells[c] = new Int32Array(counts[c]);
-    }
-
-    const fill = new Int32Array(totalCells);
-    for (let i = 0; i < count; i++) {
-      const cx = Math.floor((rests[i * 2] - this.originX) / cellSize);
-      const cy = Math.floor((rests[i * 2 + 1] - this.originY) / cellSize);
-      if (cx >= 0 && cx < this.gridW && cy >= 0 && cy < this.gridH) {
-        const cellIdx = cy * this.gridW + cx;
-        this.cells[cellIdx][fill[cellIdx]++] = i;
-      }
-    }
-  }
-
-  queryRadius(x: number, y: number, radius: number, out: number[]): void {
-    const minCx = Math.max(
-      0,
-      Math.floor((x - radius - this.originX) / this.cellSize),
-    );
-    const maxCx = Math.min(
-      this.gridW - 1,
-      Math.floor((x + radius - this.originX) / this.cellSize),
-    );
-    const minCy = Math.max(
-      0,
-      Math.floor((y - radius - this.originY) / this.cellSize),
-    );
-    const maxCy = Math.min(
-      this.gridH - 1,
-      Math.floor((y + radius - this.originY) / this.cellSize),
-    );
-
-    for (let cy = minCy; cy <= maxCy; cy++) {
-      for (let cx = minCx; cx <= maxCx; cx++) {
-        const cell = this.cells[cy * this.gridW + cx];
-        for (let i = 0; i < cell.length; i++) {
-          out.push(cell[i]);
-        }
-      }
-    }
-  }
-}
-
 type EngineOpts = {
   points: Float32Array; // flat [x0,y0,x1,y1,...], length count*2
   count: number;
@@ -168,11 +90,6 @@ export class FissionEngine {
   // but don't fission. Re-rolled by setEnrichmentLevel(); about
   // `enrichmentLevel` fraction of the cloud is fissile at any time.
   private readonly fissile: Uint8Array;
-  // Allocated but unused after Phase 6.2 - retained for Phase 9
-  // multi-nucleus spatial queries.
-  private readonly grid: SpatialGrid;
-  // Allocated but unused after Phase 6.2 (direct-cascade removed).
-  private readonly neighbourBuffer: number[] = [];
 
   // Tracked for "downstream listener" use; the engine no longer
   // reads cursor in its force loop (cursor magnetism removed in 6.3).
@@ -185,6 +102,13 @@ export class FissionEngine {
   private enrichmentLevel = 0.05;
   private _elapsedMs = 0;
   private idleMs = 0;
+
+  // Dev-only cascade statistics. Reset on idle auto-reset alongside
+  // the spent flags. Read by the ?stats=1 overlay for live tuning.
+  private statsTotalFissions = 0;
+  private statsTotalNeutronsFired = 0;
+  private statsTotalHits = 0;
+  private statsCascadeStartMs = 0;
 
   get elapsedMs(): number {
     return this._elapsedMs;
@@ -244,11 +168,6 @@ export class FissionEngine {
 
     this.applyEnrichment();
 
-    // Grid is kept (dead code) for Phase 9. Cell size 0.05 was the
-    // previous TUNING.CASCADE_RADIUS * 2; we hard-code it now that
-    // CASCADE_RADIUS is gone from TUNING.
-    this.grid = new SpatialGrid(this.rests, n, 0.05);
-
     this.neutrons = new Array(TUNING.MAX_LIVE_NEUTRONS);
     for (let i = 0; i < this.neutrons.length; i++) {
       this.neutrons[i] = { x: 0, y: 0, vx: 0, vy: 0, bornAt: 0, alive: false };
@@ -277,6 +196,10 @@ export class FissionEngine {
         n.bornAt = this._elapsedMs;
         n.alive = true;
         this.liveNeutrons++;
+        this.statsTotalNeutronsFired++;
+        if (this.statsCascadeStartMs === 0) {
+          this.statsCascadeStartMs = this._elapsedMs;
+        }
         return;
       }
     }
@@ -356,9 +279,41 @@ export class FissionEngine {
 
   // Clears all spent flags so the form is ready to fission again.
   // Called automatically when the room has been idle, or manually via
-  // reset() for a hard restart.
+  // reset() for a hard restart. Resets dev cascade stats alongside.
   private resetSpent(): void {
     this.spent.fill(0);
+    this.statsTotalFissions = 0;
+    this.statsTotalNeutronsFired = 0;
+    this.statsTotalHits = 0;
+    this.statsCascadeStartMs = 0;
+  }
+
+  // Read-only snapshot of cascade statistics for the ?stats=1
+  // dev overlay. All counters reset on the next idle auto-reset.
+  getCascadeStats(): {
+    totalFissions: number;
+    totalNeutronsFired: number;
+    totalHits: number;
+    hitRate: number;
+    liveExcited: number;
+    liveNeutrons: number;
+    durationMs: number;
+  } {
+    return {
+      totalFissions: this.statsTotalFissions,
+      totalNeutronsFired: this.statsTotalNeutronsFired,
+      totalHits: this.statsTotalHits,
+      hitRate:
+        this.statsTotalNeutronsFired > 0
+          ? this.statsTotalHits / this.statsTotalNeutronsFired
+          : 0,
+      liveExcited: this.liveExcited,
+      liveNeutrons: this.liveNeutrons,
+      durationMs:
+        this.statsCascadeStartMs > 0
+          ? this._elapsedMs - this.statsCascadeStartMs
+          : 0,
+    };
   }
 
   // Public hard reset: forget everything that happened. The state
@@ -452,6 +407,7 @@ export class FissionEngine {
           if (isFissile && Math.random() < fissionP) {
             n.alive = false;
             this.liveNeutrons--;
+            this.statsTotalHits++;
             this.states[p] = STATE_EXCITED;
             this.excitedSince[p] = this._elapsedMs;
             this.liveExcited++;
@@ -534,6 +490,7 @@ export class FissionEngine {
       this.states[i] = STATE_RELEASED;
       this.releasedSince[i] = this._elapsedMs;
       this.liveExcited--;
+      this.statsTotalFissions++;
     }
   }
 

@@ -3,6 +3,7 @@ import { QUALITY, type Quality } from '@/lib/fissionTuning';
 import { useFissionEngine } from '@/lib/useFissionEngine';
 import { enrichmentFromSliderValue } from './FissionEnrichmentSlider';
 import FissionScene from './FissionScene';
+import FissionCascadeStatsOverlay from './FissionCascadeStatsOverlay';
 
 export type FormPoints = {
   count: number;
@@ -77,5 +78,10 @@ export default function FissionRoom({
     return () => window.clearInterval(id);
   }, [engine, onEnergyChange]);
 
-  return <FissionScene engine={engine} quality={quality} />;
+  return (
+    <>
+      <FissionScene engine={engine} quality={quality} />
+      <FissionCascadeStatsOverlay engine={engine} />
+    </>
+  );
 }
