@@ -25,13 +25,11 @@ const repoRoot  = resolve(__dirname, '..');
 const SRC  = resolve(repoRoot, 'client/public/assets/main-icon-dark.svg');
 const OUT  = resolve(repoRoot, 'client/src/assets/fission-form-points.json');
 
-// Arc-length interval in SVG user units. The acceptance criterion in
-// FISSION_BRIEF.md (Phase 1) is 15k - 60k total points; that band is
-// the binding constraint, not the example interval value. This SVG
-// carries 251 paths with combined length ~211k units, so interval 10
-// lands at ~42k points, mid-band. Adjust this constant - not the
-// band - if the source artwork changes.
-const SAMPLE_INTERVAL = 10;
+// Arc-length interval in SVG user units. Phase 7 raised the band
+// ceiling to 100k points and dropped the interval to 6 (from 10) so
+// the cloud is visibly denser at the higher camera zoom. With 251
+// paths summing to ~211k SVG units, interval 6 lands at ~70k points.
+const SAMPLE_INTERVAL = 6;
 
 // ─── Read source ─────────────────────────────────────────────────
 
@@ -181,9 +179,9 @@ console.log(`  form radius    : ${boundingRadiusInViewBox.toFixed(2)} viewBox un
 console.log(`  boundingRadius : ${boundingRadius.toFixed(4)} (normalised, ≈ 1.0 by construction)`);
 console.log(`  json size      : ${(bytes / 1024).toFixed(1)} kB`);
 
-if (count < 15000 || count > 60000) {
+if (count < 15000 || count > 100000) {
   console.warn(
-    `  ⚠ point count ${count} is outside the brief's 15k - 60k band. ` +
+    `  ⚠ point count ${count} is outside the 15k - 100k band. ` +
     `Adjust SAMPLE_INTERVAL (currently ${SAMPLE_INTERVAL}).`
   );
 }

@@ -4,25 +4,19 @@ import * as THREE from 'three';
 import { TUNING } from '@/lib/fissionTuning';
 import type { FissionEngine } from '@/lib/fissionEngine';
 
-// A separate <points> mesh whose buffer is sized to 3x the neutron
-// pool: each live neutron renders as 3 trailing points (head + 2
-// tail samples) for visual continuity in flight. The 3 slots per
-// neutron get pre-computed sizes and opacities baked into per-vertex
-// attributes so the shader stays trivial.
+// Separate <points> mesh sized to 4x the neutron pool: each live
+// neutron renders as 4 trailing points (head + 3 tail samples) along
+// the velocity vector. Pre-computed per-slot sizes and opacities
+// keep the shader trivial.
 //
 // Trail strategy: extrapolate backward along the velocity vector by
-// fixed time offsets (50 ms and 100 ms) rather than store actual
-// past positions. Neutrons move in straight lines (no forces apply
-// after spawn), so velocity extrapolation matches the real path
-// without needing a ring buffer.
+// fixed time offsets. Neutrons travel in straight lines, so
+// extrapolation matches the real path without a ring buffer.
 
-const SLOTS_PER_NEUTRON = 3;
-// Time offsets (seconds) for each trail slot behind the head.
-const TRAIL_DT = [0, 0.05, 0.10];
-// Base point sizes in pixels per slot.
-const TRAIL_SIZE = [14, 9, 5];
-// Opacity per slot (head is fully opaque, tail fades).
-const TRAIL_OPACITY = [1.0, 0.5, 0.2];
+const SLOTS_PER_NEUTRON = 4;
+const TRAIL_DT = [0, 0.04, 0.08, 0.13]; // seconds back from head
+const TRAIL_SIZE = [32, 22, 14, 7]; // px
+const TRAIL_OPACITY = [1.0, 0.7, 0.4, 0.18];
 
 const NEUTRON_VS = /* glsl */ `
 attribute float aAge;
@@ -35,7 +29,7 @@ varying float vOpacity;
 void main() {
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   gl_Position = projectionMatrix * mvPosition;
-  gl_PointSize = aSize - aAge * 2.0;
+  gl_PointSize = aSize - aAge * 4.0;
   vAge = aAge;
   vOpacity = aOpacity;
 }
@@ -46,15 +40,15 @@ precision mediump float;
 varying float vAge;
 varying float vOpacity;
 
+uniform vec3 uColorTint;
+
 void main() {
   vec2 d = gl_PointCoord - 0.5;
   float r = length(d);
   if (r > 0.5) discard;
   float alpha = smoothstep(0.5, 0.0, r);
   alpha *= (1.0 - vAge * 0.3) * vOpacity;
-  // Warmer than pure cream so neutrons read as energy quanta against
-  // the cloud rather than as miniature cloud particles.
-  gl_FragColor = vec4(1.0, 0.92, 0.78, alpha);
+  gl_FragColor = vec4(uColorTint, alpha);
 }
 `;
 
@@ -93,6 +87,11 @@ export default function FissionNeutrons({ engine }: Props) {
       depthTest: false,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
+      uniforms: {
+        // Default to a warm cream; useFrame updates this per frame
+        // based on the engine's current neutron speed.
+        uColorTint: { value: new THREE.Color(1.1, 0.95, 0.78) },
+      },
     });
 
     return { geometry, material, positions, ages };
@@ -106,6 +105,15 @@ export default function FissionNeutrons({ engine }: Props) {
   }, [geometry, material]);
 
   useFrame(() => {
+    // Speed-tinted neutron colour: fast neutrons read whiter (high
+    // energy), slow neutrons warmer (thermalised). Gives the user a
+    // colour cue about what kind of projectile they fired.
+    const ratio = engine.neutronSpeedRatio;
+    const r = 1.1 - ratio * 0.05;
+    const g = 1.0 - ratio * 0.15;
+    const b = 0.95 - ratio * 0.25;
+    (material.uniforms.uColorTint.value as THREE.Color).setRGB(r, g, b);
+
     const neutrons = engine.neutrons;
     const elapsed = engine.elapsedMs;
     for (let i = 0; i < neutrons.length; i++) {

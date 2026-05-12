@@ -34,7 +34,9 @@ function springScaleFor(state: number): number {
 
 // Decay window for the released-state heat curve. Independent of the
 // recohere delay so the visual cools faster than the physical return.
-const HEAT_RELEASE_DECAY_MS = 1500;
+// Phase 7: extended 1500 → 3000 so thermal aftermath of a fission
+// stays visible while the cascade is still unfolding.
+const HEAT_RELEASE_DECAY_MS = 3000;
 
 export type Neutron = {
   x: number;
@@ -179,13 +181,19 @@ export class FissionEngine {
   // 0 = fast neutrons (low fission prob), 1 = slow neutrons (high
   // fission prob). The actual speed + probability are derived via
   // the currentNeutronSpeed / currentFissionProbability getters.
-  private neutronSpeedRatio = 0.5;
+  private _neutronSpeedRatio = 0.5;
   private enrichmentLevel = 0.05;
   private _elapsedMs = 0;
   private idleMs = 0;
 
   get elapsedMs(): number {
     return this._elapsedMs;
+  }
+
+  // Exposed publicly so the neutron renderer can colour-tint each
+  // neutron by speed (whiter at fast, warmer at slow).
+  get neutronSpeedRatio(): number {
+    return this._neutronSpeedRatio;
   }
 
   // Derived from the neutron-speed slider position. Fast neutrons
@@ -196,13 +204,13 @@ export class FissionEngine {
   get currentNeutronSpeed(): number {
     return (
       TUNING.NEUTRON_SPEED_FAST +
-      (TUNING.NEUTRON_SPEED_SLOW - TUNING.NEUTRON_SPEED_FAST) * this.neutronSpeedRatio
+      (TUNING.NEUTRON_SPEED_SLOW - TUNING.NEUTRON_SPEED_FAST) * this._neutronSpeedRatio
     );
   }
   get currentFissionProbability(): number {
     return (
       TUNING.FISSION_PROB_FAST +
-      (TUNING.FISSION_PROB_SLOW - TUNING.FISSION_PROB_FAST) * this.neutronSpeedRatio
+      (TUNING.FISSION_PROB_SLOW - TUNING.FISSION_PROB_FAST) * this._neutronSpeedRatio
     );
   }
 
@@ -281,7 +289,7 @@ export class FissionEngine {
   }
 
   setNeutronSpeedRatio(r: number): void {
-    this.neutronSpeedRatio = Math.max(0, Math.min(1, r));
+    this._neutronSpeedRatio = Math.max(0, Math.min(1, r));
   }
 
   // Re-roll fissile flags at the new enrichment level. Different
@@ -451,15 +459,19 @@ export class FissionEngine {
             break;
           } else {
             // No fission - push the particle along the neutron's
-            // velocity. Neutron continues through.
-            const kick = 0.4 * speedFactor;
+            // velocity. Neutron continues through. Phase 7 raised
+            // coefficient 0.4 → 1.0 so the wake is visibly stronger.
+            const kick = 1.0 * speedFactor;
             this.velocities[p * 2] += n.vx * kick;
             this.velocities[p * 2 + 1] += n.vy * kick;
           }
         } else if (d2 < nearMissRadius2) {
           const d = Math.sqrt(d2);
           const closeness = 1 - d / TUNING.NEUTRON_NEAR_MISS_RADIUS;
-          const kick = 0.15 * closeness * closeness * speedFactor;
+          // Phase 7 raised coefficient 0.15 → 0.4. Combined with the
+          // wider NEAR_MISS_RADIUS, particles part visibly as the
+          // neutron passes.
+          const kick = 0.4 * closeness * closeness * speedFactor;
           const norm = d || 0.0001;
           this.velocities[p * 2] += (dx / norm) * kick;
           this.velocities[p * 2 + 1] += (dy / norm) * kick;

@@ -1,49 +1,32 @@
-import { useEffect, useMemo, useRef } from 'react';
-import * as THREE from 'three';
+import { useEffect, useState } from 'react';
+import { subscribeCursorWorld, type Cursor } from '@/lib/fissionCursorBus';
 
-type Props = { cursor: { x: number; y: number } | null };
+// DOM overlay above the canvas. Reads the cursor's world position
+// from the module-level bus and renders a cream line + triangle
+// glyph pointing from the cursor toward the form's centre. Because
+// it lives outside the WebGL canvas, the post-fx bloom pipeline
+// doesn't touch it - this fixes the "aim indicator gets bloomed
+// into a featureless blob" failure mode of earlier phases.
+//
+// Camera zoom is hard-coded to 320 to match FissionScene's
+// orthographic camera; if the zoom changes, this constant must too.
 
-// A small cream arrowhead that follows the cursor and always rotates
-// to point toward the form's centre (0, 0). It's the user's hint that
-// a click will fire a neutron from this direction. Tiny on purpose -
-// ~5 px at zoom 220 - so it reads as a glyph the user discovers,
-// not as a UI element. Hidden on touch devices and when the cursor
-// is very near the form centre (direction undefined).
-export default function FissionAimArrow({ cursor }: Props) {
-  const meshRef = useRef<THREE.Mesh>(null);
+const ZOOM = 320;
+const LINE_LENGTH_PX = 80;
+const TIP_SIZE_PX = 14;
 
-  const { geometry, material } = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0.012, 0);
-    shape.lineTo(-0.008, 0.006);
-    shape.lineTo(-0.008, -0.006);
-    shape.closePath();
-    const geometry = new THREE.ShapeGeometry(shape);
-    const material = new THREE.MeshBasicMaterial({
-      color: '#ECE7DF',
-      transparent: true,
-      opacity: 0.7,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
-    return { geometry, material };
+export default function FissionAimArrow() {
+  const [cursor, setCursor] = useState<Cursor>(null);
+  const [viewport, setViewport] = useState({ w: 0, h: 0 });
+
+  useEffect(() => subscribeCursorWorld(setCursor), []);
+
+  useEffect(() => {
+    const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
-
-  useEffect(() => {
-    return () => {
-      geometry.dispose();
-      material.dispose();
-    };
-  }, [geometry, material]);
-
-  useEffect(() => {
-    if (!cursor || !meshRef.current) return;
-    const cursorDist = Math.hypot(cursor.x, cursor.y);
-    if (cursorDist < 0.02) return;
-    meshRef.current.position.set(cursor.x, cursor.y, 0);
-    meshRef.current.rotation.z = Math.atan2(-cursor.y, -cursor.x);
-  }, [cursor]);
 
   if (!cursor) return null;
   if (
@@ -52,8 +35,57 @@ export default function FissionAimArrow({ cursor }: Props) {
   ) {
     return null;
   }
-  const cursorDist = Math.hypot(cursor.x, cursor.y);
-  if (cursorDist < 0.02) return null;
 
-  return <mesh ref={meshRef} geometry={geometry} material={material} />;
+  const cursorDist = Math.hypot(cursor.x, cursor.y);
+  if (cursorDist < 0.05) return null;
+
+  // World → screen. Camera centre is the viewport centre; world y
+  // points up while screen y points down.
+  const screenX = viewport.w / 2 + cursor.x * ZOOM;
+  const screenY = viewport.h / 2 - cursor.y * ZOOM;
+
+  // Angle of the line from cursor toward origin, in screen space.
+  // World direction is (-x, -y); screen y flips, so screen direction
+  // is (-x, +y) → atan2(y, -x).
+  const dirAngle = Math.atan2(cursor.y, -cursor.x);
+  const angleDeg = (dirAngle * 180) / Math.PI;
+
+  const tipX = screenX + Math.cos(dirAngle) * LINE_LENGTH_PX;
+  const tipY = screenY + Math.sin(dirAngle) * LINE_LENGTH_PX;
+
+  return (
+    <div
+      className="absolute inset-0 pointer-events-none z-20"
+      aria-hidden="true"
+    >
+      {/* Line */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${screenX}px`,
+          top: `${screenY}px`,
+          width: `${LINE_LENGTH_PX}px`,
+          height: '2px',
+          background: 'rgba(236, 231, 223, 0.55)',
+          transformOrigin: '0 50%',
+          transform: `rotate(${angleDeg}deg)`,
+        }}
+      />
+      {/* Tip - CSS triangle, rotated to match line direction */}
+      <div
+        style={{
+          position: 'absolute',
+          left: `${tipX}px`,
+          top: `${tipY}px`,
+          width: 0,
+          height: 0,
+          borderTop: `${TIP_SIZE_PX / 2}px solid transparent`,
+          borderBottom: `${TIP_SIZE_PX / 2}px solid transparent`,
+          borderLeft: `${TIP_SIZE_PX}px solid rgba(236, 231, 223, 0.7)`,
+          transformOrigin: '0 50%',
+          transform: `translateY(-${TIP_SIZE_PX / 2}px) rotate(${angleDeg}deg)`,
+        }}
+      />
+    </div>
+  );
 }

@@ -6,6 +6,7 @@ import FissionEnergyCounter from '@/components/FissionEnergyCounter';
 import FissionNeutronSpeedSlider from '@/components/FissionNeutronSpeedSlider';
 import FissionEnrichmentSlider from '@/components/FissionEnrichmentSlider';
 import FissionFpsOverlay from '@/components/FissionFpsOverlay';
+import FissionAimArrow from '@/components/FissionAimArrow';
 
 const TITLE = 'Fission, observed - The Nuclear Question';
 const ROOM_BG = '#0A0A0A';
@@ -134,6 +135,11 @@ export default function Fission() {
         <p>Click anywhere on the form to inject a neutron.</p>
         <p>Slow the neutron with the moderator to see chains run away.</p>
       </div>
+
+      {/* DOM aim indicator sits above the canvas at z-20 so the
+          bloom pipeline can't touch it. Reads cursor world coords
+          from the cursor bus rather than React prop-drilling. */}
+      <FissionAimArrow />
 
       {!quality && <FissionQualityGate onSelect={setQuality} />}
 

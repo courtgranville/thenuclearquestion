@@ -26,12 +26,11 @@ export const TUNING = {
   FISSION_PROB_FAST: 0.04,
   FISSION_PROB_SLOW: 0.92,
 
-  // Direct-hit radius. Near-miss radius is wider: particles passing
-  // close to a neutron get kicked along its velocity even without a
-  // direct hit, creating the "particles deflect in the neutron's
-  // wake" effect.
-  NEUTRON_HIT_RADIUS: 0.005,
-  NEUTRON_NEAR_MISS_RADIUS: 0.025,
+  // Direct-hit radius slightly widened in Phase 7 for more reliable
+  // hits. Near-miss radius widened ~3x so the visible wake of
+  // deflected particles is unmistakable.
+  NEUTRON_HIT_RADIUS: 0.008,
+  NEUTRON_NEAR_MISS_RADIUS: 0.07,
   NEUTRON_LIFE_MS: 1400,
   NEUTRONS_BASE: 1,
   MAX_LIVE_NEUTRONS: 80,
@@ -39,15 +38,18 @@ export const TUNING = {
   // Energy (Phase 10 will format this).
   ENERGY_PER_FISSION_MEV: 200,
 
-  // Release kick at the moment of fission.
-  RELEASE_KICK_SPEED: 0.5,
+  // Release kick at the moment of fission. Phase 7 raised this 5x
+  // so released particles fly outward dramatically; at supercritical,
+  // the form should visibly explode.
+  RELEASE_KICK_SPEED: 2.5,
 
   // Kinetic punch radius + strength. Each fission pushes nearby
   // bound particles outward, replacing the discrete burst-ring
   // outline of 6.2 with disruption made of the same particle
-  // material as the cloud.
-  FISSION_PUNCH_RADIUS: 0.04,
-  FISSION_PUNCH_STRENGTH: 1.2,
+  // material as the cloud. Phase 7 enlarged radius 2.5x and
+  // strengthened 3x.
+  FISSION_PUNCH_RADIUS: 0.1,
+  FISSION_PUNCH_STRENGTH: 4.0,
 
   // After this idle period (no live excited, no live neutrons), spent
   // flags reset silently so the next click starts fresh.
@@ -70,13 +72,16 @@ export const TUNING = {
 // the brief's cinematic baseline. Vignette is cheap and stays on at
 // every quality - it's part of the room's photographic register, not
 // an opt-in effect.
+//
+// Multi-nucleus was originally planned for Phase 9 but has been
+// dropped from scope: one large central form, made dramatic via
+// scale and visual fidelity, is the experience.
 export const QUALITY: Record<
   Quality,
   {
     particleScale: number;
     pixelRatio: number;
     maxNeutrons: number;
-    multiNucleus: boolean;
     pointSize: number;
     postfx: {
       bloom: {
@@ -94,8 +99,7 @@ export const QUALITY: Record<
     particleScale: 0.33,
     pixelRatio: 1.0,
     maxNeutrons: 150,
-    multiNucleus: false,
-    pointSize: 3.2,
+    pointSize: 4.5,
     postfx: {
       bloom: {
         enabled: true,
@@ -111,8 +115,7 @@ export const QUALITY: Record<
     particleScale: 0.66,
     pixelRatio: 1.5,
     maxNeutrons: 350,
-    multiNucleus: true,
-    pointSize: 2.5,
+    pointSize: 3.5,
     postfx: {
       bloom: {
         enabled: true,
@@ -128,8 +131,7 @@ export const QUALITY: Record<
     particleScale: 1.0,
     pixelRatio: 2.0,
     maxNeutrons: 600,
-    multiNucleus: true,
-    pointSize: 2.0,
+    pointSize: 3.0,
     postfx: {
       bloom: {
         enabled: true,

@@ -67,16 +67,22 @@ void main() {
   float alpha = smoothstep(0.5, 0.0, r);
   alpha = pow(alpha, 1.7);
 
-  // Thermal gradient: cream → ochre at 0.5 → red at 1.0.
+  // Thermal gradient: cream → ochre at 0.5 → red at 0.85 → white-hot
+  // at peak. The fourth stop (whiteHot) deliberately exceeds 1.0 so
+  // bloom lifts it into a bright halo - the "flash" at the moment of
+  // fission.
   vec3 color;
   if (vHeat < 0.5) {
     color = mix(uColorCold, uColorWarm, vHeat * 2.0);
+  } else if (vHeat < 0.85) {
+    color = mix(uColorWarm, uColorHot, (vHeat - 0.5) / 0.35);
   } else {
-    color = mix(uColorWarm, uColorHot, (vHeat - 0.5) * 2.0);
+    vec3 whiteHot = vec3(1.4, 1.2, 1.0);
+    color = mix(uColorHot, whiteHot, (vHeat - 0.85) / 0.15);
   }
 
-  // Hot particles brighter so they pop under bloom.
-  float intensity = 0.55 + vHeat * 0.7;
+  // Boost peak brightness so the white-hot moment really pops.
+  float intensity = 0.55 + vHeat * 1.0;
 
   gl_FragColor = vec4(color * intensity, alpha);
 }

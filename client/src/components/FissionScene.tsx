@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Canvas, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { type Quality } from '@/lib/fissionTuning';
 import type { FissionEngine } from '@/lib/fissionEngine';
+import { setCursorWorld } from '@/lib/fissionCursorBus';
 import FissionParticles from './FissionParticles';
 import FissionNeutrons from './FissionNeutrons';
-import FissionAimArrow from './FissionAimArrow';
 import FissionFlash, { spawnFlash } from './FissionFlash';
 import FissionPostFx from './FissionPostFx';
 
@@ -14,28 +14,20 @@ type Props = {
   quality: Quality;
 };
 
-type CursorState = { x: number; y: number } | null;
-
 // Invisible quad behind the particles. Tracks pointer movement so the
 // aim arrow follows the cursor. On click, computes which screen edge
 // the click points away from and fires a neutron from that edge
 // inward toward the form's centre.
-function CursorPlane({
-  engine,
-  setCursor,
-}: {
-  engine: FissionEngine;
-  setCursor: (c: CursorState) => void;
-}) {
+function CursorPlane({ engine }: { engine: FissionEngine }) {
   return (
     <mesh
       onPointerMove={(e: ThreeEvent<PointerEvent>) => {
         engine.setCursor(e.point.x, e.point.y);
-        setCursor({ x: e.point.x, y: e.point.y });
+        setCursorWorld({ x: e.point.x, y: e.point.y });
       }}
       onPointerOut={() => {
         engine.setCursor(null, null);
-        setCursor(null);
+        setCursorWorld(null);
       }}
       onClick={(e: ThreeEvent<MouseEvent>) => {
         const cx = e.point.x;
@@ -108,12 +100,10 @@ function TestCascadeTrigger({ engine }: { engine: FissionEngine }) {
 }
 
 export default function FissionScene({ engine, quality }: Props) {
-  const [cursor, setCursor] = useState<CursorState>(null);
-
   return (
     <Canvas
       orthographic
-      camera={{ zoom: 220, position: [0, 0, 10], near: 0.1, far: 100 }}
+      camera={{ zoom: 320, position: [0, 0, 10], near: 0.1, far: 100 }}
       gl={{
         antialias: false,
         alpha: false,
@@ -124,10 +114,9 @@ export default function FissionScene({ engine, quality }: Props) {
       style={{ position: 'absolute', inset: 0 }}
     >
       <color attach="background" args={['#0A0A0A']} />
-      <CursorPlane engine={engine} setCursor={setCursor} />
+      <CursorPlane engine={engine} />
       <FissionParticles engine={engine} quality={quality} />
       <FissionNeutrons engine={engine} />
-      <FissionAimArrow cursor={cursor} />
       <FissionFlash />
       <FissionPostFx quality={quality} />
       <TestCascadeTrigger engine={engine} />

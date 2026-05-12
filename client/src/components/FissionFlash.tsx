@@ -30,7 +30,9 @@ const FLASH_PARAMS: Record<
   FlashKind,
   { radius: number; durationMs: number; opacityStart: number; scaleEnd: number }
 > = {
-  click: { radius: 0.05, durationMs: 600, opacityStart: 1.0, scaleEnd: 1.6 },
+  // Click flash: small + brief subtle confirmation that the user's
+  // click landed. Doesn't compete with the arriving neutron.
+  click: { radius: 0.015, durationMs: 250, opacityStart: 0.5, scaleEnd: 2.0 },
   fission: { radius: 0.08, durationMs: 500, opacityStart: 1.0, scaleEnd: 2.0 },
 };
 
