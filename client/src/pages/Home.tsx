@@ -4,6 +4,7 @@ import { Link } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
+import FissionEntrance from '@/components/FissionEntrance';
 import IntroAnimation from '@/components/IntroAnimation';
 import ScrollProgress from '@/components/ScrollProgress';
 import PageTransition from '@/components/PageTransition';
@@ -160,6 +161,8 @@ export default function Home() {
             </div>
           </section>
         </main>
+
+        <FissionEntrance />
       </PageTransition>
 
       <SiteFooter />
