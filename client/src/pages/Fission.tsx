@@ -7,6 +7,8 @@ import FissionNeutronSpeedSlider from '@/components/FissionNeutronSpeedSlider';
 import FissionEnrichmentSlider from '@/components/FissionEnrichmentSlider';
 import FissionFpsOverlay from '@/components/FissionFpsOverlay';
 import FissionAimArrow from '@/components/FissionAimArrow';
+import FissionResetButton from '@/components/FissionResetButton';
+import type { FissionEngine } from '@/lib/fissionEngine';
 
 const TITLE = 'Fission, observed - The Nuclear Question';
 const ROOM_BG = '#0A0A0A';
@@ -38,6 +40,9 @@ export default function Fission() {
   );
   const [formPoints, setFormPoints] = useState<FormPoints | null>(null);
   const [displayEnergy, setDisplayEnergy] = useState(0);
+  // Engine reference handed back from FissionRoom once it's created;
+  // used to wire the page-level Reset button to engine.softReset.
+  const [engine, setEngine] = useState<FissionEngine | null>(null);
 
   useEffect(() => {
     const previous = document.title;
@@ -100,6 +105,7 @@ export default function Fission() {
           neutronSpeed={neutronSpeed}
           enrichment={enrichment}
           onEnergyChange={setDisplayEnergy}
+          onEngineReady={setEngine}
         />
       )}
 
@@ -107,7 +113,11 @@ export default function Fission() {
         //07 - Fission, observed
       </div>
 
-      <FissionReturn />
+      {/* Top-right cluster: Reset (when engine ready) + Return. */}
+      <div className="pointer-events-none absolute top-6 right-4 md:right-6 z-40 flex gap-6 items-center">
+        {engine && <FissionResetButton engine={engine} />}
+        <FissionReturn />
+      </div>
 
       <div className="pointer-events-none hidden md:block absolute bottom-8 left-8 z-30">
         <FissionEnergyCounter energyMeV={displayEnergy} />

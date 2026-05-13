@@ -24,20 +24,28 @@ export const TUNING = {
   FISSION_PROB_FAST: 0.04,
   FISSION_PROB_SLOW: 0.92,
 
-  // Phase 7.2: walked HIT_RADIUS back from 7.1's 0.014. 0.010
-  // proved too far (both regimes went sub-critical), 0.011 is the
-  // sweet spot found empirically: reactor regime stays in single
-  // digits, bomb regime sustains a visible chain. NEUTRONS_BASE
-  // stays at 2 - the two-emission margin is what keeps the bomb
-  // regime alive at high enrichment.
+  // Visual "the neutron grazed this particle" radius - kinetic push
+  // happens within this radius but the fission roll itself uses the
+  // smaller NEUTRON_FISSION_RADIUS below. Splitting the two lets us
+  // keep a wide visible wake while shrinking the fission encounter
+  // count to where enrichment controls criticality linearly.
   NEUTRON_HIT_RADIUS: 0.011,
+  // The fission roll only fires against particles within this much
+  // tighter inner disc. Per-neutron lifetime hit probability is now
+  // ~6 expected encounters (was ~145), so enrichment × fission-prob
+  // produces a meaningful sub→super critical sweep across the slider.
+  NEUTRON_FISSION_RADIUS: 0.0025,
   NEUTRON_NEAR_MISS_RADIUS: 0.07,
-  // Phase 7.4 final tuning: NEUTRON_LIFE_MS value picked against
-  // representative test cascade (dense-band seed). See deviations
-  // for the empirical walk; this is the value that lands the bomb
-  // regime in the 100-500 fissions band.
+  // Click neutrons live for 900 ms - long enough to traverse the
+  // screen visibly at slow speed. injectNeutron's default.
   NEUTRON_LIFE_MS: 900,
-  NEUTRONS_BASE: 2,
+  // Cascade neutrons live ~80 ms and travel ~0.064 wu. They're
+  // physics-only, not visual-flight: just enough range to find a
+  // neighbouring fissile target or expire. Keeps chain growth
+  // linear in enrichment rather than saturating at any non-trivial
+  // enrichment.
+  CASCADE_NEUTRON_LIFE_MS: 80,
+  CASCADE_NEUTRON_SPEED: 0.8,
   MAX_LIVE_NEUTRONS: 80,
 
   // Energy (Phase 10 will format this).

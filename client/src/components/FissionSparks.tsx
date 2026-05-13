@@ -60,16 +60,30 @@ export function spawnClickSparks(x: number, y: number): void {
   }
 }
 
-export function spawnFissionSparks(x: number, y: number): void {
-  // 14-18 warm-coloured sparks erupting outward from a fission point.
-  // Colour spans white-yellow (hot embers) through deep orange/red
-  // (cooler), so a single fission reads as a recognisable spectrum
-  // rather than a uniform flash.
-  const count = 14 + Math.floor(Math.random() * 5);
+export function spawnFissionSparks(
+  x: number,
+  y: number,
+  enrichment: number = 0.05,
+): void {
+  // Phase 11: spark count + speed + colour all scale with enrichment.
+  //   Low (3%): small warm burst, yellow/orange only - reads as
+  //     "energy generation".
+  //   Mid (30%): wider burst, yellow through orange-red.
+  //   High (90%): aggressive burst, includes white-yellow at the
+  //     hot end - reads as "explosion".
+  const baseCount = 6 + Math.floor(enrichment * 18); // 6 → 24
+  const count = baseCount + Math.floor(Math.random() * 4);
+
   for (let i = 0; i < count; i++) {
     const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6;
-    const speed = 0.8 + Math.random() * 1.4;
+    const speed = (0.6 + Math.random() * 1.2) * (1 + enrichment * 0.8);
     const t = Math.random();
+    // Per-spark "hotness" roll - probability of hot colour scales
+    // with enrichment. Low enrichment → no hot sparks at all.
+    const isHot = Math.random() < enrichment * 0.6;
+    const colorR = 1.0;
+    const colorG = isHot ? 0.85 + t * 0.15 : 0.55 + t * 0.3;
+    const colorB = isHot ? 0.45 + t * 0.4 : 0.1 + t * 0.2;
     pushSpark({
       id: ++sparkId,
       x,
@@ -77,12 +91,12 @@ export function spawnFissionSparks(x: number, y: number): void {
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       bornAt: performance.now(),
-      lifeMs: 700 + Math.random() * 500,
+      lifeMs: 600 + Math.random() * (500 + enrichment * 400),
       kind: 'fission',
-      colorR: 1.0,
-      colorG: 0.55 + t * 0.4,
-      colorB: 0.15 + t * 0.35,
-      size: 5 + Math.random() * 4,
+      colorR,
+      colorG,
+      colorB,
+      size: 4 + Math.random() * 4,
     });
   }
 }

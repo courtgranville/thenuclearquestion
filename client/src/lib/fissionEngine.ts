@@ -138,11 +138,6 @@ export class FissionEngine {
   // re-excited until resetSpent runs (either via the idle auto-reset
   // or an explicit engine.reset() call).
   private readonly spent: Uint8Array;
-  // 1 = this particle's nucleus is fissile (rolled on enrichment
-  // change). Non-fissile particles get pushed by neutron collisions
-  // but don't fission. Re-rolled by setEnrichmentLevel(); about
-  // `enrichmentLevel` fraction of the cloud is fissile at any time.
-  private readonly fissile: Uint8Array;
   // Spatial hash over current particle positions. Rebuilt per frame
   // for neutron-particle collision queries.
   private readonly grid: SpatialGrid;
@@ -216,7 +211,6 @@ export class FissionEngine {
     this.excitedSince = new Float64Array(n);
     this.releasedSince = new Float64Array(n);
     this.spent = new Uint8Array(n);
-    this.fissile = new Uint8Array(n);
 
     for (let i = 0; i < n; i++) {
       const x = opts.points[i * 2];
@@ -229,8 +223,6 @@ export class FissionEngine {
       this.phases[i] = Math.random() * Math.PI * 2;
       this.states[i] = STATE_BOUND;
     }
-
-    this.applyEnrichment();
 
     this.grid = new SpatialGrid(TUNING.NEUTRON_NEAR_MISS_RADIUS);
 
@@ -248,14 +240,10 @@ export class FissionEngine {
     }
   }
 
-  // Re-roll the fissile flags across the cloud. About `enrichmentLevel`
-  // fraction of particles will be fissile after the call. Called from
-  // the constructor and whenever the enrichment slider changes.
-  private applyEnrichment(): void {
-    for (let i = 0; i < this.count; i++) {
-      this.fissile[i] = Math.random() < this.enrichmentLevel ? 1 : 0;
-    }
-  }
+  // Phase 11 dropped the fissile flag array: enrichment now scales
+  // the fission probability per encounter directly, which gives a
+  // smooth sub→super critical sweep across the slider rather than
+  // the binary fissile-or-not split.
 
   // ─── Inputs ────────────────────────────────────────────────────
 
@@ -303,12 +291,17 @@ export class FissionEngine {
     this._neutronSpeedRatio = Math.max(0, Math.min(1, r));
   }
 
-  // Re-roll fissile flags at the new enrichment level. Different
-  // slider position, different sample - so clicking after moving the
-  // slider produces a different cloud, not the same one.
+  // Update the enrichment scalar. Phase 11: this used to re-roll a
+  // per-particle fissile flag; now it's just a probability scaler
+  // consulted at each neutron-particle encounter.
   setEnrichmentLevel(level: number): void {
     this.enrichmentLevel = Math.max(0, Math.min(1, level));
-    this.applyEnrichment();
+  }
+
+  // Public getter so the renderer can drive enrichment-aware visuals
+  // (heat clamp in the shader, spark palette).
+  get enrichment(): number {
+    return this.enrichmentLevel;
   }
 
   // Unused after Phase 6.3 - click handler now fires neutron
@@ -424,6 +417,36 @@ export class FissionEngine {
     this.idleMs = 0;
   }
 
+  // Soft reset wired to the Reset button. Gracefully ends any
+  // in-progress cascade and returns the form to baseline via the
+  // existing recohere transition - particles smoothly spring back
+  // to rest over ~2 seconds rather than snapping. Energy, stats,
+  // spent flags all cleared so the room behaves as if just opened.
+  softReset(): void {
+    for (let i = 0; i < this.neutrons.length; i++) {
+      if (this.neutrons[i].alive) {
+        this.neutrons[i].alive = false;
+      }
+    }
+    this.liveNeutrons = 0;
+
+    for (let i = 0; i < this.count; i++) {
+      if (this.states[i] !== STATE_BOUND) {
+        this.states[i] = STATE_RECOHERING;
+      }
+    }
+    this.liveExcited = 0;
+
+    this.resetSpent();
+    this.energyMeV = 0;
+    this.statsTotalFissions = 0;
+    this.statsTotalNeutronsFired = 0;
+    this.statsTotalHits = 0;
+    this.statsCascadeStartMs = 0;
+    this.wasIdleSinceLastInject = true;
+    this.idleMs = 0;
+  }
+
   // ─── Tick ──────────────────────────────────────────────────────
 
   step(dtMs: number): void {
@@ -470,10 +493,11 @@ export class FissionEngine {
       this.grid.insert(p, this.positions[p * 3], this.positions[p * 3 + 1]);
     }
 
+    const fissionR2 =
+      TUNING.NEUTRON_FISSION_RADIUS * TUNING.NEUTRON_FISSION_RADIUS;
     const radius2 = TUNING.NEUTRON_HIT_RADIUS * TUNING.NEUTRON_HIT_RADIUS;
     const nearMissRadius2 =
       TUNING.NEUTRON_NEAR_MISS_RADIUS * TUNING.NEUTRON_NEAR_MISS_RADIUS;
-    const fissionP = this.currentFissionProbability;
 
     for (let i = 0; i < this.neutrons.length; i++) {
       const n = this.neutrons[i];
@@ -495,11 +519,16 @@ export class FissionEngine {
         continue;
       }
 
-      // Two-tier neutron-particle interaction. The grid hands us
-      // local candidates within near-miss radius; we filter by exact
-      // distance into direct-hit vs near-miss branches.
+      // Three-zone neutron-particle interaction (Phase 11). From
+      // tightest to widest:
+      //   - fissionR (inner disc): roll for fission with prob
+      //     scaled by both neutron speed and enrichment slider.
+      //   - hitR: kinetic push only (no fission attempt).
+      //   - nearMissR: gentler wake push, quadratic falloff.
       const speedMag = Math.hypot(n.vx, n.vy);
       const speedFactor = speedMag / TUNING.NEUTRON_SPEED_FAST;
+      const perEncounterFissionProb =
+        this.currentFissionProbability * this.enrichmentLevel;
       let neutronConsumed = false;
       this.grid.query(n.x, n.y, TUNING.NEUTRON_NEAR_MISS_RADIUS, this.candidates);
       for (let c = 0; c < this.candidates.length; c++) {
@@ -512,9 +541,9 @@ export class FissionEngine {
         const dx = this.positions[p * 3] - n.x;
         const dy = this.positions[p * 3 + 1] - n.y;
         const d2 = dx * dx + dy * dy;
-        if (d2 < radius2) {
-          const isFissile = this.fissile[p] === 1;
-          if (isFissile && Math.random() < fissionP) {
+        if (d2 < fissionR2) {
+          // Tightest zone: attempt fission roll.
+          if (Math.random() < perEncounterFissionProb) {
             n.alive = false;
             this.liveNeutrons--;
             this.statsTotalHits++;
@@ -524,19 +553,20 @@ export class FissionEngine {
             neutronConsumed = true;
             break;
           } else {
-            // No fission - push the particle along the neutron's
-            // velocity. Neutron continues through. Phase 7 raised
-            // coefficient 0.4 → 1.0 so the wake is visibly stronger.
+            // Roll failed - kinetic push, neutron continues.
             const kick = 1.0 * speedFactor;
             this.velocities[p * 2] += n.vx * kick;
             this.velocities[p * 2 + 1] += n.vy * kick;
           }
+        } else if (d2 < radius2) {
+          // Mid zone: kinetic push only, no fission attempt.
+          const kick = 1.0 * speedFactor;
+          this.velocities[p * 2] += n.vx * kick;
+          this.velocities[p * 2 + 1] += n.vy * kick;
         } else if (d2 < nearMissRadius2) {
+          // Outer zone: gentle wake push, quadratic falloff.
           const d = Math.sqrt(d2);
           const closeness = 1 - d / TUNING.NEUTRON_NEAR_MISS_RADIUS;
-          // Phase 7 raised coefficient 0.15 → 0.4. Combined with the
-          // wider NEAR_MISS_RADIUS, particles part visibly as the
-          // neutron passes.
           const kick = 0.4 * closeness * closeness * speedFactor;
           const norm = d || 0.0001;
           this.velocities[p * 2] += (dx / norm) * kick;
@@ -556,16 +586,23 @@ export class FissionEngine {
       const rx = this.rests[i * 2];
       const ry = this.rests[i * 2 + 1];
 
-      // 1) Spawn NEUTRONS_BASE neutrons at the engine's current
-      // neutron speed (driven by the slider). At default 1 per
-      // fission; with FISSION_PROB now driving criticality, count
-      // stays constant rather than scaling with the slider.
-      const speed = this.currentNeutronSpeed;
-      for (let k = 0; k < TUNING.NEUTRONS_BASE; k++) {
+      // 1) Spawn cascade neutrons. Each fission emits 1 neutron
+      // always; a second neutron's emission probability scales
+      // from ~0 at 5% enrichment to ~1 at 55% enrichment and above.
+      // This produces sub-critical chains at reactor enrichment
+      // (multiplier < 1) and supercritical chains at weapons-grade.
+      // Cascade neutrons use a tight ~80 ms lifetime so they're
+      // physics-only, not the visual flight click neutrons get.
+      const extraProb = Math.max(
+        0,
+        Math.min(1, (this.enrichmentLevel - 0.05) * 2),
+      );
+      const nNeutrons = 1 + (Math.random() < extraProb ? 1 : 0);
+      for (let k = 0; k < nNeutrons; k++) {
         const angle = Math.random() * Math.PI * 2;
-        const vx = Math.cos(angle) * speed;
-        const vy = Math.sin(angle) * speed;
-        this.injectNeutron(rx, ry, vx, vy);
+        const vx = Math.cos(angle) * TUNING.CASCADE_NEUTRON_SPEED;
+        const vy = Math.sin(angle) * TUNING.CASCADE_NEUTRON_SPEED;
+        this.injectNeutron(rx, ry, vx, vy, TUNING.CASCADE_NEUTRON_LIFE_MS);
       }
 
       // 2) Energy ledger.
@@ -581,7 +618,7 @@ export class FissionEngine {
       // the fission site (drained by FissionSparks) plus a kinetic
       // punch on every nearby bound particle so the neighbourhood
       // visibly recoils.
-      spawnFissionSparks(rx, ry);
+      spawnFissionSparks(rx, ry, this.enrichmentLevel);
       const punchR = TUNING.FISSION_PUNCH_RADIUS;
       const punchR2 = punchR * punchR;
       for (let q = 0; q < this.count; q++) {

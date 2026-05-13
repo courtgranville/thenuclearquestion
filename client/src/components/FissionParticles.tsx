@@ -38,6 +38,9 @@ function buildBundle(engine: FissionEngine, quality: Quality): Bundle {
       uColorCold: { value: new THREE.Color(0xECE7DF) },
       uColorWarm: { value: new THREE.Color(0xB5822E) },
       uColorHot: { value: new THREE.Color(0xA51E22) },
+      // Phase 11: drives the shader's peak-heat clamp so low-
+      // enrichment reactions read as warm yellow only.
+      uEnrichment: { value: 0.05 },
     },
     transparent: true,
     depthTest: false,
@@ -62,6 +65,7 @@ export default function FissionParticles({ engine, quality }: Props) {
   useFrame((state, dt) => {
     engine.step(dt * 1000);
     bundle.material.uniforms.uTime.value = state.clock.elapsedTime;
+    bundle.material.uniforms.uEnrichment.value = engine.enrichment;
     bundle.geometry.attributes.position.needsUpdate = true;
     bundle.geometry.attributes.aHeat.needsUpdate = true;
   });

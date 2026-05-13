@@ -28,12 +28,11 @@ void main() {
   // Breathing - subtle low-frequency size modulation.
   float breath = 0.92 + 0.08 * sin(uTime * 0.6 + aPhase);
 
-  // Heat-driven size: cool particles stay near base, hot particles
-  // grow significantly larger. A spike near peak heat (aHeat > 0.85)
-  // adds a sharp punch at the moment of fission so the eye catches
-  // each event as a discrete beat.
-  float heatBonus = 1.0 + aHeat * 2.5;
-  float spike = smoothstep(0.85, 1.0, aHeat) * 2.0;
+  // Heat-driven size. Phase 11 toned the heat bonus 2.5 → 1.5 and
+  // the peak spike 2.0 → 0.5 so peaked particles read as bright
+  // points rather than 30-40 px bloomed orbs.
+  float heatBonus = 1.0 + aHeat * 1.5;
+  float spike = smoothstep(0.85, 1.0, aHeat) * 0.5;
   heatBonus += spike;
 
   gl_PointSize = uPointSize * breath * heatBonus;
@@ -56,6 +55,7 @@ varying float vHeat;
 uniform vec3 uColorCold;       // cream  #ECE7DF - at-rest baseline
 uniform vec3 uColorWarm;       // ochre  #B5822E - warming up
 uniform vec3 uColorHot;        // red    #A51E22 - peak fission heat
+uniform float uEnrichment;     // 0..1 - drives the peak heat cap
 
 void main() {
   // gl_PointCoord is [0,1]^2 over the point sprite.
@@ -67,26 +67,30 @@ void main() {
   float alpha = smoothstep(0.5, 0.0, r);
   alpha = pow(alpha, 1.7);
 
-  // Thermal gradient: cream → ochre at 0.5 → red at 0.85 → white-hot
-  // at peak. The fourth stop (whiteHot) deliberately exceeds 1.0 so
-  // bloom lifts it into a bright halo - the "flash" at the moment of
-  // fission.
+  // Phase 11 - clamp the visible peak based on enrichment so the
+  // colour signal distinguishes reactor from weapons regime
+  // without the user reading the slider. At 3% enrichment the
+  // peak caps at warm yellow (no aggressive reds or whites); at
+  // 90% the full white-hot peak is reached.
+  float maxHeat = 0.4 + uEnrichment * 0.6;
+  float visibleHeat = min(vHeat, maxHeat);
+
+  // Thermal gradient: cream → ochre at 0.5 → red at 0.85 → toned
+  // yellow-white at peak. Peak colour 0.95/0.85/0.55 stays below
+  // 1.0 so bloom amplifies it proportionally rather than producing
+  // the distinct ball-shaped halos Phase 7.x had.
   vec3 color;
-  if (vHeat < 0.5) {
-    color = mix(uColorCold, uColorWarm, vHeat * 2.0);
-  } else if (vHeat < 0.85) {
-    color = mix(uColorWarm, uColorHot, (vHeat - 0.5) / 0.35);
+  if (visibleHeat < 0.5) {
+    color = mix(uColorCold, uColorWarm, visibleHeat * 2.0);
+  } else if (visibleHeat < 0.85) {
+    color = mix(uColorWarm, uColorHot, (visibleHeat - 0.5) / 0.35);
   } else {
-    // Peak: lerp toward yellow-white, not over-saturated white. The
-    // earlier (1.4, 1.2, 1.0) value blew out under bloom and turned
-    // the supercritical form into a featureless white blob.
-    vec3 whiteHot = vec3(1.15, 1.05, 0.75);
-    color = mix(uColorHot, whiteHot, (vHeat - 0.85) / 0.15);
+    vec3 peakColor = vec3(0.95, 0.85, 0.55);
+    color = mix(uColorHot, peakColor, (visibleHeat - 0.85) / 0.15);
   }
 
-  // Intensity boost reduced 1.0 → 0.65 for the same reason - lets
-  // bloom amplify the peak without saturating.
-  float intensity = 0.55 + vHeat * 0.65;
+  // Intensity ramp 0.65 → 0.45 to match the more restrained peak.
+  float intensity = 0.55 + visibleHeat * 0.45;
 
   gl_FragColor = vec4(color * intensity, alpha);
 }

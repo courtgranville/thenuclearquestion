@@ -1,9 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { QUALITY, type Quality } from '@/lib/fissionTuning';
 import { useFissionEngine } from '@/lib/useFissionEngine';
+import type { FissionEngine } from '@/lib/fissionEngine';
 import { enrichmentFromSliderValue } from './FissionEnrichmentSlider';
 import FissionScene from './FissionScene';
 import FissionCascadeStatsOverlay from './FissionCascadeStatsOverlay';
+import FissionNeutronHeads from './FissionNeutronHeads';
 
 export type FormPoints = {
   count: number;
@@ -23,6 +25,7 @@ type Props = {
   neutronSpeed: number;
   enrichment: number;
   onEnergyChange: (mev: number) => void;
+  onEngineReady: (engine: FissionEngine) => void;
 };
 
 function thinPoints(
@@ -45,13 +48,16 @@ function thinPoints(
 // Owns the engine. Mirrors both slider values into the engine each
 // time they change. Polls engine.energyMeV at 4 Hz and bubbles it
 // back so the energy counter overlay stays React-stateful without
-// React touching the engine's mutable arrays.
+// React touching the engine's mutable arrays. Phase 11 also exposes
+// the engine reference back to the parent so the page-level reset
+// button can call softReset().
 export default function FissionRoom({
   formPoints,
   quality,
   neutronSpeed,
   enrichment,
   onEnergyChange,
+  onEngineReady,
 }: Props) {
   const { points, count } = useMemo(
     () => thinPoints(formPoints, quality),
@@ -59,6 +65,11 @@ export default function FissionRoom({
   );
 
   const engine = useFissionEngine({ points, count, quality });
+
+  // Hand the engine reference back to the page once it's created.
+  useEffect(() => {
+    onEngineReady(engine);
+  }, [engine, onEngineReady]);
 
   // Mirror neutron-speed slider into the engine.
   useEffect(() => {
@@ -81,6 +92,7 @@ export default function FissionRoom({
   return (
     <>
       <FissionScene engine={engine} quality={quality} />
+      <FissionNeutronHeads engine={engine} />
       <FissionCascadeStatsOverlay engine={engine} />
     </>
   );
