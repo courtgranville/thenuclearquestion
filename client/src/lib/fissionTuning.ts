@@ -31,20 +31,25 @@ export const TUNING = {
   // count to where enrichment controls criticality linearly.
   NEUTRON_HIT_RADIUS: 0.011,
   // The fission roll only fires against particles within this much
-  // tighter inner disc. Per-neutron lifetime hit probability is now
-  // ~6 expected encounters (was ~145), so enrichment × fission-prob
-  // produces a meaningful sub→super critical sweep across the slider.
-  NEUTRON_FISSION_RADIUS: 0.0025,
+  // tighter inner disc. Phase 11.1 bumped 0.0025 → 0.005 - the 4×
+  // sweep area absorbs the path-traced form's geometric variance
+  // so click neutrons cross dense edge regions reliably regardless
+  // of trajectory. Without this, hit rates at high enrichment
+  // collapsed to ~17% because trajectories through the form's
+  // internal voids hit no fissile target.
+  NEUTRON_FISSION_RADIUS: 0.005,
   NEUTRON_NEAR_MISS_RADIUS: 0.07,
   // Click neutrons live for 900 ms - long enough to traverse the
   // screen visibly at slow speed. injectNeutron's default.
   NEUTRON_LIFE_MS: 900,
-  // Cascade neutrons live ~80 ms and travel ~0.064 wu. They're
-  // physics-only, not visual-flight: just enough range to find a
-  // neighbouring fissile target or expire. Keeps chain growth
-  // linear in enrichment rather than saturating at any non-trivial
-  // enrichment.
-  CASCADE_NEUTRON_LIFE_MS: 80,
+  // Cascade neutrons live ~120 ms and travel ~0.096 wu. Phase 11.1
+  // bumped 80 → 120 because at 80 ms cascade neutrons only travel
+  // 0.064 wu - too short to reliably reach a neighbouring fissile
+  // particle after the parent goes spent. This is the dominant
+  // factor in whether chains propagate at supercritical enrichment;
+  // 120 ms still keeps chain growth linear in enrichment rather
+  // than saturating.
+  CASCADE_NEUTRON_LIFE_MS: 120,
   CASCADE_NEUTRON_SPEED: 0.8,
   MAX_LIVE_NEUTRONS: 80,
 
