@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -5,6 +6,11 @@ import ScrollProgress from "@/components/ScrollProgress";
 import PageTransition from "@/components/PageTransition";
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
+
+const EMAIL_USER = "court";
+const EMAIL_HOST = "courtgranville";
+const EMAIL_TLD = "com";
+const buildEmail = () => `${EMAIL_USER}@${EMAIL_HOST}.${EMAIL_TLD}`;
 
 /*
   DESIGN: Editorial Archive - Light Scholarly Journal
@@ -25,6 +31,8 @@ const stagger = {
 };
 
 export default function Contact() {
+  const [revealed, setRevealed] = useState(false);
+
   return (
     <div className="min-h-screen bg-background">
       <SiteHeader />
@@ -85,13 +93,25 @@ export default function Contact() {
               </motion.p>
 
               <motion.div variants={fadeUp}>
-                <a
-                  href="mailto:court@courtgranville.com"
-                  className="text-base text-primary hover:text-foreground transition-colors duration-200"
-                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
-                >
-                  court@courtgranville.com
-                </a>
+                {revealed ? (
+                  <a
+                    href={`mailto:${buildEmail()}`}
+                    className="text-base text-primary hover:text-foreground transition-colors duration-200"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
+                  >
+                    {buildEmail()}
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setRevealed(true)}
+                    className="text-base text-primary hover:text-foreground transition-colors duration-200 underline-offset-4 hover:underline cursor-pointer bg-transparent border-0 p-0"
+                    style={{ fontFamily: "'Playfair', Georgia, serif" }}
+                    aria-label="Reveal email address"
+                  >
+                    Click to reveal email address
+                  </button>
+                )}
               </motion.div>
             </motion.div>
           </div>
