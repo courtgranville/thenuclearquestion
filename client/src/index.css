@@ -509,8 +509,8 @@
   transition: color .2s ease, text-decoration-color .2s ease;
 }
 .poster .ttl:hover {
-  color: #217b3d;
-  text-decoration-color: #217b3d;
+  color: #a51e22;
+  text-decoration-color: #a51e22;
 }
 
 /* ── REDUCED-MOTION ───────────────────────────────────────────────────── */

@@ -138,25 +138,21 @@ export default function Home() {
 
           <section className="ribbon-section" id="posters">
             <div className="poster-stack">
-              {posters.map((p, i) => {
-                // First four posters are landscape, last two are portrait.
-                const orient = i < 4 ? 'landscape' : 'portrait';
-                return (
-                  <Link key={p.id} href={`/poster/${p.id}`}>
-                    <article className={`poster ${orient}`}>
-                      <img
-                        src={p.imagePath}
-                        alt={p.title}
-                        loading={i === 0 ? 'eager' : 'lazy'}
-                      />
-                      <div className="caption">
-                        <div className="num">Poster {p.number}</div>
-                        <div className="ttl">{p.title}</div>
-                      </div>
-                    </article>
-                  </Link>
-                );
-              })}
+              {posters.map((p, i) => (
+                <Link key={p.id} href={`/poster/${p.id}`}>
+                  <article className="poster landscape">
+                    <img
+                      src={p.thumbnailPath}
+                      alt={p.title}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                    />
+                    <div className="caption">
+                      <div className="num">Poster {p.number}</div>
+                      <div className="ttl">{p.title}</div>
+                    </div>
+                  </article>
+                </Link>
+              ))}
             </div>
           </section>
 
