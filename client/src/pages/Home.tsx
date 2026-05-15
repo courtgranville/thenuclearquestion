@@ -205,7 +205,7 @@ export default function Home() {
                     className="text-xl md:text-2xl italic text-foreground/85 mb-10"
                     style={{ fontFamily: "'Playfair', Georgia, serif", fontWeight: 400 }}
                   >
-                    The conversation continues - if you want it to.
+                    Want to learn more about the project or get in touch?
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-6 sm:gap-12 items-center justify-center">
