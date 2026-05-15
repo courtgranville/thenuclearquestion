@@ -431,9 +431,14 @@
   background: #fff;
   box-shadow:
     0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent),
-    0 30px 60px -30px color-mix(in oklab, var(--foreground) 18%, transparent);
+    0 4px 12px -4px color-mix(in oklab, var(--foreground) 10%, transparent),
+    0 24px 48px -16px color-mix(in oklab, var(--foreground) 20%, transparent);
   overflow: hidden;
   cursor: pointer;
+  transition:
+    transform .4s cubic-bezier(.2, .8, .2, 1),
+    box-shadow .4s cubic-bezier(.2, .8, .2, 1);
+  will-change: transform;
 }
 .poster.landscape {
   width: min(72vw, 1100px);
@@ -464,6 +469,14 @@
   transition: filter .5s ease;
 }
 .poster:hover img { filter: blur(36px); }
+
+.poster:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 8px 20px -6px color-mix(in oklab, var(--foreground) 12%, transparent),
+    0 40px 80px -20px color-mix(in oklab, var(--foreground) 28%, transparent);
+}
 
 .poster .caption {
   position: absolute;
@@ -517,6 +530,8 @@
 @media (prefers-reduced-motion: reduce) {
   .poster img { transition: none; }
   .poster .caption { transition: opacity .15s linear; }
+  .poster { transition: none; }
+  .poster:hover { transform: none; }
   .iso-switch .thumb { transition: none; }
   .iso-switch button { transition: none; }
 }
