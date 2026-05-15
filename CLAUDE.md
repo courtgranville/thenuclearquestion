@@ -25,6 +25,7 @@ A Vite + React + TypeScript single-page application. Self-hosted on Cloudflare P
   - `Poster006Viz.tsx` + `Poster006WasteInversion.tsx`, `Poster006Sellafield.tsx`, `Poster006RadiationDoses.tsx`, `Poster006WasteStorage.tsx`, `Poster006Legend.tsx`
   - `NucleusHero.tsx`, `IsotopeToggle.tsx`, `IntroAnimation.tsx`, `IsotopeToggle.tsx`
   - `SiteHeader.tsx`, `SiteFooter.tsx`, `PageTransition.tsx`, `ScrollProgress.tsx`, `ErrorBoundary.tsx`
+  - `ContactForm.tsx` - Web3Forms-backed contact form, used on /contact
   - `InteractiveSVG.tsx` — legacy helper, still used by older poster components
 
 - `client/src/lib/` — flat list, no per-poster subfolders
@@ -115,6 +116,10 @@ pnpm preview
 ```
 
 If `pnpm build` fails locally, it will fail on Cloudflare. Fix it before pushing.
+
+## External services
+
+- **Web3Forms** - handles inbound contact form submissions from /contact. The form posts to https://api.web3forms.com/submit with a public access key embedded in client/src/components/ContactForm.tsx. Submissions arrive in Court's inbox. The access key is rate-limited per Web3Forms's free tier; if abuse occurs the key can be rotated from the Web3Forms dashboard at https://web3forms.com.
 
 ## Working surfaces
 
