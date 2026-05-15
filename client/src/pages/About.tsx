@@ -257,6 +257,151 @@ export default function About() {
                 </p>
               </SectionBlock>
 
+              <SectionBlock title="Methodology">
+                <p>
+                  This thesis combined three strands of work. A literature review
+                  across risk communication, design ethics and energy policy
+                  mapped the theoretical foundation - Slovic on the affect
+                  heuristic and risk perception, Kahan on cultural cognition,
+                  Fricker on epistemic injustice, and Foucault on parrhesia. A
+                  precedent analysis identified earlier attempts to communicate
+                  nuclear technology to the public, both from industry and from
+                  activist positions, and where each fell short. A primary
+                  research phase gathered evidence directly from people who would
+                  be the audience for the work, and from practitioners who
+                  already operate at the relevant edges of the conversation.
+                </p>
+                <p>
+                  The primary research had two components. The first was an
+                  online survey of 59 UK respondents conducted in March 2026,
+                  asking how each respondent perceived nuclear energy, what
+                  shapes their trust in a source of information about it, and
+                  how they reacted to three different framings of the same
+                  factual claim. The sample was directional rather than
+                  statistically representative and skewed mildly pro-nuclear.
+                  The findings should be read as signals rather than proof; they
+                  were used to confirm or challenge intuitions developed in the
+                  literature review, not to settle questions in isolation. The
+                  second component was two semi-structured expert interviews:
+                  one with a practitioner in nuclear project finance, and one
+                  with a practitioner in nuclear public-affairs and PR. The
+                  interviews surfaced where the industry's own communicators see
+                  the conversation going wrong.
+                </p>
+                <p>
+                  The poster series itself was developed iteratively, with each
+                  poster passing through multiple drafts and being tested
+                  against the truth-teller principle established by the
+                  theoretical framework. Decisions made during the design phase
+                  - what to include, what to leave out, how to render
+                  uncertainty, how to declare each poster's weaknesses honestly
+                  - are documented in the per-poster sections of the written
+                  thesis and surface in the "More on this poster" blocks
+                  beneath each visualisation on the site.
+                </p>
+              </SectionBlock>
+
+              <SectionBlock title="Survey Findings">
+                <p>
+                  The survey's most consistent result was that the truth-teller
+                  framing - text that named both the strengths and the
+                  weaknesses of nuclear energy honestly - won all three
+                  communication comparisons against alternative framings. The
+                  margins were escalating rather than constant: 50% preferred
+                  the truth-teller framing when discussing nuclear safety, 62%
+                  when discussing waste, and 75% when discussing the climate
+                  case for nuclear. The pattern matters more than the individual
+                  percentages. The more contested the subject, the larger the
+                  preference for honesty about the weakness of the argument
+                  being made. When asked directly what drives their trust in a
+                  source of information about nuclear energy, 55% of respondents
+                  named "the source acknowledges both strengths and weaknesses
+                  of the argument" as their primary criterion.
+                </p>
+                <p>
+                  The single most striking finding from the survey was that not
+                  a single respondent - 0% - listed the nuclear industry itself
+                  as a trusted source of information. This is the operating
+                  problem the design intervention responds to. If the people
+                  best positioned to communicate technical information about a
+                  technology have no public credibility on it, the conversation
+                  has to be carried by someone else. The thesis argues that
+                  that someone else can be the designer, working as an
+                  epistemic facilitator.
+                </p>
+                <p>
+                  A subtler finding was the limit of the knowledge-attitude
+                  link. 65% of respondents wrongly believed that nuclear waste
+                  remains dangerous for millions of years - including 92% of
+                  respondents who described themselves as supportive of nuclear
+                  power. The factual misconception is not concentrated among
+                  opponents; it is shared across the political spectrum. This
+                  challenges the deficit model assumption that giving people
+                  more accurate information will move their attitudes in
+                  proportion. People can be wrong about specific facts and
+                  still hold a coherent position on a contested technology. The
+                  series accordingly treats accurate information as a starting
+                  condition for good public reasoning, not as the answer to it.
+                </p>
+              </SectionBlock>
+
+              <SectionBlock title="How to Read the Series">
+                <p>
+                  The six posters trace a single argument across three phases:
+                  desirability, feasibility, and objections. Posters 001 through
+                  003 ask whether nuclear is a desirable part of the UK's
+                  electricity mix, measured against lifecycle emissions,
+                  physical costs in land and water, and human mortality from
+                  the act of generating electricity. Posters 004 and 005 ask
+                  whether a nuclear-powered future is feasible at the scale
+                  that climate timelines require, given how much of UK energy
+                  is not electricity in the first place and given the
+                  historical pattern of UK nuclear projects being announced and
+                  abandoned. Poster 006 closes by addressing the objection that
+                  most strongly survives the previous arguments: nuclear waste
+                  and what the UK does and does not have an answer to.
+                </p>
+                <p>
+                  Each poster names its own question. Poster 001 compares the
+                  lifecycle greenhouse-gas emissions of nine electricity
+                  sources, making visible the gap between nuclear at 5.6
+                  gCO₂/kWh and coal at 970. Poster 002 places land use and
+                  water consumption on the same chart to demonstrate that no
+                  single source wins on every measure. Poster 003 models three
+                  UK electricity scenarios - today's mix, 30% nuclear, 70%
+                  nuclear (France's current share) - and counts the lives
+                  saved by displacing the deadliest sources. Poster 004 shifts
+                  the unit of analysis from electricity to all UK final energy,
+                  showing that the electricity system the previous posters
+                  discussed is only 18% of the problem. Poster 005 maps every
+                  civil reactor the UK has ever built, operated, planned, or
+                  abandoned, and asks what the failure pattern of the last 31
+                  years says about feasibility. Poster 006 inverts the
+                  volume-and-radioactivity relationship of UK radioactive waste
+                  and asks why the country that built the world's first
+                  commercial reactor still has nowhere permanent to put what
+                  came out of it.
+                </p>
+                <p>
+                  The series does not aim to present a complete argument for or
+                  against nuclear power, nor does the thesis behind it. Its aim
+                  is to give a concrete example of how design can be used to
+                  discuss the feasibility of a contested technology - in this
+                  case nuclear - in a way unavailable to either the industry
+                  that builds it or the activists who oppose it. If read as a
+                  closed argument it has gaps: the density of treatment given
+                  to waste is greater than that given to emissions or physical
+                  costs; the scenarios in Poster 003 are deliberately stylised;
+                  the historical analysis in Poster 005 is the most editorially
+                  loaded of the six. Those gaps are not accidents. The series
+                  responds to the audience the research identified - the
+                  casually informed UK adult who knows there is a debate and
+                  does not know where to turn - and to the trust pattern that
+                  audience reported: they prefer sources that name what they
+                  cannot tell them, alongside what they can.
+                </p>
+              </SectionBlock>
+
 
             </motion.div>
           </div>
