@@ -448,6 +448,13 @@
   .poster.portrait  { width: 62vw; }
   .poster-stack { gap: 64px; }
   .ribbon-section { padding: 80px 0 100px; }
+  .coda-section { padding: 64px 0; }
+}
+
+.coda-section {
+  position: relative;
+  padding: 96px 0;
+  background: var(--background);
 }
 .poster img {
   width: 100%;
