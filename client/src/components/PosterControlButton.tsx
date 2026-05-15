@@ -49,6 +49,9 @@ export interface PosterControlButtonProps {
   /** Adjacency hint - when used in a segmented pair the buttons
    *  share borders, drop the corner radius on touching edges. */
   segmentedPosition?: 'first' | 'middle' | 'last' | 'standalone';
+  /** HTML button type. 'submit' is needed for use inside a
+   *  <form>. Defaults to 'button'. */
+  type?: 'button' | 'submit';
 }
 
 /** Convert a 6-digit hex to rgba with explicit alpha. */
@@ -72,6 +75,7 @@ export default function PosterControlButton({
   ariaLabel,
   disabled = false,
   segmentedPosition = 'standalone',
+  type = 'button',
 }: PosterControlButtonProps) {
   const accent = accentColour;
   const borderInactive = useMemo(() => withAlpha(accent, 0.45), [accent]);
@@ -95,7 +99,7 @@ export default function PosterControlButton({
 
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       aria-pressed={isActive}
