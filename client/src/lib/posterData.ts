@@ -10,6 +10,8 @@ export interface PosterData {
   pullQuote: string;
   methodology: string;
   imagePath: string;
+  /** Landscape-cropped thumbnail used in the homepage ribbon. */
+  thumbnailPath: string;
   pdfPath: string;
   /** Long-form prose surfaced on the poster page. Two optional
    *  zones bracket the visualisation. */
@@ -43,6 +45,7 @@ export const posters: PosterData[] = [
     methodology:
       "Median values from peer-reviewed lifecycle assessments compiled by Our World in Data, IPCC AR5, and UNECE. Real projects vary by site and fuel grade - ranges overlap at the edges, not the centre.",
     imagePath: "/assets/001-version2_643b19ce.png",
+    thumbnailPath: "/assets/poster-001-thumbnail.png",
     pdfPath: "/assets/001-version2_a9296d6a.pdf",
     narrative: {
       after: `## Why lifecycle, not operational?
@@ -72,6 +75,7 @@ Each number here is a median drawn from peer-reviewed lifecycle assessments comp
     methodology:
       "Land and water values from UNECE (2021) Lifecycle Assessment of Electricity Generation Options, accessed via Our World in Data. Land use is measured in m\u00b2\u00b7year/MWh (a time-integrated footprint); water use is consumption in m\u00b3/MWh (water permanently lost, not water withdrawn).",
     imagePath: "/assets/002-version2_b4d2d765.png",
+    thumbnailPath: "/assets/poster-002-thumbnail.png",
     pdfPath: "/assets/002-version2_14df9892.pdf",
     narrative: {
       after: `## Reading the forms one by one
@@ -100,6 +104,7 @@ This poster argues that no single source wins on every measure - different physi
     methodology:
       "Mortality rates from Markandya & Wilkinson (2007) and Sovacool et al. (2016), applied to UK electricity demand of 284 TWh. Scenarios hold demand constant to isolate the effect of changing the energy mix.",
     imagePath: "/assets/003-version2_4e239d18.png",
+    thumbnailPath: "/assets/poster-003-thumbnail.png",
     pdfPath: "/assets/003-version2_b27a85d6.pdf",
     narrative: {
       before: `The UK's electricity system kills an estimated 699 people every year. Not through accidents or explosions - through air pollution, supply chain injuries, and the cumulative health burden of burning fuel at industrial scale. Gas, the country's largest electricity source, accounts for 243 of those deaths. Oil - which most people do not realise the UK still burns for electricity - accounts for 211, despite generating just 4% of the supply. Bioenergy, often counted as renewable, accounts for 186. Nuclear, generating 14% of UK electricity, accounts for one.
@@ -131,6 +136,7 @@ Nuclear death rates here include Chernobyl and Fukushima mortality estimates dis
     methodology:
       "Final energy consumption data from the Digest of UK Energy Statistics (DUKES) 2025, Tables 1.1.1, 1.1.3 and 1.1.5. Final energy is energy delivered to end users, per DUKES convention; primary energy would be approximately 50% larger because it includes conversion losses.",
     imagePath: "/assets/004-version2_1f18c33d.png",
+    thumbnailPath: "/assets/poster-004-thumbnail.png",
     pdfPath: "/assets/004-version2_014ffb7f.pdf",
     narrative: {
       after: `## Our energy system has transformed before
@@ -173,6 +179,7 @@ The energy industry's own consumption (around 105 TWh) and international aviatio
     methodology:
       "Reactor data compiled from the Global Energy Monitor Nuclear Power Tracker (2025) and the World Nuclear Association country profile for the United Kingdom. The dataset records project outcomes, not reasons for cancellation.",
     imagePath: "/assets/005-preview-1_fea2ab19.png",
+    thumbnailPath: "/assets/poster-005-thumbnail.png",
     pdfPath: "/assets/005-version2_ad4c9725.pdf",
     narrative: {
       before: `For a brief period in the twentieth century, Britain led the world on this technology. Calder Hall, opened in 1956, was the first commercial nuclear power station anywhere. For three decades afterwards, British engineers built reactors at speed - Magnox, then advanced gas-cooled reactors, a distinct national design no other country adopted. At their peak in the mid-1990s, these reactors supplied roughly a quarter of the country's electricity.
@@ -200,6 +207,7 @@ The Global Energy Monitor records capacity and dates, not intent. A cancellation
     methodology:
       "Waste volumes from the NDA\u2019s 2022 UK Radioactive Waste and Materials Inventory. Radiation doses from UK Health Security Agency and IAEA reference values. Sellafield cleanup cost and leak figures from the National Audit Office (2024) and Public Accounts Committee (2025).",
     imagePath: "/assets/006-version2_5c838076.png",
+    thumbnailPath: "/assets/poster-006-thumbnail.png",
     pdfPath: "/assets/006-version2_3b036a7e.pdf",
     narrative: {
       after: `## What the inventory actually shows
