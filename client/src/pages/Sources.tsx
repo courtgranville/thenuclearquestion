@@ -107,12 +107,8 @@ export default function Sources() {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
-                className="pb-10 text-left"
+                className="pb-16 text-left"
               >
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
                 <motion.h2
                   variants={fadeUp}
                   className="font-serif text-2xl mb-4"
@@ -153,12 +149,8 @@ export default function Sources() {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
-                className="pb-10 text-left"
+                className="pb-16 text-left"
               >
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
                 <motion.h2
                   variants={fadeUp}
                   className="font-serif text-2xl mb-6"
@@ -221,12 +213,8 @@ export default function Sources() {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
-                className="pb-10 text-left"
+                className="pb-16 text-left"
               >
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
                 <motion.h2
                   variants={fadeUp}
                   className="font-serif text-2xl mb-8"
@@ -437,12 +425,8 @@ export default function Sources() {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
-                className="pb-10 text-left"
+                className="pb-16 text-left"
               >
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
                 <motion.h2
                   variants={fadeUp}
                   className="font-serif text-2xl mb-4"
@@ -486,12 +470,8 @@ export default function Sources() {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
-                className="pb-10 text-left"
+                className="pb-16 text-left"
               >
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
                 <motion.h2
                   variants={fadeUp}
                   className="font-serif text-2xl mb-6"
@@ -518,12 +498,8 @@ export default function Sources() {
                 initial="hidden"
                 animate="visible"
                 variants={stagger}
-                className="pb-10 text-left"
+                className="pb-16 text-left"
               >
-                <motion.div variants={fadeUp}>
-                  <hr className="border-border mb-8" />
-                </motion.div>
-
                 <motion.h2
                   variants={fadeUp}
                   className="font-serif text-2xl mb-4"
@@ -647,10 +623,12 @@ export default function Sources() {
 function Citation({ text, url }: { text: string; url?: string }) {
   return (
     <p
-      className="text-base leading-relaxed text-foreground/80 pl-4 border-l-2 border-border"
+      className="text-base leading-relaxed text-foreground/80"
       style={{
         fontFamily: "'Playfair', Georgia, serif",
         fontWeight: 300,
+        textIndent: "-1.5em",
+        paddingLeft: "1.5em",
       }}
     >
       {text}
