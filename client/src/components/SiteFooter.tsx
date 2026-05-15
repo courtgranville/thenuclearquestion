@@ -19,22 +19,19 @@ export default function SiteFooter() {
       transition={{ duration: 0.5 }}
     >
       <div className="container">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <p
-              className="text-sm text-muted-foreground"
-              style={{ fontFamily: "'Playfair', Georgia, serif" }}
-            >
-              The Nuclear Question - Court Granville
-            </p>
-            <p
-              className="text-sm text-muted-foreground mt-1"
-              style={{ fontFamily: "'Playfair', Georgia, serif" }}
-            >
-              Bachelor in Design Thesis, IE University, 2026
-            </p>
-          </div>
-
+        <div className="flex flex-col items-center text-center gap-1">
+          <p
+            className="text-sm text-muted-foreground"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            The Nuclear Question - Court Granville
+          </p>
+          <p
+            className="text-sm text-muted-foreground"
+            style={{ fontFamily: "'Playfair', Georgia, serif" }}
+          >
+            Bachelor in Design Thesis, IE University, 2026
+          </p>
         </div>
       </div>
     </motion.footer>
