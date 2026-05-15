@@ -1,6 +1,6 @@
 // client/src/pages/Home.tsx
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
 import SiteHeader from '@/components/SiteHeader';
 import SiteFooter from '@/components/SiteFooter';
@@ -9,6 +9,7 @@ import ScrollProgress from '@/components/ScrollProgress';
 import PageTransition from '@/components/PageTransition';
 import { NucleusHero } from '@/components/NucleusHero';
 import { IsotopeToggle } from '@/components/IsotopeToggle';
+import PosterControlButton from '@/components/PosterControlButton';
 import { posters } from '@/lib/posterData';
 import nucleusPaths from '@/assets/nucleus-paths.json';
 
@@ -30,6 +31,8 @@ const stagger = {
 };
 
 export default function Home() {
+  const [, setLocation] = useLocation();
+
   useEffect(() => {
     document.title = 'The Nuclear Question - A Data Visualisation Series';
   }, []);
@@ -157,6 +160,54 @@ export default function Home() {
                   </Link>
                 );
               })}
+            </div>
+          </section>
+
+          <section className="coda-section">
+            <div className="max-w-2xl mx-auto px-6 text-left">
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
+              >
+                <p
+                  className="text-sm tracking-[0.25em] uppercase text-primary mb-6"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
+                >
+                  Why this project exists
+                </p>
+                <p
+                  className="text-base leading-relaxed text-foreground/80 mb-6"
+                  style={{ fontFamily: "'Playfair', Georgia, serif", fontWeight: 300 }}
+                >
+                  The UK's flagship nuclear reactor, Hinkley Point C, has reportedly spent £700 million on fish mitigation systems, saving an estimated "0.083 salmon and 0.028 sea trout per year". Whether the figure is precisely accurate or not, it defines the industry's public and political perception today. In a single number, it captures how the conversation about nuclear energy in this country has come to miss the bigger picture - and how badly the way we talk about contested technologies has failed the public who pay for them.
+                </p>
+                <p
+                  className="text-base leading-relaxed text-foreground/80 mb-10"
+                  style={{ fontFamily: "'Playfair', Georgia, serif", fontWeight: 300 }}
+                >
+                  This series is one designer's attempt to do that conversation differently. It argues that public reasoning about nuclear improves when both the strengths and the weaknesses of the technology are named honestly - when the designer behaves as a truth-teller rather than an advocate, an industry spokesperson, or an opponent. The six posters above are the practical evidence of that argument. Each one names what its data can and cannot tell you. None of them tries to settle the question for you.
+                </p>
+                <p
+                  className="text-base leading-relaxed text-foreground/80 mb-4"
+                  style={{ fontFamily: "'Playfair', Georgia, serif", fontWeight: 300 }}
+                >
+                  Want to continue any of the conversations the series started, or read more about how the project came together?
+                </p>
+                <div className="flex flex-row gap-3 flex-wrap">
+                  <PosterControlButton
+                    label="Get in touch"
+                    accentColour="#1c3867"
+                    onClick={() => setLocation('/contact')}
+                  />
+                  <PosterControlButton
+                    label="More about the project"
+                    accentColour="#1c3867"
+                    onClick={() => setLocation('/about')}
+                  />
+                </div>
+              </motion.div>
             </div>
           </section>
         </main>
