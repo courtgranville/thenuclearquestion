@@ -16,6 +16,7 @@ import Poster002Legend from "@/components/Poster002Legend";
 import Poster003Legend from "@/components/Poster003Legend";
 import Poster004Legend from "@/components/Poster004Legend";
 import Poster006Legend from "@/components/Poster006Legend";
+import NarrativeExpansion from "@/components/NarrativeExpansion";
 import { posters, posterSources } from "@/lib/posterData";
 import { ArrowLeft, ArrowRight, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -213,6 +214,24 @@ export default function PosterPage() {
                 </p>
               </motion.div>
             </motion.div>
+
+            {/* ── 2b. Extended intro prose (narrative.before) ── */}
+            {poster.narrative?.before && (
+              <section className="max-w-3xl mx-auto pb-12 text-left">
+                <div
+                  className="text-base leading-relaxed text-foreground/80 space-y-4"
+                  style={{
+                    fontFamily: "'Playfair', Georgia, serif",
+                    fontWeight: 300,
+                  }}
+                >
+                  <NarrativeExpansion
+                    source={poster.narrative.before}
+                    leadIsImplicit={true}
+                  />
+                </div>
+              </section>
+            )}
           </div>
 
           {/* ── 3. Full-bleed interactive visualisation ── */}
@@ -262,6 +281,22 @@ export default function PosterPage() {
               {poster.id === "006" && <Poster006Legend />}
             </div>
           </motion.section>
+
+          {/* ── 4. More on this poster (narrative.after) ── */}
+          {poster.narrative?.after && (
+            <div className="container">
+              <section className="max-w-3xl mx-auto pt-16 pb-4 text-left">
+                <div className="border-t border-border pt-12 mb-8" />
+                <span
+                  className="text-sm tracking-[0.25em] uppercase text-primary mb-6 block"
+                  style={{ fontFamily: "'Playfair', Georgia, serif" }}
+                >
+                  More on this poster
+                </span>
+                <NarrativeExpansion source={poster.narrative.after} />
+              </section>
+            </div>
+          )}
 
           <div className="container">
             <div className="max-w-3xl mx-auto">
