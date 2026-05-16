@@ -30,9 +30,8 @@
 // ─────────────────────────────────────────────────────────────────
 
 import { parseD } from '@/lib/parseSvg';
-import { LEAVES_BY_STATUS, HUB_BY_STATUS } from '@/lib/poster005Hubs';
+import { LEAVES_BY_STATUS, HUB_BY_STATUS, type Poster005FormsData } from '@/lib/poster005Hubs';
 import { type ReactorStatus } from '@/lib/poster005Data';
-import formsData from '@/assets/poster-005-forms.json';
 
 interface RawPath {
   d: string;
@@ -56,9 +55,9 @@ function rawPath(d: string): RawPath {
   };
 }
 
-const ALL_PATHS: RawPath[] = (
-  (formsData as unknown as { dendrogram_links: string[] }).dendrogram_links
-).map(rawPath);
+// Mutable bindings populated by initPoster005Connectors. Empty until the
+// init function runs.
+let ALL_PATHS: RawPath[] = [];
 
 // O(n) endpoint lookup with float tolerance.
 function findPathEndingAt(x: number, y: number, tol = 0.5): RawPath | null {
@@ -131,18 +130,33 @@ function buildTrajectoryForLeaf(
   return { reactorId, status, pts, n, lens, totalLen: total };
 }
 
-export const TRAJECTORY_BY_REACTOR: Map<string, Trajectory> = (() => {
-  const out = new Map<string, Trajectory>();
+export let TRAJECTORY_BY_REACTOR: Map<string, Trajectory> = new Map();
+
+// Must be called AFTER initPoster005Hubs - this reads from the now-populated
+// LEAVES_BY_STATUS and HUB_BY_STATUS bindings to compute trajectories. The
+// guard below converts the silent-bad-output failure mode (empty trajectory
+// map, dendrogram renders without connector animations) into a loud crash
+// so any future change to the init sequence fails immediately rather than
+// shipping a broken viz.
+export function initPoster005Connectors(formsData: Poster005FormsData): void {
+  if (Object.keys(HUB_BY_STATUS).length === 0) {
+    throw new Error(
+      'initPoster005Connectors called before initPoster005Hubs. ' +
+      'Hubs must be initialised first because Connectors reads from ' +
+      'HUB_BY_STATUS and LEAVES_BY_STATUS to compute trajectories.',
+    );
+  }
+  ALL_PATHS = formsData.dendrogram_links.map(rawPath);
+  TRAJECTORY_BY_REACTOR = new Map();
   for (const status of ['underConstruction', 'operating', 'retired', 'cancelled'] as ReactorStatus[]) {
     const hub = HUB_BY_STATUS[status];
     if (!hub) continue;
     for (const leaf of LEAVES_BY_STATUS[status]) {
       const t = buildTrajectoryForLeaf(leaf.x, leaf.y, leaf.reactorId, status, hub.anchor);
-      if (t) out.set(leaf.reactorId, t);
+      if (t) TRAJECTORY_BY_REACTOR.set(leaf.reactorId, t);
     }
   }
-  return out;
-})();
+}
 
 /** Sample (x, y, tangent) at parameter u ∈ [0, 1] along the trajectory. */
 export function trajectoryPoint(

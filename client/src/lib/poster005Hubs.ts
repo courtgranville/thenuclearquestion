@@ -19,7 +19,29 @@
 
 import { TUNING, depthWeight } from '@/lib/posterMotion';
 import { STATUS_COLOUR, type ReactorStatus } from '@/lib/poster005Data';
-import formsData from '@/assets/poster-005-forms.json';
+
+// Forms data shape consumed by initPoster005Hubs. The Viz component owns
+// the dynamic import and calls init before any other consumer reads the
+// mutable bindings below.
+export interface Poster005FormsData {
+  status_blobs: {
+    id: string;
+    label: string;
+    print_stroke: string;
+    form_paths: string[];
+    bbox: { minX: number; minY: number; maxX: number; maxY: number };
+    bbox_centroid: [number, number];
+    anchor: [number, number];
+    reactor_count: number;
+    total_mw_sourced: number;
+  }[];
+  reactors: {
+    id: string;
+    status: ReactorStatus;
+    dendrogram_leaf_cx: number | null;
+  }[];
+  dendrogram_links: string[];
+}
 
 export interface PreparedHubLine {
   path: Path2D | null;
@@ -121,27 +143,11 @@ function preparedHubFromBlob(blob: {
   };
 }
 
-export const HUBS: PreparedHub[] = (
-  formsData as unknown as {
-    status_blobs: {
-      id: string;
-      label: string;
-      print_stroke: string;
-      form_paths: string[];
-      bbox: { minX: number; minY: number; maxX: number; maxY: number };
-      bbox_centroid: [number, number];
-      anchor: [number, number];
-      reactor_count: number;
-      total_mw_sourced: number;
-    }[];
-  }
-).status_blobs.map(preparedHubFromBlob);
-
-export const HUB_BY_STATUS: Record<ReactorStatus, PreparedHub> = (() => {
-  const out = {} as Record<ReactorStatus, PreparedHub>;
-  for (const h of HUBS) out[h.status] = h;
-  return out;
-})();
+// Mutable bindings populated by initPoster005Hubs(). The Viz component
+// calls init when its dynamic-imported forms JSON lands; until then these
+// are empty defaults.
+export let HUBS: PreparedHub[] = [];
+export let HUB_BY_STATUS: Record<ReactorStatus, PreparedHub> = {} as Record<ReactorStatus, PreparedHub>;
 
 // Re-export TUNING so the canvas loop doesn't need to import from
 // two places.
@@ -163,30 +169,31 @@ export interface HubLeaf {
 // reactors, so we anchor on this constant rather than that field.
 const DENDROGRAM_LEAF_Y = 800.993;
 
-export const LEAVES_BY_STATUS: Record<ReactorStatus, HubLeaf[]> = (() => {
-  const out: Record<ReactorStatus, HubLeaf[]> = {
+export let LEAVES_BY_STATUS: Record<ReactorStatus, HubLeaf[]> = {
+  underConstruction: [],
+  operating: [],
+  retired: [],
+  cancelled: [],
+};
+
+export function initPoster005Hubs(formsData: Poster005FormsData): void {
+  HUBS = formsData.status_blobs.map(preparedHubFromBlob);
+  HUB_BY_STATUS = {} as Record<ReactorStatus, PreparedHub>;
+  for (const h of HUBS) HUB_BY_STATUS[h.status] = h;
+
+  LEAVES_BY_STATUS = {
     underConstruction: [],
     operating: [],
     retired: [],
     cancelled: [],
   };
-  const reactors = (
-    formsData as unknown as {
-      reactors: {
-        id: string;
-        status: ReactorStatus;
-        dendrogram_leaf_cx: number | null;
-      }[];
-    }
-  ).reactors;
-  for (const r of reactors) {
+  for (const r of formsData.reactors) {
     if (r.dendrogram_leaf_cx === null) continue;
-    out[r.status].push({
+    LEAVES_BY_STATUS[r.status].push({
       reactorId: r.id,
       status: r.status,
       x: r.dendrogram_leaf_cx,
       y: DENDROGRAM_LEAF_Y,
     });
   }
-  return out;
-})();
+}

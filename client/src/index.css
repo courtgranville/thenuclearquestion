@@ -1,3 +1,38 @@
+/* Self-hosted Playfair fonts. License: SIL OFL 1.1.
+   See /fonts/OFL-Playfair.txt and /fonts/OFL-PlayfairDisplay.txt */
+
+@font-face {
+  font-family: 'Playfair';
+  font-style: normal;
+  font-weight: 300 600;
+  font-display: swap;
+  src: url('/fonts/playfair-variable.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Playfair';
+  font-style: italic;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url('/fonts/playfair-variable-italic.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/playfair-display-variable.woff2') format('woff2-variations');
+}
+
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: italic;
+  font-weight: 400 500;
+  font-display: swap;
+  src: url('/fonts/playfair-display-variable-italic.woff2') format('woff2-variations');
+}
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -526,6 +561,21 @@
   text-decoration-color: #a51e22;
 }
 
+/* ── POSTER CANVAS FADE-IN ────────────────────────────────────────────── */
+/* Pairs with the dynamic-import pattern in PosterXXXCanvasViz: the canvas
+   stays at opacity 0 while the per-poster forms JSON is in flight, then
+   transitions to 1 when the data has been parsed and the RAF loop starts
+   drawing. The print SVG overlay is rendered immediately on mount, so the
+   user always sees the diagram - the canvas materialising on top of it
+   reads as "the diagram coming to life" rather than as a loading state. */
+.poster-canvas {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.poster-canvas--loaded {
+  opacity: 1;
+}
+
 /* ── REDUCED-MOTION ───────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .poster img { transition: none; }
@@ -534,5 +584,6 @@
   .poster:hover { transform: none; }
   .iso-switch .thumb { transition: none; }
   .iso-switch button { transition: none; }
+  .poster-canvas { transition: none; }
 }
 }

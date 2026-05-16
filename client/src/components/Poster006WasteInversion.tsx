@@ -1,12 +1,12 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { buildPolylines } from '@/lib/parseSvg';
 import { depthWeight, resolveMotion, TUNING } from '@/lib/posterMotion';
 import { TUNING as FISSION_TUNING } from '@/lib/fission';
-import formsData from '@/assets/poster-006-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 import { easeAlpha } from '@/lib/animationTiming';
+import type { Poster006FormsData } from '@/components/Poster006Viz';
 
 // ─── Canonical form trace ───────────────────────────────────────
 //
@@ -28,23 +28,6 @@ import { easeAlpha } from '@/lib/animationTiming';
 // differ. This matches Round 5's earlier approach and gives every
 // form clean, consistent lines regardless of mode.
 
-const wasteData = (formsData as unknown as {
-  wasteCategories: Record<
-    string,
-    {
-      paths: string[];
-      centroid: [number, number];
-      nativeRadius: number;
-      volumePct: number;
-      radioactivityPct: number;
-    }
-  >;
-}).wasteCategories;
-
-const CANONICAL = wasteData.vllw;
-const { polylines: RAW_LINES } = buildPolylines(CANONICAL.paths);
-const N_LINES = RAW_LINES.length;
-
 interface PreparedLine {
   pts: Float32Array; // form-local, normalised so ±1 ≈ form half-extent
   n: number;
@@ -54,12 +37,18 @@ interface PreparedLine {
 
 const NUM_BUCKETS = 8;
 
-const LINES: PreparedLine[] = (() => {
-  const cx = CANONICAL.centroid[0];
-  const cy = CANONICAL.centroid[1];
-  const inv = 1 / Math.max(1e-3, CANONICAL.nativeRadius);
-  return RAW_LINES.map((p, i) => {
-    const depth = N_LINES > 1 ? i / (N_LINES - 1) : 0;
+function buildLines(formsData: Poster006FormsData): {
+  lines: PreparedLine[];
+  linesByBucket: PreparedLine[][];
+} {
+  const canonical = formsData.wasteCategories.vllw;
+  const { polylines: rawLines } = buildPolylines(canonical.paths);
+  const nLines = rawLines.length;
+  const cx = canonical.centroid[0];
+  const cy = canonical.centroid[1];
+  const inv = 1 / Math.max(1e-3, canonical.nativeRadius);
+  const lines: PreparedLine[] = rawLines.map((p, i) => {
+    const depth = nLines > 1 ? i / (nLines - 1) : 0;
     const dw = depthWeight(depth);
     const pts = new Float32Array(p.pts.length);
     for (let k = 0; k < p.pts.length; k += 2) {
@@ -68,15 +57,15 @@ const LINES: PreparedLine[] = (() => {
     }
     return { pts, n: p.n, depth, dw };
   });
-})();
-
-const LINES_BY_BUCKET: PreparedLine[][] = Array.from(
-  { length: NUM_BUCKETS },
-  () => [],
-);
-for (const line of LINES) {
-  const b = Math.min(NUM_BUCKETS - 1, Math.floor(line.depth * NUM_BUCKETS));
-  LINES_BY_BUCKET[b].push(line);
+  const linesByBucket: PreparedLine[][] = Array.from(
+    { length: NUM_BUCKETS },
+    () => [],
+  );
+  for (const line of lines) {
+    const b = Math.min(NUM_BUCKETS - 1, Math.floor(line.depth * NUM_BUCKETS));
+    linesByBucket[b].push(line);
+  }
+  return { lines, linesByBucket };
 }
 
 // ─── Per-form metadata ──────────────────────────────────────────
@@ -182,13 +171,24 @@ function useFpsCounter(): number | null {
 
 // ─── Component ──────────────────────────────────────────────────
 
-export default function Poster006WasteInversion() {
+interface Poster006WasteInversionProps {
+  formsData: Poster006FormsData | null;
+}
+
+export default function Poster006WasteInversion({ formsData }: Poster006WasteInversionProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const labelRefs = useRef<Record<FormId, HTMLDivElement | null>>({
     vllw: null, llw: null, ilw: null, hlw: null,
   });
   const fps = useFpsCounter();
+
+  // Build the polylines once the JSON has loaded. Until then `lines` is
+  // null and the RAF effect is gated.
+  const lineData = useMemo(
+    () => (formsData ? buildLines(formsData) : null),
+    [formsData],
+  );
 
   const [state, dispatch] = useReducer(reducer, {
     mode: 'volume',
@@ -215,6 +215,8 @@ export default function Poster006WasteInversion() {
   });
 
   useEffect(() => {
+    if (!lineData) return;
+    const { linesByBucket } = lineData;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -475,7 +477,7 @@ export default function Poster006WasteInversion() {
 
       for (let i = 0; i < 4; i++) {
         ctx.strokeStyle = FORMS[i].accent;
-        const buckets = LINES_BY_BUCKET;
+        const buckets = linesByBucket;
         const mag = formMagnetism[i];
         const cx = slotCx[i];
         const cy = slotCy[i];
@@ -570,7 +572,7 @@ export default function Poster006WasteInversion() {
       container.removeEventListener('pointermove', onPointerMove);
       container.removeEventListener('pointerleave', onPointerLeave);
     };
-  }, []);
+  }, [lineData]);
 
   const handleToggle = (next: Mode) => {
     if (state.mode === next || state.transitioning) return;
@@ -583,7 +585,7 @@ export default function Poster006WasteInversion() {
         ref={containerRef}
         className="relative w-full aspect-[1/4] sm:aspect-square"
       >
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
+        <canvas ref={canvasRef} className={`poster-canvas absolute inset-0 w-full h-full block${lineData ? ' poster-canvas--loaded' : ''}`} />
 
         {fps !== null && (
           <div

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import formsData from '@/assets/poster-006-forms.json';
+import type { Poster006FormsData } from '@/components/Poster006Viz';
 
 // ─── Static metadata for the four storage routes ────────────────
 
@@ -68,72 +68,67 @@ interface StorageIcon {
   viewBox: string;
 }
 
-const STORAGE_DATA = (formsData as unknown as {
-  storage: Record<
-    string,
-    {
-      innerSvg: string;
-      bbox: { minX: number; minY: number; maxX: number; maxY: number };
-    }
-  >;
-}).storage;
-
 // Pad each icon's viewBox so all four cells share the same aspect
 // ratio. With preserveAspectRatio="xMidYMid meet" + a uniform outer
 // container size, equal aspect ratios mean equal visible heights  -
 // landfill (wide / shallow in source) gets vertical padding instead of
 // scaling down to fit, so it sits at the same on-screen height as the
 // other three.
-const TARGET_ASPECT = (() => {
-  let maxA = 0;
+function buildIcons(
+  storageData: Poster006FormsData['storage'],
+): Record<RouteMeta['id'], StorageIcon> {
+  let targetAspect = 0;
   for (const id of ['landfill', 'vaults', 'treatment', 'gdf'] as const) {
-    const b = STORAGE_DATA[id].bbox;
+    const b = storageData[id].bbox;
     const a = (b.maxX - b.minX) / (b.maxY - b.minY);
-    if (a > maxA) maxA = a;
+    if (a > targetAspect) targetAspect = a;
   }
-  return maxA; // landfill, ~2.24
-})();
 
-function buildIcon(id: RouteMeta['id']): StorageIcon {
-  const entry = STORAGE_DATA[id];
-  const { minX, minY, maxX, maxY } = entry.bbox;
-  const w = maxX - minX;
-  const h = maxY - minY;
-  // Pad the shorter dimension so the icon's viewBox matches
-  // TARGET_ASPECT. The illustration stays centred; padding is added on
-  // both sides.
-  const currentAspect = w / h;
-  let viewW = w;
-  let viewH = h;
-  let viewX = minX;
-  let viewY = minY;
-  if (currentAspect < TARGET_ASPECT) {
-    // Too tall - pad horizontally.
-    const newW = h * TARGET_ASPECT;
-    viewX = minX - (newW - w) / 2;
-    viewW = newW;
-  } else if (currentAspect > TARGET_ASPECT) {
-    // Too wide - pad vertically.
-    const newH = w / TARGET_ASPECT;
-    viewY = minY - (newH - h) / 2;
-    viewH = newH;
+  function buildIcon(id: RouteMeta['id']): StorageIcon {
+    const entry = storageData[id];
+    const { minX, minY, maxX, maxY } = entry.bbox;
+    const w = maxX - minX;
+    const h = maxY - minY;
+    const currentAspect = w / h;
+    let viewW = w;
+    let viewH = h;
+    let viewX = minX;
+    let viewY = minY;
+    if (currentAspect < targetAspect) {
+      const newW = h * targetAspect;
+      viewX = minX - (newW - w) / 2;
+      viewW = newW;
+    } else if (currentAspect > targetAspect) {
+      const newH = w / targetAspect;
+      viewY = minY - (newH - h) / 2;
+      viewH = newH;
+    }
+    const pad = Math.max(viewW, viewH) * 0.04;
+    const viewBox = `${viewX - pad} ${viewY - pad} ${viewW + pad * 2} ${viewH + pad * 2}`;
+    return { innerSvg: entry.innerSvg, viewBox };
   }
-  const pad = Math.max(viewW, viewH) * 0.04;
-  const viewBox = `${viewX - pad} ${viewY - pad} ${viewW + pad * 2} ${viewH + pad * 2}`;
-  return { innerSvg: entry.innerSvg, viewBox };
+
+  return {
+    landfill:  buildIcon('landfill'),
+    vaults:    buildIcon('vaults'),
+    treatment: buildIcon('treatment'),
+    gdf:       buildIcon('gdf'),
+  };
 }
-
-const ICONS: Record<RouteMeta['id'], StorageIcon> = {
-  landfill:  buildIcon('landfill'),
-  vaults:    buildIcon('vaults'),
-  treatment: buildIcon('treatment'),
-  gdf:       buildIcon('gdf'),
-};
 
 // ─── Component ──────────────────────────────────────────────────
 
-export default function Poster006WasteStorage() {
+interface Poster006WasteStorageProps {
+  formsData: Poster006FormsData | null;
+}
+
+export default function Poster006WasteStorage({ formsData }: Poster006WasteStorageProps) {
   const [hovered, setHovered] = useState<RouteMeta['id'] | null>(null);
+
+  const icons = useMemo(
+    () => (formsData ? buildIcons(formsData.storage) : null),
+    [formsData],
+  );
 
   const hoveredRoute = useMemo(
     () => ROUTES.find((r) => r.id === hovered) ?? null,
@@ -150,8 +145,8 @@ export default function Poster006WasteStorage() {
         className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8"
         onMouseLeave={() => setHovered(null)}
       >
-        {ROUTES.map((route) => {
-          const icon = ICONS[route.id];
+        {icons && ROUTES.map((route) => {
+          const icon = icons[route.id];
           const isHovered = hovered === route.id;
           return (
             <div

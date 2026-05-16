@@ -17,6 +17,7 @@ import Poster003Legend from "@/components/Poster003Legend";
 import Poster004Legend from "@/components/Poster004Legend";
 import Poster006Legend from "@/components/Poster006Legend";
 import NarrativeExpansion from "@/components/NarrativeExpansion";
+import PosterImage from "@/components/PosterImage";
 import { posters, posterSources } from "@/lib/posterData";
 import { ArrowLeft, ArrowRight, Download } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -360,8 +361,9 @@ export default function PosterPage() {
             transition={{ duration: 0.6, delay: 0.35 }}
             className="w-full px-2 sm:px-4 lg:px-6 pb-12"
           >
-            <img
-              src={poster.imagePath}
+            <PosterImage
+              webpSrc={poster.webpPath}
+              pngSrc={poster.imagePath}
               alt={poster.title}
               className="w-full h-auto border border-border/60"
             />

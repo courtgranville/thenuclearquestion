@@ -6,9 +6,18 @@ import {
   TUNING,
   type FormMotion,
 } from '@/lib/posterMotion';
-import formsData from '@/assets/poster-001-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
+
+// Forms data is dynamically imported in an effect so its ~1.8 MB raw payload
+// is not bundled into the route's main chunk. Visitors who never click into
+// poster 001 never download it.
+type FormsData = Record<string, {
+  paths: string[];
+  bbox: { minX: number; minY: number; maxX: number; maxY: number };
+  centroid: [number, number];
+  emissions: number;
+}>;
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata - copied from the original Poster001Viz.tsx so the
@@ -169,38 +178,30 @@ function buildPath(pts: Float32Array, n: number): Path2D {
   return p;
 }
 
-const FORMS: PreparedForm[] = Object.entries(
-  formsData as unknown as Record<
-    string,
-    {
-      paths: string[];
-      bbox: { minX: number; minY: number; maxX: number; maxY: number };
-      centroid: [number, number];
-      emissions: number;
-    }
-  >,
-).map(([id, data]) => {
-  const { polylines, bbox } = buildPolylines(data.paths);
-  const N = polylines.length;
-  const lines: PreparedLine[] = polylines.map((L, li) => {
-    const depth = N > 1 ? li / (N - 1) : 0;
-    const dw = depthWeight(depth);
+function buildForms(formsData: FormsData): PreparedForm[] {
+  return Object.entries(formsData).map(([id, data]) => {
+    const { polylines, bbox } = buildPolylines(data.paths);
+    const N = polylines.length;
+    const lines: PreparedLine[] = polylines.map((L, li) => {
+      const depth = N > 1 ? li / (N - 1) : 0;
+      const dw = depthWeight(depth);
+      return {
+        path: dw === 0 ? buildPath(L.pts, L.n) : null,
+        pts: L.pts,
+        n: L.n,
+        depth,
+        dw,
+      };
+    });
     return {
-      path: dw === 0 ? buildPath(L.pts, L.n) : null,
-      pts: L.pts,
-      n: L.n,
-      depth,
-      dw,
+      id,
+      lines,
+      bbox,
+      centroid: data.centroid,
+      motion: resolveMotion(data.emissions),
     };
   });
-  return {
-    id,
-    lines,
-    bbox,
-    centroid: data.centroid,
-    motion: resolveMotion(data.emissions),
-  };
-});
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Strip form-* groups from the SVG markup so we can render the
@@ -241,10 +242,26 @@ export default function Poster001CanvasViz() {
   const [overlaySvg, setOverlaySvg] = useState<string | null>(null);
   const [overlayError, setOverlayError] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
+  const [formsData, setFormsData] = useState<FormsData | null>(null);
 
   // Live ref so the RAF loop reads the latest selection without restarting.
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selected;
+
+  // Dynamic-import the forms JSON so it lands in its own chunk.
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/poster-001-forms.json').then((mod) => {
+      if (!cancelled) setFormsData(mod.default as unknown as FormsData);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build the prepared forms once the data lands.
+  const forms = useMemo(
+    () => (formsData ? buildForms(formsData) : null),
+    [formsData],
+  );
 
   // ─── Dev-only FPS counter ────────────────────────────────────────
   const [fps, setFps] = useState(0);
@@ -297,8 +314,10 @@ export default function Poster001CanvasViz() {
     };
   }, []);
 
-  // Canvas RAF loop.
+  // Canvas RAF loop. Re-runs once the forms data lands and `forms` becomes
+  // non-null; until then there's nothing to draw and the canvas stays empty.
   useEffect(() => {
+    if (!forms) return;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -361,7 +380,7 @@ export default function Poster001CanvasViz() {
       // we make 8 stroke calls per form instead of ~270.
       const NUM_BUCKETS = 8;
 
-      for (const form of FORMS) {
+      for (const form of forms) {
         const isSelected = sel === form.id;
         const isDimmed = sel !== null && !isSelected;
         const baseAlpha = isDimmed ? 0.08 : 1;
@@ -460,7 +479,7 @@ export default function Poster001CanvasViz() {
       cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, []);
+  }, [forms]);
 
   // Render
 
@@ -504,7 +523,7 @@ export default function Poster001CanvasViz() {
       >
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
+          className={`poster-canvas absolute inset-0 w-full h-full block${forms ? ' poster-canvas--loaded' : ''}`}
         />
         {overlaySvg && (
           <div

@@ -23,8 +23,18 @@
 // the visible state to a single 200 ms opacity fade with no chained
 // timings or pulse-tip travel.
 
-import linksData from '@/assets/poster-004-forms.json';
 import { CARRIER_IDS, type CarrierId } from './poster004State';
+
+// Forms data shape exposed by the engine. The component owns the dynamic
+// import and calls initEngineLinks() once the data lands; the mutable
+// module-level bindings below are populated at that point.
+export interface Poster004FormsData {
+  links: {
+    hub_to_carrier: { carrier: string; d: string }[];
+    carrier_to_sector: { carrier: string; sectorId: string; d: string }[];
+  };
+  sectors: Array<{ id: string; carrier: string; r: number }>;
+}
 
 // ─── Timing & visual constants ───────────────────────────────────
 // Cascade end-to-end target ~3 s - slowed from the original ~1.8 s
@@ -94,10 +104,7 @@ export const CARRIER_COLOURS: Record<CarrierId, string> = {
   solidFuel:   '#7d736a',
 };
 
-// ─── Link metadata (parsed once at module load) ──────────────────
-
-interface RawHubLink   { carrier: string; d: string }
-interface RawSectorLink { carrier: string; sectorId: string; d: string }
+// ─── Link metadata (populated by initEngineLinks) ────────────────
 
 export interface Link {
   id: string;            // 'hub-<carrier>' or sector id
@@ -106,42 +113,46 @@ export interface Link {
   sectorId: string | null;
 }
 
-const data = linksData as unknown as {
-  links: {
-    hub_to_carrier: RawHubLink[];
-    carrier_to_sector: RawSectorLink[];
-  };
-  sectors: Array<{ id: string; carrier: string; r: number }>;
-};
-
-export const HUB_LINKS: Link[] = data.links.hub_to_carrier.map((l) => ({
-  id: `hub-${l.carrier}`,
-  d: l.d,
-  carrier: l.carrier as CarrierId,
-  sectorId: null,
-}));
-
-export const SECTOR_LINKS: Link[] = data.links.carrier_to_sector.map((l) => ({
-  id: l.sectorId,
-  d: l.d,
-  carrier: l.carrier as CarrierId,
-  sectorId: l.sectorId,
-}));
-
-const SECTOR_LINKS_BY_CARRIER: Record<CarrierId, Link[]> = {
+// Mutable module-level bindings. Empty until initEngineLinks() runs; the
+// component owning the dynamic import is responsible for calling that
+// before any other engine entrypoint is invoked.
+export let HUB_LINKS: Link[] = [];
+export let SECTOR_LINKS: Link[] = [];
+let SECTOR_LINKS_BY_CARRIER: Record<CarrierId, Link[]> = {
   petroleum: [], naturalGas: [], electricity: [],
   bioenergy: [], heat: [], solidFuel: [],
 };
-for (const l of SECTOR_LINKS) SECTOR_LINKS_BY_CARRIER[l.carrier].push(l);
+let ALL_SECTOR_IDS: string[] = [];
+let ALL_CONNECTOR_IDS: string[] = [];
+let SECTOR_BY_ID: Record<string, { carrier: CarrierId; r: number }> = {};
 
-const ALL_SECTOR_IDS: string[] = data.sectors.map((s) => s.id);
-const ALL_CONNECTOR_IDS: string[] = [
-  ...HUB_LINKS.map((l) => l.id),
-  ...SECTOR_LINKS.map((l) => l.id),
-];
-const SECTOR_BY_ID: Record<string, { carrier: CarrierId; r: number }> = {};
-for (const s of data.sectors) {
-  SECTOR_BY_ID[s.id] = { carrier: s.carrier as CarrierId, r: s.r };
+export function initEngineLinks(formsData: Poster004FormsData): void {
+  HUB_LINKS = formsData.links.hub_to_carrier.map((l) => ({
+    id: `hub-${l.carrier}`,
+    d: l.d,
+    carrier: l.carrier as CarrierId,
+    sectorId: null,
+  }));
+  SECTOR_LINKS = formsData.links.carrier_to_sector.map((l) => ({
+    id: l.sectorId,
+    d: l.d,
+    carrier: l.carrier as CarrierId,
+    sectorId: l.sectorId,
+  }));
+  SECTOR_LINKS_BY_CARRIER = {
+    petroleum: [], naturalGas: [], electricity: [],
+    bioenergy: [], heat: [], solidFuel: [],
+  };
+  for (const l of SECTOR_LINKS) SECTOR_LINKS_BY_CARRIER[l.carrier].push(l);
+  ALL_SECTOR_IDS = formsData.sectors.map((s) => s.id);
+  ALL_CONNECTOR_IDS = [
+    ...HUB_LINKS.map((l) => l.id),
+    ...SECTOR_LINKS.map((l) => l.id),
+  ];
+  SECTOR_BY_ID = {};
+  for (const s of formsData.sectors) {
+    SECTOR_BY_ID[s.id] = { carrier: s.carrier as CarrierId, r: s.r };
+  }
 }
 
 function sectorGrowDuration(radius: number): number {

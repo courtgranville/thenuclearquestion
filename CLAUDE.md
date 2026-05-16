@@ -216,3 +216,30 @@ The defence is on 21 May 2026. From now to then, the website is live and any cha
 ## Things that are NOT this project
 
 If asked about anything that doesn't fit the above — a different design project, a different thesis, generic web development questions unrelated to this repo, or edits to the written thesis document — answer normally without applying this project context. The written thesis is locked unless Court explicitly reopens it.
+
+## Performance verification
+
+### scripts/check-prod-perf.sh
+
+Curls a deployment and records cache, compression, and sizing headers
+for the JS bundle, CSS bundle, HTML, and representative static assets.
+Writes a timestamped snapshot to .perf-checks/.
+
+Usage:
+    ./scripts/check-prod-perf.sh                                              # production
+    ./scripts/check-prod-perf.sh https://abc123.thenuclearquestion.pages.dev  # preview deploy
+    ./scripts/check-prod-perf.sh --baseline <file> <url>                      # capture + diff
+
+In --baseline mode the script captures a new snapshot of <url> as usual
+and then prints a structured diff against <file> to stdout. Content-hashed
+asset filenames (/assets/index-*.js, /assets/index-*.css) are normalised
+before comparison so a rotated hash isn't reported as a new URL. Only
+headers that differ between the two snapshots are printed; matching URLs
+roll up into a single "URLS WITH NO DIFF" count.
+
+The Cloudflare MCP can resolve a branch's latest preview URL by querying
+the thenuclearquestion Pages project's deployments. After each commit
+on feature/perf-pass, wait for the deployment to succeed, then run the
+script against the resulting preview URL and compare to the baseline.
+
+.perf-checks/ is gitignored.
