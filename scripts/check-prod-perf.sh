@@ -12,8 +12,30 @@
 # Usage:
 #   ./scripts/check-prod-perf.sh                                              # production
 #   ./scripts/check-prod-perf.sh https://abc123.thenuclearquestion.pages.dev  # preview
+#   ./scripts/check-prod-perf.sh --baseline <file> <url>                      # capture + diff
+#
+# In --baseline mode the script captures a new snapshot of <url> as usual,
+# then prints a structured diff of the new snapshot against <file> to stdout.
+# Content-hashed asset filenames (/assets/index-*.js, /assets/index-*.css) are
+# normalised before comparison so a rotated hash isn't reported as a new URL.
 
 set -u
+
+# --- Argument parsing -------------------------------------------------------
+
+BASELINE_FILE=""
+if [[ "${1:-}" == "--baseline" ]]; then
+  if [[ $# -lt 3 ]]; then
+    echo "Error: --baseline requires <baseline-file> <url>" >&2
+    exit 1
+  fi
+  BASELINE_FILE="$2"
+  shift 2
+  if [[ ! -f "$BASELINE_FILE" ]]; then
+    echo "Error: baseline file not found: $BASELINE_FILE" >&2
+    exit 1
+  fi
+fi
 
 BASE_URL="${1:-https://thenuclearquestion.com}"
 
@@ -169,3 +191,186 @@ done
 # --- 5. Print the output path -----------------------------------------------
 
 echo "$OUTPUT_FILE"
+
+# --- 6. Optional: diff against a baseline -----------------------------------
+
+if [[ -z "$BASELINE_FILE" ]]; then
+  exit 0
+fi
+
+# Normalise a URL into a stable logical key. The JS and CSS bundle filenames
+# are content-hashed and rotate on every build, so they're keyed by the
+# pattern rather than the hash. Everything else uses its path verbatim.
+# Slashes and asterisks are slugged so the key is safe to use as a filename.
+normalise_key() {
+  local url="$1"
+  # Strip scheme + host.
+  local path
+  path="$(printf '%s' "$url" | sed -E 's#^https?://[^/]+##')"
+  local logical
+  case "$path" in
+    /assets/index-*.js)  logical="ASSET:/assets/index-*.js" ;;
+    /assets/index-*.css) logical="ASSET:/assets/index-*.css" ;;
+    /)                   logical="PAGE:/" ;;
+    *)                   logical="ASSET:$path" ;;
+  esac
+  # Slug for filesystem use: / -> __, * -> STAR, : -> _.
+  printf '%s' "$logical" | sed -e 's#/#__#g' -e 's#\*#STAR#g' -e 's#:#_#g'
+}
+
+# Parse a snapshot file into a directory of per-key files. Each file
+# contains the headers we care about, one per line, sorted, with the
+# variable elapsed-total stripped. Returns the directory path on stdout.
+parse_snapshot() {
+  local file="$1"
+  local out_dir
+  out_dir="$(mktemp -d)"
+
+  local current_url=""
+  local current_key=""
+  local current_tmp=""
+
+  while IFS= read -r line; do
+    if [[ "$line" == "==="*"===" ]]; then
+      # Flush previous block.
+      if [[ -n "$current_tmp" ]]; then
+        sort "$current_tmp" > "$out_dir/$current_key"
+        rm -f "$current_tmp"
+      fi
+      # Start new block.
+      current_url="$(printf '%s' "$line" | sed -E 's/^=== (.*) ===$/\1/')"
+      current_key="$(normalise_key "$current_url")"
+      current_tmp="$(mktemp)"
+      # Record the original URL for reporting.
+      printf 'url: %s\n' "$current_url" > "$current_tmp"
+      continue
+    fi
+    if [[ "$line" == "---" ]]; then
+      if [[ -n "$current_tmp" ]]; then
+        sort "$current_tmp" > "$out_dir/$current_key"
+        rm -f "$current_tmp"
+        current_tmp=""
+      fi
+      continue
+    fi
+    if [[ -z "$current_tmp" ]]; then
+      continue
+    fi
+    # Skip blank lines and the variable elapsed-total.
+    if [[ -z "$line" ]] || [[ "$line" == elapsed-total:* ]]; then
+      continue
+    fi
+    printf '%s\n' "$line" >> "$current_tmp"
+  done < "$file"
+
+  # Flush any trailing block.
+  if [[ -n "$current_tmp" ]]; then
+    sort "$current_tmp" > "$out_dir/$current_key"
+    rm -f "$current_tmp"
+  fi
+
+  echo "$out_dir"
+}
+
+# Pretty-print the diff for a single key.
+print_key_diff() {
+  local key="$1"
+  local baseline_file="$2"
+  local new_file="$3"
+
+  local baseline_url new_url
+  baseline_url="$(grep -m1 '^url: ' "$baseline_file" | sed -E 's/^url: //')"
+  new_url="$(grep -m1 '^url: ' "$new_file" | sed -E 's/^url: //')"
+
+  local header_label="$new_url"
+  if [[ "$baseline_url" != "$new_url" ]]; then
+    header_label="$new_url  (baseline: $baseline_url)"
+  fi
+
+  # Headers to compare, in display order.
+  local fields=(
+    "HTTP/"
+    "content-type:"
+    "cache-control:"
+    "cf-cache-status:"
+    "content-length:"
+    "content-encoding:"
+    "age:"
+    "etag:"
+    "MISSING"
+  )
+
+  local diff_lines=()
+  for prefix in "${fields[@]}"; do
+    local b n
+    b="$(grep -E "^${prefix}" "$baseline_file" || true)"
+    n="$(grep -E "^${prefix}" "$new_file" || true)"
+    if [[ "$b" != "$n" ]]; then
+      local b_show="${b:-<absent>}"
+      local n_show="${n:-<absent>}"
+      diff_lines+=("  ${prefix%:} : ${b_show#${prefix}} -> ${n_show#${prefix}}")
+    fi
+  done
+
+  if [[ ${#diff_lines[@]} -eq 0 ]]; then
+    return 1
+  fi
+
+  echo "DIFF: $header_label"
+  for l in "${diff_lines[@]}"; do
+    echo "$l"
+  done
+  return 0
+}
+
+BASELINE_DIR="$(parse_snapshot "$BASELINE_FILE")"
+NEW_DIR="$(parse_snapshot "$OUTPUT_FILE")"
+
+# Walk the union of keys.
+ALL_KEYS="$( { ls "$BASELINE_DIR"; ls "$NEW_DIR"; } | sort -u )"
+
+DIFF_COUNT=0
+NO_DIFF_COUNT=0
+NEW_ONLY=()
+MISSING=()
+
+echo
+echo "Baseline: $BASELINE_FILE"
+echo "New:      $OUTPUT_FILE"
+echo
+
+while IFS= read -r key; do
+  [[ -z "$key" ]] && continue
+  local_baseline="$BASELINE_DIR/$key"
+  local_new="$NEW_DIR/$key"
+  if [[ ! -f "$local_baseline" ]]; then
+    new_url="$(grep -m1 '^url: ' "$local_new" | sed -E 's/^url: //')"
+    NEW_ONLY+=("$new_url")
+    continue
+  fi
+  if [[ ! -f "$local_new" ]]; then
+    baseline_url="$(grep -m1 '^url: ' "$local_baseline" | sed -E 's/^url: //')"
+    MISSING+=("$baseline_url")
+    continue
+  fi
+  if print_key_diff "$key" "$local_baseline" "$local_new"; then
+    DIFF_COUNT=$((DIFF_COUNT + 1))
+  else
+    NO_DIFF_COUNT=$((NO_DIFF_COUNT + 1))
+  fi
+done <<< "$ALL_KEYS"
+
+echo
+echo "URLS WITH NO DIFF: $NO_DIFF_COUNT"
+echo "NEW URLS NOT IN BASELINE: ${#NEW_ONLY[@]}"
+for u in "${NEW_ONLY[@]:-}"; do
+  [[ -z "$u" ]] && continue
+  echo "  $u"
+done
+echo "MISSING URLS PRESENT IN BASELINE BUT NOT IN NEW: ${#MISSING[@]}"
+for u in "${MISSING[@]:-}"; do
+  [[ -z "$u" ]] && continue
+  echo "  $u"
+done
+
+rm -rf "$BASELINE_DIR" "$NEW_DIR"

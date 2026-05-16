@@ -228,6 +228,14 @@ Writes a timestamped snapshot to .perf-checks/.
 Usage:
     ./scripts/check-prod-perf.sh                                              # production
     ./scripts/check-prod-perf.sh https://abc123.thenuclearquestion.pages.dev  # preview deploy
+    ./scripts/check-prod-perf.sh --baseline <file> <url>                      # capture + diff
+
+In --baseline mode the script captures a new snapshot of <url> as usual
+and then prints a structured diff against <file> to stdout. Content-hashed
+asset filenames (/assets/index-*.js, /assets/index-*.css) are normalised
+before comparison so a rotated hash isn't reported as a new URL. Only
+headers that differ between the two snapshots are printed; matching URLs
+roll up into a single "URLS WITH NO DIFF" count.
 
 The Cloudflare MCP can resolve a branch's latest preview URL by querying
 the thenuclearquestion Pages project's deployments. After each commit
