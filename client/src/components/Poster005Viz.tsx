@@ -26,12 +26,15 @@
 // that aligns with PosterPage's "Explore the Data" column.
 // ─────────────────────────────────────────────────────────────────
 
+import { useEffect, useState } from 'react';
 import Poster005Map from '@/components/Poster005Map';
 import Poster005Dendrogram from '@/components/Poster005Dendrogram';
 import Poster005ReactorDetail from '@/components/Poster005ReactorDetail';
 import Poster005Callouts from '@/components/Poster005Callouts';
 import Poster005Timeline from '@/components/Poster005Timeline';
 import Poster005Legend from '@/components/Poster005Legend';
+import { initPoster005Hubs, type Poster005FormsData } from '@/lib/poster005Hubs';
+import { initPoster005Connectors } from '@/lib/poster005Connectors';
 
 interface SectionFrameProps {
   title: string;
@@ -75,6 +78,24 @@ function SectionFrame({ title, lead, children }: SectionFrameProps) {
 }
 
 export default function Poster005Viz() {
+  // Dynamic-import the forms JSON (~5.6 MB raw, the largest of the six)
+  // and initialise the Hubs + Connectors lib modules in the correct order
+  // (Connectors reads from Hubs's now-populated bindings).
+  // The dendrogram section is gated on formsReady; map, timeline, and the
+  // other small surfaces are independent of formsData and render at once.
+  const [formsReady, setFormsReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/poster-005-forms.json').then((mod) => {
+      if (cancelled) return;
+      const data = mod.default as unknown as Poster005FormsData;
+      initPoster005Hubs(data);
+      initPoster005Connectors(data);
+      setFormsReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="w-full">
       <SectionFrame
@@ -88,7 +109,7 @@ export default function Poster005Viz() {
         title="Every reactor, grouped by status"
         lead="The four states a UK reactor can be in. Hubs are sized by the total capacity in each status; leaf circles below are individual units, sized by their own capacity. Click a status above to filter; hover any reactor to bring up its details."
       >
-        <Poster005Dendrogram />
+        {formsReady && <Poster005Dendrogram />}
       </SectionFrame>
 
       <div className="container mb-12">
