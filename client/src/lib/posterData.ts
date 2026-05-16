@@ -10,8 +10,12 @@ export interface PosterData {
   pullQuote: string;
   methodology: string;
   imagePath: string;
+  /** WebP sibling of imagePath. Computed once at module load. */
+  webpPath: string;
   /** Landscape-cropped thumbnail used in the homepage ribbon. */
   thumbnailPath: string;
+  /** WebP sibling of thumbnailPath. Computed once at module load. */
+  thumbnailWebpPath: string;
   pdfPath: string;
   /** Long-form prose surfaced on the poster page. Two optional
    *  zones bracket the visualisation. */
@@ -28,7 +32,9 @@ export interface PosterData {
   };
 }
 
-export const posters: PosterData[] = [
+type PosterDataBase = Omit<PosterData, "webpPath" | "thumbnailWebpPath">;
+
+const rawPosters: PosterDataBase[] = [
   {
     id: "001",
     number: "001",
@@ -224,6 +230,12 @@ A Geological Disposal Facility for higher-activity waste has been planned, in va
     },
   },
 ];
+
+export const posters: PosterData[] = rawPosters.map((p) => ({
+  ...p,
+  webpPath: p.imagePath.replace(/\.png$/i, ".webp"),
+  thumbnailWebpPath: p.thumbnailPath.replace(/\.png$/i, ".webp"),
+}));
 
 export const sectionDescriptions: Record<string, string> = {
   desirability:

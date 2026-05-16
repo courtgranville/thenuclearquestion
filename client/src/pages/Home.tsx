@@ -9,6 +9,7 @@ import ScrollProgress from '@/components/ScrollProgress';
 import PageTransition from '@/components/PageTransition';
 import { NucleusHero } from '@/components/NucleusHero';
 import { IsotopeToggle } from '@/components/IsotopeToggle';
+import PosterImage from '@/components/PosterImage';
 import { posters } from '@/lib/posterData';
 import nucleusPaths from '@/assets/nucleus-paths.json';
 
@@ -141,8 +142,9 @@ export default function Home() {
               {posters.map((p, i) => (
                 <Link key={p.id} href={`/poster/${p.id}`}>
                   <article className="poster landscape">
-                    <img
-                      src={p.thumbnailPath}
+                    <PosterImage
+                      webpSrc={p.thumbnailWebpPath}
+                      pngSrc={p.thumbnailPath}
                       alt={p.title}
                       width={1400}
                       height={990}
