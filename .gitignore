@@ -115,3 +115,6 @@ client/public/__manus__/version.json
 
 # Performance check outputs
 .perf-checks/
+
+# Font bundle (extracted to /tmp/ for processing)
+Playfair,Playfair_Display.zip
