@@ -1,7 +1,39 @@
+import { useEffect, useState } from 'react';
 import Poster006WasteInversion from '@/components/Poster006WasteInversion';
 import Poster006Sellafield from '@/components/Poster006Sellafield';
 import Poster006RadiationDoses from '@/components/Poster006RadiationDoses';
 import Poster006WasteStorage from '@/components/Poster006WasteStorage';
+
+// Shared forms-data shape covering the three sub-component slices.
+// Dynamic-imported once at the Viz level and passed down so the three
+// sub-components don't each fire their own duplicate import.
+export interface Poster006FormsData {
+  wasteCategories: Record<
+    string,
+    {
+      paths: string[];
+      centroid: [number, number];
+      nativeRadius: number;
+      volumePct: number;
+      radioactivityPct: number;
+    }
+  >;
+  doses: Record<
+    string,
+    {
+      centre: [number, number];
+      centreRadius: number;
+      lines: { x1: number; y1: number; x2: number; y2: number }[];
+    }
+  >;
+  storage: Record<
+    string,
+    {
+      innerSvg: string;
+      bbox: { minX: number; minY: number; maxX: number; maxY: number };
+    }
+  >;
+}
 
 interface SectionFrameProps {
   title: string;
@@ -58,13 +90,24 @@ function SectionFrame({ title, lead, children }: SectionFrameProps) {
 }
 
 export default function Poster006Viz() {
+  // One dynamic import for all three slices. Three sub-components share
+  // the result so we don't fire three concurrent fetches for the same JSON.
+  const [formsData, setFormsData] = useState<Poster006FormsData | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/poster-006-forms.json').then((mod) => {
+      if (!cancelled) setFormsData(mod.default as unknown as Poster006FormsData);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <div className="w-full">
       <SectionFrame
         title="The Inversion"
         lead="The four categories of UK radioactive waste, scaled two ways. Toggle between physical volume and radioactivity. The smallest physical volume holds almost all of the radioactivity - this is the editorial fact this page is built around."
       >
-        <Poster006WasteInversion />
+        <Poster006WasteInversion formsData={formsData} />
       </SectionFrame>
 
       <SectionFrame
@@ -78,14 +121,14 @@ export default function Poster006Viz() {
         title="Radiation Doses"
         lead="Common radiation doses on a logarithmic scale, from a UK reactor's annual contribution to a CT scan. Hover any form to replay its burst."
       >
-        <Poster006RadiationDoses />
+        <Poster006RadiationDoses formsData={formsData} />
       </SectionFrame>
 
       <SectionFrame
         title="Storage"
         lead="The four routes UK radioactive waste takes for storage and disposal. Hover for which waste types each route handles."
       >
-        <Poster006WasteStorage />
+        <Poster006WasteStorage formsData={formsData} />
       </SectionFrame>
     </div>
   );

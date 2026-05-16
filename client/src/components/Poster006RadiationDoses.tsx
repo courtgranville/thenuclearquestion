@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import formsData from '@/assets/poster-006-forms.json';
+import type { Poster006FormsData } from '@/components/Poster006Viz';
 
 // ─── Dose metadata ──────────────────────────────────────────────
 
@@ -45,22 +45,13 @@ interface DoseRender {
 
 const NUM_BUCKETS = 8;
 
-const DOSE_SRC = (formsData as unknown as {
-  doses: Record<
-    string,
-    {
-      centre: [number, number];
-      centreRadius: number;
-      lines: { x1: number; y1: number; x2: number; y2: number }[];
-    }
-  >;
-}).doses;
+type DoseSrc = Poster006FormsData['doses'];
 
 const BURST_DURATION_MS = 1200;
 const MAX_STAGGER_MS = 350;
 
-function buildRender(id: string): DoseRender {
-  const src = DOSE_SRC[id];
+function buildRender(id: string, doseSrc: DoseSrc): DoseRender {
+  const src = doseSrc[id];
   const [cx, cy] = src.centre;
   let formRadius = src.centreRadius;
   // First pass: translate to form-local + measure formRadius.
@@ -102,14 +93,20 @@ function buildRender(id: string): DoseRender {
   };
 }
 
-const RENDER: Record<string, DoseRender> = {};
-for (const meta of ALL_DOSES) {
-  RENDER[meta.id] = buildRender(meta.id);
+interface DoseRenderData {
+  render: Record<string, DoseRender>;
+  referenceRadius: number;
 }
 
-// CT scan defines the cell-fill scale - every other dose is rendered
-// proportionally smaller using its source formRadius / CT's formRadius.
-const REFERENCE_RADIUS = RENDER.ct.formRadius || 1;
+function buildRenderData(formsData: Poster006FormsData): DoseRenderData {
+  const render: Record<string, DoseRender> = {};
+  for (const meta of ALL_DOSES) {
+    render[meta.id] = buildRender(meta.id, formsData.doses);
+  }
+  // CT scan defines the cell-fill scale - every other dose is rendered
+  // proportionally smaller using its source formRadius / CT's formRadius.
+  return { render, referenceRadius: render.ct.formRadius || 1 };
+}
 
 // ─── Per-cell canvas component ──────────────────────────────────
 
@@ -120,9 +117,10 @@ function easeOutCubic(t: number): number {
 interface DoseCellProps {
   dose: DoseMeta;
   reduced: boolean;
+  renderData: DoseRenderData;
 }
 
-function DoseCell({ dose, reduced }: DoseCellProps) {
+function DoseCell({ dose, reduced, renderData }: DoseCellProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -133,7 +131,7 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
     rafId: number;
   }>({ cssW: 0, cssH: 0, scale: 1, ox: 0, oy: 0, burstStart: null, rafId: 0 });
 
-  const data = RENDER[dose.id];
+  const data = renderData.render[dose.id];
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -226,7 +224,7 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
       // CT (largest source formRadius) fills the cell. Every other
       // dose is rendered at its own source extent / CT's source extent.
       // This preserves the print's proportional sizing exactly.
-      s.scale = cellHalf / REFERENCE_RADIUS;
+      s.scale = cellHalf / renderData.referenceRadius;
       s.ox = s.cssW / 2;
       s.oy = s.cssH / 2;
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -314,12 +312,21 @@ function DoseCell({ dose, reduced }: DoseCellProps) {
 
 // ─── Section component ─────────────────────────────────────────
 
-export default function Poster006RadiationDoses() {
+interface Poster006RadiationDosesProps {
+  formsData: Poster006FormsData | null;
+}
+
+export default function Poster006RadiationDoses({ formsData }: Poster006RadiationDosesProps) {
   const reduced = useMemo(() => {
     if (typeof window === 'undefined') return false;
     if (typeof window.matchMedia !== 'function') return false;
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   }, []);
+
+  const renderData = useMemo(
+    () => (formsData ? buildRenderData(formsData) : null),
+    [formsData],
+  );
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4">
@@ -328,8 +335,8 @@ export default function Poster006RadiationDoses() {
           overlap because the cells are square and the rays stay
           inside the cell radius. */}
       <div className="grid grid-cols-3 gap-y-2 gap-x-6 sm:gap-y-4 sm:gap-x-10 justify-items-stretch">
-        {ALL_DOSES.map((dose) => (
-          <DoseCell key={dose.id} dose={dose} reduced={reduced} />
+        {renderData && ALL_DOSES.map((dose) => (
+          <DoseCell key={dose.id} dose={dose} reduced={reduced} renderData={renderData} />
         ))}
       </div>
       <p
