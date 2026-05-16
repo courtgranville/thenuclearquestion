@@ -144,6 +144,8 @@ export default function Home() {
                     <img
                       src={p.thumbnailPath}
                       alt={p.title}
+                      width={1400}
+                      height={990}
                       loading={i === 0 ? 'eager' : 'lazy'}
                     />
                     <div className="caption">
