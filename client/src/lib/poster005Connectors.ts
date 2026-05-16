@@ -133,8 +133,19 @@ function buildTrajectoryForLeaf(
 export let TRAJECTORY_BY_REACTOR: Map<string, Trajectory> = new Map();
 
 // Must be called AFTER initPoster005Hubs - this reads from the now-populated
-// LEAVES_BY_STATUS and HUB_BY_STATUS bindings to compute trajectories.
+// LEAVES_BY_STATUS and HUB_BY_STATUS bindings to compute trajectories. The
+// guard below converts the silent-bad-output failure mode (empty trajectory
+// map, dendrogram renders without connector animations) into a loud crash
+// so any future change to the init sequence fails immediately rather than
+// shipping a broken viz.
 export function initPoster005Connectors(formsData: Poster005FormsData): void {
+  if (Object.keys(HUB_BY_STATUS).length === 0) {
+    throw new Error(
+      'initPoster005Connectors called before initPoster005Hubs. ' +
+      'Hubs must be initialised first because Connectors reads from ' +
+      'HUB_BY_STATUS and LEAVES_BY_STATUS to compute trajectories.',
+    );
+  }
   ALL_PATHS = formsData.dendrogram_links.map(rawPath);
   TRAJECTORY_BY_REACTOR = new Map();
   for (const status of ['underConstruction', 'operating', 'retired', 'cancelled'] as ReactorStatus[]) {
