@@ -216,3 +216,22 @@ The defence is on 21 May 2026. From now to then, the website is live and any cha
 ## Things that are NOT this project
 
 If asked about anything that doesn't fit the above — a different design project, a different thesis, generic web development questions unrelated to this repo, or edits to the written thesis document — answer normally without applying this project context. The written thesis is locked unless Court explicitly reopens it.
+
+## Performance verification
+
+### scripts/check-prod-perf.sh
+
+Curls a deployment and records cache, compression, and sizing headers
+for the JS bundle, CSS bundle, HTML, and representative static assets.
+Writes a timestamped snapshot to .perf-checks/.
+
+Usage:
+    ./scripts/check-prod-perf.sh                                              # production
+    ./scripts/check-prod-perf.sh https://abc123.thenuclearquestion.pages.dev  # preview deploy
+
+The Cloudflare MCP can resolve a branch's latest preview URL by querying
+the thenuclearquestion Pages project's deployments. After each commit
+on feature/perf-pass, wait for the deployment to succeed, then run the
+script against the resulting preview URL and compare to the baseline.
+
+.perf-checks/ is gitignored.
