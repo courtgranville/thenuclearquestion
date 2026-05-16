@@ -387,6 +387,13 @@ export default function Poster004CanvasViz() {
       const data = mod.default as unknown as Poster004FormsData;
       initEngineLinks(data);
       initComponentForms(data);
+      // initEngineLinks populates ALL_SECTOR_IDS / ALL_CONNECTOR_IDS in
+      // the engine. makeInitialAnimState() reads those at module level
+      // to build per-sector / per-connector records, so the initial
+      // useRef value - computed at first render before initEngineLinks
+      // ran - has empty records. Rebuild the anim state now that the
+      // IDs are populated.
+      animRef.current = makeInitialAnimState();
       setFormsReady(true);
     });
     return () => { cancelled = true; };
