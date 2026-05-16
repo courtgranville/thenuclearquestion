@@ -561,6 +561,21 @@
   text-decoration-color: #a51e22;
 }
 
+/* ── POSTER CANVAS FADE-IN ────────────────────────────────────────────── */
+/* Pairs with the dynamic-import pattern in PosterXXXCanvasViz: the canvas
+   stays at opacity 0 while the per-poster forms JSON is in flight, then
+   transitions to 1 when the data has been parsed and the RAF loop starts
+   drawing. The print SVG overlay is rendered immediately on mount, so the
+   user always sees the diagram - the canvas materialising on top of it
+   reads as "the diagram coming to life" rather than as a loading state. */
+.poster-canvas {
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.poster-canvas--loaded {
+  opacity: 1;
+}
+
 /* ── REDUCED-MOTION ───────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .poster img { transition: none; }
@@ -569,5 +584,6 @@
   .poster:hover { transform: none; }
   .iso-switch .thumb { transition: none; }
   .iso-switch button { transition: none; }
+  .poster-canvas { transition: none; }
 }
 }
