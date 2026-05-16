@@ -23,6 +23,7 @@ import {
   startCarrierFocus,
   endCarrierFocus,
   tickAnimation,
+  initEngineLinks,
   ABSORB_BLIP_PEAK_SCALE,
   HOVER_DEBOUNCE_MS,
   INSTRUCTION_FADE_IN_DELAY_MS,
@@ -39,8 +40,8 @@ import {
   PULSE_GLOW_RADIUS,
   type AnimState,
   type Link,
+  type Poster004FormsData,
 } from '@/lib/poster004Engine';
-import formsData from '@/assets/poster-004-forms.json';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 
@@ -89,7 +90,22 @@ interface RawData {
   };
 }
 
-const DATA = formsData as unknown as RawData;
+// Mutable module-level bindings populated by initComponentForms() once the
+// dynamic-imported forms JSON has loaded. Until then they're empty/zero
+// defaults; the component gates all data-dependent JSX + the RAF effect on
+// the `formsReady` state flag.
+let DATA: RawData = {
+  total: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  petroleum: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  naturalGas: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  electricity: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  bioenergy: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  heat: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  solidFuel: { form_paths: [], centroid: [0, 0], twh: 0 } as unknown as RawForm,
+  links: { hub_to_carrier: [], carrier_to_sector: [] },
+  sectors: [],
+  labels: { hub: [], carriers: {}, sectors: {} },
+};
 
 // Per-carrier identifiers in fixed order (for stable mount).
 type FormId = CarrierId | 'total';
@@ -160,49 +176,16 @@ function pickSilhouetteIndices(lines: PreparedLine[]): number[] {
   return [maxIdx];
 }
 
-const FORMS: Record<FormId, PreparedForm> = (() => {
-  const out = {} as Record<FormId, PreparedForm>;
-  for (const id of FORM_IDS) {
-    const raw = DATA[id];
-    const { polylines, bbox } = buildPolylines(raw.form_paths);
-    const N = polylines.length;
-    const lines: PreparedLine[] = polylines.map((L, li) => {
-      const depth = N > 1 ? li / (N - 1) : 0;
-      const dw = depthWeight(depth);
-      return {
-        path: dw === 0 ? buildPath2D(L.pts, L.n) : null,
-        pts: L.pts,
-        n: L.n,
-        depth,
-        dw,
-      };
-    });
-    out[id] = {
-      id,
-      lines,
-      bbox,
-      centroid: raw.centroid,
-      anchor: raw.anchor ?? raw.centroid,
-      colour: raw.colour ?? '#0d1a1e',
-      twh: raw.twh,
-      // TWh stands in for the magnitude parameter that emissions
-      // plays in poster 001. Hub (1542) extrapolates slightly past
-      // the eMax of poster 001's calibration (970); accepted.
-      motion: resolveMotion(raw.twh),
-      silhouetteIndices: pickSilhouetteIndices(lines),
-    };
-  }
-  return out;
-})();
+let FORMS: Record<FormId, PreparedForm> = {} as Record<FormId, PreparedForm>;
 
 // Page background colour - used to fill form silhouettes so the
 // connectors that run beneath the canvas don't show through the
 // stroke gaps. Matches CLAUDE.md's locked palette.
 const PAGE_BG = '#ECE7DF';
 
-const ALL_LINKS: Link[] = [...HUB_LINKS, ...SECTOR_LINKS];
-const SECTORS = DATA.sectors;
-const SECTOR_LABELS = DATA.labels.sectors;
+let ALL_LINKS: Link[] = [];
+let SECTORS: RawSector[] = [];
+let SECTOR_LABELS: Record<string, RawGlyph[]> = {};
 
 // ─────────────────────────────────────────────────────────────────
 // Carrier name labels - print designer set these at PDF-export time;
@@ -247,25 +230,14 @@ function hitRectFor(b: BBox): HitRect {
   return { x, y, w, h };
 }
 
-const CARRIER_HIT_RECTS: Record<CarrierId, HitRect> = {
-  petroleum:   hitRectFor(FORMS.petroleum.bbox),
-  naturalGas:  hitRectFor(FORMS.naturalGas.bbox),
-  electricity: hitRectFor(FORMS.electricity.bbox),
-  bioenergy:   hitRectFor(FORMS.bioenergy.bbox),
-  heat:        hitRectFor(FORMS.heat.bbox),
-  solidFuel:   hitRectFor(FORMS.solidFuel.bbox),
-};
-const HUB_HIT_RECT = hitRectFor(FORMS.total.bbox);
+let CARRIER_HIT_RECTS: Record<CarrierId, HitRect> = {} as Record<CarrierId, HitRect>;
+let HUB_HIT_RECT: HitRect = { x: 0, y: 0, w: 0, h: 0 };
 
 // Sector labels render at their print SVG coordinates verbatim  -
 // the print designer's deliberate placement is preserved without
 // scale or translate.
 
-const SECTOR_BY_ID: Record<string, RawSector> = (() => {
-  const out: Record<string, RawSector> = {};
-  for (const s of SECTORS) out[s.id] = s;
-  return out;
-})();
+let SECTOR_BY_ID: Record<string, RawSector> = {};
 
 // ─────────────────────────────────────────────────────────────────
 // Tight content viewBox - replaces the original print-export
@@ -274,7 +246,7 @@ const SECTOR_BY_ID: Record<string, RawSector> = (() => {
 // every renderable element with 5% padding.
 // ─────────────────────────────────────────────────────────────────
 
-const VIEWBOX = (() => {
+function computeViewbox(): { x: number; y: number; w: number; h: number } {
   let minX = Infinity, minY = Infinity;
   let maxX = -Infinity, maxY = -Infinity;
   const expand = (x: number, y: number) => {
@@ -326,7 +298,62 @@ const VIEWBOX = (() => {
     w: w + padX * 2,
     h: h + padY * 2,
   };
-})();
+}
+
+let VIEWBOX = { x: 0, y: 0, w: 1000, h: 1000 };
+
+// Populated by initComponentForms once dynamic-imported JSON lands.
+function initComponentForms(formsData: Poster004FormsData): void {
+  DATA = formsData as unknown as RawData;
+
+  FORMS = {} as Record<FormId, PreparedForm>;
+  for (const id of FORM_IDS) {
+    const raw = DATA[id];
+    const { polylines, bbox } = buildPolylines(raw.form_paths);
+    const N = polylines.length;
+    const lines: PreparedLine[] = polylines.map((L, li) => {
+      const depth = N > 1 ? li / (N - 1) : 0;
+      const dw = depthWeight(depth);
+      return {
+        path: dw === 0 ? buildPath2D(L.pts, L.n) : null,
+        pts: L.pts,
+        n: L.n,
+        depth,
+        dw,
+      };
+    });
+    FORMS[id] = {
+      id,
+      lines,
+      bbox,
+      centroid: raw.centroid,
+      anchor: raw.anchor ?? raw.centroid,
+      colour: raw.colour ?? '#0d1a1e',
+      twh: raw.twh,
+      motion: resolveMotion(raw.twh),
+      silhouetteIndices: pickSilhouetteIndices(lines),
+    };
+  }
+
+  ALL_LINKS = [...HUB_LINKS, ...SECTOR_LINKS];
+  SECTORS = DATA.sectors;
+  SECTOR_LABELS = DATA.labels.sectors;
+
+  CARRIER_HIT_RECTS = {
+    petroleum:   hitRectFor(FORMS.petroleum.bbox),
+    naturalGas:  hitRectFor(FORMS.naturalGas.bbox),
+    electricity: hitRectFor(FORMS.electricity.bbox),
+    bioenergy:   hitRectFor(FORMS.bioenergy.bbox),
+    heat:        hitRectFor(FORMS.heat.bbox),
+    solidFuel:   hitRectFor(FORMS.solidFuel.bbox),
+  };
+  HUB_HIT_RECT = hitRectFor(FORMS.total.bbox);
+
+  SECTOR_BY_ID = {};
+  for (const s of SECTORS) SECTOR_BY_ID[s.id] = s;
+
+  VIEWBOX = computeViewbox();
+}
 
 // ─────────────────────────────────────────────────────────────────
 // Component
@@ -346,6 +373,24 @@ export default function Poster004CanvasViz() {
   const sectorCircleRefs = useRef<Record<string, SVGCircleElement | null>>({});
   const sectorLabelRefs  = useRef<Record<string, SVGGElement | null>>({});
   const carrierLabelRefs = useRef<Record<string, SVGTextElement | null>>({});
+
+  // Dynamic-import the forms JSON so its ~3.3 MB raw payload doesn't
+  // ship in the main bundle. Once loaded, initEngineLinks() populates the
+  // engine's module-level link tables and initComponentForms() populates
+  // the prepared form / hit-rect / viewBox state used by this component.
+  // formsReady gates every data-dependent effect and JSX path below.
+  const [formsReady, setFormsReady] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/poster-004-forms.json').then((mod) => {
+      if (cancelled) return;
+      const data = mod.default as unknown as Poster004FormsData;
+      initEngineLinks(data);
+      initComponentForms(data);
+      setFormsReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Dev-only FPS counter (mirrors Poster001CanvasViz). Rendered as
   // a small absolute-positioned chip in the top-right of the stage.
@@ -373,6 +418,7 @@ export default function Poster004CanvasViz() {
   }, []);
 
   useEffect(() => {
+    if (!formsReady) return;
     const canvas = canvasRef.current;
     const stage = stageRef.current;
     if (!canvas || !stage) return;
@@ -731,7 +777,7 @@ export default function Poster004CanvasViz() {
       cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, []);
+  }, [formsReady]);
 
   // ─── Pointer handlers ──────────────────────────────────────────
 
@@ -896,39 +942,42 @@ export default function Poster004CanvasViz() {
       >
         {/* Layer 1: connectors (lowest). Pointer-events disabled  -
             taps pass through to the upper SVG. */}
-        <svg
-          viewBox={`${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`}
-          className="absolute inset-0 w-full h-full"
-          preserveAspectRatio="xMidYMid meet"
-          style={{ zIndex: 1, pointerEvents: 'none' }}
-          aria-hidden="true"
-        >
-          <g id="connectors">
-            {ALL_LINKS.map((l) => (
-              <path
-                key={l.id}
-                ref={(el) => { connectorRefs.current[l.id] = el; }}
-                d={l.d}
-                data-connector-id={l.id}
-                data-connector-carrier={l.carrier}
-                stroke="#0d1a1e"
-                strokeWidth={0.6}
-                fill="none"
-                style={{ opacity: 1 }}
-              />
-            ))}
-          </g>
-        </svg>
+        {formsReady && (
+          <svg
+            viewBox={`${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`}
+            className="absolute inset-0 w-full h-full"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ zIndex: 1, pointerEvents: 'none' }}
+            aria-hidden="true"
+          >
+            <g id="connectors">
+              {ALL_LINKS.map((l) => (
+                <path
+                  key={l.id}
+                  ref={(el) => { connectorRefs.current[l.id] = el; }}
+                  d={l.d}
+                  data-connector-id={l.id}
+                  data-connector-carrier={l.carrier}
+                  stroke="#0d1a1e"
+                  strokeWidth={0.6}
+                  fill="none"
+                  style={{ opacity: 1 }}
+                />
+              ))}
+            </g>
+          </svg>
+        )}
 
         {/* Layer 2: forms + pulse-tips (middle). */}
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
+          className={`poster-canvas absolute inset-0 w-full h-full block${formsReady ? ' poster-canvas--loaded' : ''}`}
           style={{ zIndex: 2, pointerEvents: 'none' }}
         />
 
         {/* Layer 3: sectors, labels, hub label, carrier labels,
             hover instruction, hit-areas (top). */}
+        {formsReady && (
         <svg
           viewBox={`${VIEWBOX.x} ${VIEWBOX.y} ${VIEWBOX.w} ${VIEWBOX.h}`}
           className="absolute inset-0 w-full h-full"
@@ -1095,6 +1144,7 @@ export default function Poster004CanvasViz() {
             })}
           </g>
         </svg>
+        )}
       </div>
 
       {/* Hover instruction - sits as plain HTML below the diagram so
