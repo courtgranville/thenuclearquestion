@@ -1,6 +1,5 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { buildPolylines, type BBox } from '@/lib/parseSvg';
-import formsData from '@/assets/poster-003-forms.json';
 import {
   MAX_DEATHS_FOR_SOURCE,
   SOURCE_IDS,
@@ -8,6 +7,11 @@ import {
   type VizState,
 } from '@/lib/poster003Data';
 import { poster003Store } from '@/lib/poster003Store';
+
+// Forms data is dynamically imported in an effect so its ~1.4 MB raw payload
+// is not bundled into the route's main chunk. Visitors who never click into
+// poster 003 never download it.
+type FormsData = Record<SourceId, FormJson>;
 
 /**
  * Poster 003 - deaths-by-source canvas layer + label overlay.
@@ -141,37 +145,40 @@ function buildFormPath(
   return p;
 }
 
-const FORMS: PreparedForm[] = SOURCE_IDS.map((id) => {
-  const data = (formsData as Record<SourceId, FormJson>)[id];
-  const { polylines, bbox } = buildPolylines(data.paths);
-  const path = buildFormPath(polylines);
-  const radius = Math.max(bbox.maxX - bbox.minX, bbox.maxY - bbox.minY) / 2;
-  return {
-    id,
-    path,
-    bbox,
-    centroid: [data.centroid[0], data.centroid[1]] as [number, number],
-    formRadius: radius,
-    maxDeaths: MAX_DEATHS_FOR_SOURCE[id],
-    stroke: id === 'nuclear' ? STROKE_NUCLEAR : STROKE_OTHER,
-    labelName: data.label.name,
-  };
-});
+function buildForms(formsData: FormsData): {
+  formsArr: PreparedForm[];
+  formById: Record<SourceId, PreparedForm>;
+} {
+  const formsArr = SOURCE_IDS.map((id) => {
+    const data = formsData[id];
+    const { polylines, bbox } = buildPolylines(data.paths);
+    const path = buildFormPath(polylines);
+    const radius = Math.max(bbox.maxX - bbox.minX, bbox.maxY - bbox.minY) / 2;
+    return {
+      id,
+      path,
+      bbox,
+      centroid: [data.centroid[0], data.centroid[1]] as [number, number],
+      formRadius: radius,
+      maxDeaths: MAX_DEATHS_FOR_SOURCE[id],
+      stroke: id === 'nuclear' ? STROKE_NUCLEAR : STROKE_OTHER,
+      labelName: data.label.name,
+    };
+  });
+  const formById = SOURCE_IDS.reduce(
+    (acc, id) => {
+      acc[id] = formsArr.find((f) => f.id === id)!;
+      return acc;
+    },
+    {} as Record<SourceId, PreparedForm>,
+  );
+  return { formsArr, formById };
+}
 
-const FORM_BY_ID: Record<SourceId, PreparedForm> = SOURCE_IDS.reduce(
-  (acc, id) => {
-    acc[id] = FORMS.find((f) => f.id === id)!;
-    return acc;
-  },
-  {} as Record<SourceId, PreparedForm>,
-);
-
-// ─── Bitmap cache (built lazily on first canvas mount) ──────────
+// ─── Bitmap cache (built once per component mount) ──────────────
 // Each form is stroked exactly once into a detached <canvas>; the
 // per-frame draw is then a single ctx.drawImage per form, which the
 // browser implements as a GPU blit. Memory: ~3 MB across 8 forms.
-
-let cachedBitmaps: Record<SourceId, HTMLCanvasElement> | null = null;
 
 function buildFormBitmap(form: PreparedForm): HTMLCanvasElement {
   const bbox = form.bbox;
@@ -201,16 +208,16 @@ function buildFormBitmap(form: PreparedForm): HTMLCanvasElement {
   return canvas;
 }
 
-function ensureBitmaps(): Record<SourceId, HTMLCanvasElement> {
-  if (cachedBitmaps) return cachedBitmaps;
-  cachedBitmaps = SOURCE_IDS.reduce(
+function buildBitmaps(
+  formById: Record<SourceId, PreparedForm>,
+): Record<SourceId, HTMLCanvasElement> {
+  return SOURCE_IDS.reduce(
     (acc, id) => {
-      acc[id] = buildFormBitmap(FORM_BY_ID[id]);
+      acc[id] = buildFormBitmap(formById[id]);
       return acc;
     },
     {} as Record<SourceId, HTMLCanvasElement>,
   );
-  return cachedBitmaps;
 }
 
 function alphaFor(baseScale: number): number {
@@ -223,6 +230,7 @@ function alphaFor(baseScale: number): number {
 
 function computeLayout(
   visualScales: Record<SourceId, number>,
+  formById: Record<SourceId, PreparedForm>,
 ): Map<SourceId, [number, number]> {
   const positions = new Map<SourceId, [number, number]>();
 
@@ -233,7 +241,7 @@ function computeLayout(
   if (visible.length === 0) return positions;
 
   const formR = (id: SourceId) =>
-    FORM_BY_ID[id].formRadius * visualScales[id];
+    formById[id].formRadius * visualScales[id];
 
   const anchor = visible[0];
   const anchorR = formR(anchor);
@@ -376,11 +384,12 @@ function scoreCandidate(
   positions: Map<SourceId, [number, number]>,
   visualScales: Record<SourceId, number>,
   placed: Map<SourceId, LabelLayout>,
+  formById: Record<SourceId, PreparedForm>,
 ): number {
   let score = 0;
   positions.forEach((pos, id) => {
     if (id === thisId) return;
-    const r = FORM_BY_ID[id].formRadius * visualScales[id];
+    const r = formById[id].formRadius * visualScales[id];
     if (rectCircleOverlap(cand.rect, pos[0], pos[1], r)) {
       score += SCORE_FORM_OVERLAP;
     }
@@ -413,6 +422,7 @@ function computeLabelLayouts(
   positions: Map<SourceId, [number, number]>,
   visualScales: Record<SourceId, number>,
   deathsTexts: Record<SourceId, string>,
+  formById: Record<SourceId, PreparedForm>,
 ): Map<SourceId, LabelLayout> {
   const out = new Map<SourceId, LabelLayout>();
 
@@ -424,9 +434,9 @@ function computeLabelLayouts(
     const pos = positions.get(id)!;
     const cx = pos[0];
     const cy = pos[1];
-    const formR = FORM_BY_ID[id].formRadius * visualScales[id];
+    const formR = formById[id].formRadius * visualScales[id];
 
-    const nameW = FORM_BY_ID[id].labelName.length * CHAR_W_NAME;
+    const nameW = formById[id].labelName.length * CHAR_W_NAME;
     const deathsW = deathsTexts[id].length * CHAR_W_DEATHS;
     const labelW = Math.max(nameW, deathsW);
     const labelH = LABEL_NAME_FS + LABEL_DEATHS_FS + 4;
@@ -434,8 +444,8 @@ function computeLabelLayouts(
     const candL = makeLabelCandidate('left', cx, cy, formR, labelW, labelH);
     const candR = makeLabelCandidate('right', cx, cy, formR, labelW, labelH);
 
-    const scoreL = scoreCandidate(candL, id, positions, visualScales, out);
-    const scoreR = scoreCandidate(candR, id, positions, visualScales, out);
+    const scoreL = scoreCandidate(candL, id, positions, visualScales, out, formById);
+    const scoreR = scoreCandidate(candR, id, positions, visualScales, out, formById);
 
     out.set(id, scoreL <= scoreR ? candL : candR);
   }
@@ -449,7 +459,7 @@ function computeLabelLayouts(
       let pushDownRequired = false;
       positions.forEach((pos, otherId) => {
         if (otherId === id) return;
-        const r = FORM_BY_ID[otherId].formRadius * visualScales[otherId];
+        const r = formById[otherId].formRadius * visualScales[otherId];
         if (rectCircleOverlap(layout.rect, pos[0], pos[1], r)) {
           const labelMidY = (layout.rect.minY + layout.rect.maxY) / 2;
           if (labelMidY < pos[1]) pushUpRequired = true;
@@ -516,7 +526,25 @@ function Poster003CanvasDeathsImpl() {
     {} as Record<SourceId, number>,
   );
 
+  // Dynamic-import the forms JSON so it lands in its own chunk.
+  const [formsData, setFormsData] = useState<FormsData | null>(null);
   useEffect(() => {
+    let cancelled = false;
+    import('@/assets/poster-003-forms.json').then((mod) => {
+      if (!cancelled) setFormsData(mod.default as unknown as FormsData);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build prepared forms + lookup map once the data lands.
+  const forms = useMemo(
+    () => (formsData ? buildForms(formsData) : null),
+    [formsData],
+  );
+
+  useEffect(() => {
+    if (!forms) return;
+    const { formsArr, formById } = forms;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -524,10 +552,10 @@ function Poster003CanvasDeathsImpl() {
     if (!ctx) return;
 
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    // Build (or reuse) the per-form bitmap cache. Each form is
+    // Build the per-form bitmap cache for this mount. Each form is
     // stroked exactly once into a detached canvas; subsequent frames
     // are GPU blits via ctx.drawImage. ~3 MB total memory.
-    const bitmaps = ensureBitmaps();
+    const bitmaps = buildBitmaps(formById);
     let cssW = 0;
     let cssH = 0;
 
@@ -559,7 +587,7 @@ function Poster003CanvasDeathsImpl() {
       >;
       let scalesChanged = false;
       for (const id of SOURCE_IDS) {
-        const f = FORM_BY_ID[id];
+        const f = formById[id];
         const ratio = viz.geometricSources[id].deaths / f.maxDeaths;
         const baseScale = ratio > 0 ? Math.sqrt(ratio) : 0;
         const visualScale = baseScale * FORM_SCALE_MULT;
@@ -573,7 +601,7 @@ function Poster003CanvasDeathsImpl() {
       }
 
       if (scalesChanged || layoutTargetRef.current.size === 0) {
-        layoutTargetRef.current = computeLayout(visualScales);
+        layoutTargetRef.current = computeLayout(visualScales, formById);
         for (const id of SOURCE_IDS) {
           lastScalesRef.current[id] = visualScales[id];
         }
@@ -631,7 +659,7 @@ function Poster003CanvasDeathsImpl() {
         (offsetY - SVG_VIEW_Y * baseScaleFit) * DPR,
       );
 
-      for (const form of FORMS) {
+      for (const form of formsArr) {
         const visualScale = visualScales[form.id];
         const sBase = visualScale / FORM_SCALE_MULT;
         if (sBase <= ACTIVE_THRESHOLD) continue;
@@ -666,6 +694,7 @@ function Poster003CanvasDeathsImpl() {
         positionsRef.current,
         visualScales,
         deathsTexts,
+        formById,
       );
 
       for (const id of SOURCE_IDS) {
@@ -727,7 +756,7 @@ function Poster003CanvasDeathsImpl() {
       if (rafId !== null) cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, []);
+  }, [forms]);
 
   return (
     <div className="w-full relative">
@@ -741,7 +770,7 @@ function Poster003CanvasDeathsImpl() {
       >
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
+          className={`poster-canvas absolute inset-0 w-full h-full block${forms ? ' poster-canvas--loaded' : ''}`}
         />
         <svg
           className="absolute inset-0 w-full h-full pointer-events-none"
@@ -782,7 +811,7 @@ function Poster003CanvasDeathsImpl() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  {FORM_BY_ID[id].labelName}
+                  {forms?.formById[id].labelName ?? ''}
                 </text>
                 <text
                   ref={(el) => {
