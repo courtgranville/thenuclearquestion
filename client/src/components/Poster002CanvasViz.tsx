@@ -4,12 +4,25 @@ import {
   TUNING_LIQUID,
   depthWeightLiquid,
 } from '@/lib/posterMotionLiquid';
-import formsData from '@/assets/poster-002-forms.json';
 import { Pause, Play } from 'lucide-react';
 import PosterControlButton from '@/components/PosterControlButton';
 import { fitCanvasToDpr } from '@/lib/canvasUtils';
 import { sampleCoalescedPointer } from '@/lib/cursorSampling';
 import { easeAlpha } from '@/lib/animationTiming';
+
+// Forms data is dynamically imported in an effect so its ~3.3 MB raw payload
+// is not bundled into the route's main chunk. Visitors who never click into
+// poster 002 never download it.
+type FormsData = Record<string, {
+  form_paths: string[];
+  land_lines: { points: string; dist_from_centre: number }[];
+  form_bbox: { minX: number; minY: number; maxX: number; maxY: number };
+  form_centroid: [number, number];
+  land_bbox: { minX: number; minY: number; maxX: number; maxY: number };
+  land_centroid: [number, number];
+  land_m2y: number;
+  water_m3: number;
+}>;
 
 // ─────────────────────────────────────────────────────────────────────
 // Region metadata
@@ -159,74 +172,53 @@ function parseLandPoints(pointsStr: string): Float32Array {
   return new Float32Array(nums);
 }
 
-const FORMS: PreparedForm[] = Object.entries(
-  formsData as unknown as Record<
-    string,
-    {
-      form_paths: string[];
-      land_lines: { points: string; dist_from_centre: number }[];
-      form_bbox: { minX: number; minY: number; maxX: number; maxY: number };
-      form_centroid: [number, number];
-      land_bbox: { minX: number; minY: number; maxX: number; maxY: number };
-      land_centroid: [number, number];
-      land_m2y: number;
-      water_m3: number;
-    }
-  >,
-).map(([id, data]) => {
-  // Water blob lines
-  const { polylines: waterPolys, bbox: formBbox } = buildPolylines(data.form_paths);
-  const N = waterPolys.length;
-  const waterLines: PreparedWaterLine[] = waterPolys.map((L, li) => {
-    const depth = N > 1 ? li / (N - 1) : 0;
-    const dw = depthWeightLiquid(depth);
+function buildForms(formsData: FormsData): PreparedForm[] {
+  return Object.entries(formsData).map(([id, data]) => {
+    // Water blob lines
+    const { polylines: waterPolys, bbox: formBbox } = buildPolylines(data.form_paths);
+    const N = waterPolys.length;
+    const waterLines: PreparedWaterLine[] = waterPolys.map((L, li) => {
+      const depth = N > 1 ? li / (N - 1) : 0;
+      const dw = depthWeightLiquid(depth);
+      return {
+        path: dw === 0 ? buildPath2D(L.pts, L.n) : null,
+        pts: L.pts,
+        n: L.n,
+        depth,
+        dw,
+      };
+    });
+
+    // Land surface lines
+    const distances = data.land_lines.map((ll) => Math.abs(ll.dist_from_centre));
+    const maxDist = Math.max(...distances, 0.001);
+    const landLines: PreparedLandLine[] = data.land_lines.map((ll) => {
+      const pts = parseLandPoints(ll.points);
+      return {
+        pts,
+        n: pts.length >> 1,
+        dist: ll.dist_from_centre,
+        distNorm: Math.abs(ll.dist_from_centre) / maxDist,
+      };
+    });
+
+    const fb = data.form_bbox;
+    const formBboxMaxDim = Math.max(fb.maxX - fb.minX, fb.maxY - fb.minY);
+    const formBboxHeight = fb.maxY - fb.minY;
+
     return {
-      path: dw === 0 ? buildPath2D(L.pts, L.n) : null,
-      pts: L.pts,
-      n: L.n,
-      depth,
-      dw,
+      id,
+      waterLines,
+      landLines,
+      formBbox,
+      formCentroid: data.form_centroid,
+      landBbox: data.land_bbox,
+      landCentroid: data.land_centroid,
+      formBboxMaxDim,
+      formBboxHeight,
+      formBboxMaxY: fb.maxY,
     };
   });
-
-  // Land surface lines
-  const distances = data.land_lines.map((ll) => Math.abs(ll.dist_from_centre));
-  const maxDist = Math.max(...distances, 0.001);
-  const landLines: PreparedLandLine[] = data.land_lines.map((ll) => {
-    const pts = parseLandPoints(ll.points);
-    return {
-      pts,
-      n: pts.length >> 1,
-      dist: ll.dist_from_centre,
-      distNorm: Math.abs(ll.dist_from_centre) / maxDist,
-    };
-  });
-
-  const fb = data.form_bbox;
-  const formBboxMaxDim = Math.max(fb.maxX - fb.minX, fb.maxY - fb.minY);
-  const formBboxHeight = fb.maxY - fb.minY;
-
-  return {
-    id,
-    waterLines,
-    landLines,
-    formBbox,
-    formCentroid: data.form_centroid,
-    landBbox: data.land_bbox,
-    landCentroid: data.land_centroid,
-    formBboxMaxDim,
-    formBboxHeight,
-    formBboxMaxY: fb.maxY,
-  };
-});
-
-// Dev guard: catch silent extraction failures
-if (import.meta.env.DEV) {
-  for (const f of FORMS) {
-    if (f.landLines.length === 0) {
-      console.error(`[poster-002] Source "${f.id}" has 0 land_lines - extraction failed for this source.`);
-    }
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -263,6 +255,32 @@ export default function Poster002CanvasViz() {
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('combined');
   const [paused, setPaused] = useState(false);
+  const [formsData, setFormsData] = useState<FormsData | null>(null);
+
+  // Dynamic-import the forms JSON so it lands in its own chunk.
+  useEffect(() => {
+    let cancelled = false;
+    import('@/assets/poster-002-forms.json').then((mod) => {
+      if (!cancelled) setFormsData(mod.default as unknown as FormsData);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build the prepared forms once the data lands.
+  const forms = useMemo(
+    () => (formsData ? buildForms(formsData) : null),
+    [formsData],
+  );
+
+  // Dev guard: catch silent extraction failures
+  useEffect(() => {
+    if (!import.meta.env.DEV || !forms) return;
+    for (const f of forms) {
+      if (f.landLines.length === 0) {
+        console.error(`[poster-002] Source "${f.id}" has 0 land_lines - extraction failed for this source.`);
+      }
+    }
+  }, [forms]);
 
   const selectedRef = useRef<string | null>(null);
   selectedRef.current = selected;
@@ -407,8 +425,10 @@ export default function Poster002CanvasViz() {
     };
   }, []);
 
-  // Canvas RAF loop
+  // Canvas RAF loop. Re-runs once the forms data lands and `forms` becomes
+  // non-null; until then there's nothing to draw and the canvas stays empty.
   useEffect(() => {
+    if (!forms) return;
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
@@ -528,7 +548,7 @@ export default function Poster002CanvasViz() {
         ctx.lineJoin = 'round';
         ctx.lineWidth = 0.5;
 
-        for (const form of FORMS) {
+        for (const form of forms) {
           const isSelected = sel === form.id;
           const isDimmed = sel !== null && !isSelected;
 
@@ -594,7 +614,7 @@ export default function Poster002CanvasViz() {
         ctx.lineJoin = 'miter';
         ctx.miterLimit = 2;
 
-        for (const form of FORMS) {
+        for (const form of forms) {
           const isSelected = sel === form.id;
           const isDimmed = sel !== null && !isSelected;
 
@@ -812,7 +832,7 @@ export default function Poster002CanvasViz() {
       cancelAnimationFrame(rafId);
       ro.disconnect();
     };
-  }, []);
+  }, [forms]);
 
   // CSS custom properties for SVG overlay opacity
   const overlayStyle = useMemo(() => {
@@ -922,7 +942,7 @@ export default function Poster002CanvasViz() {
       >
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full block"
+          className={`poster-canvas absolute inset-0 w-full h-full block${forms ? ' poster-canvas--loaded' : ''}`}
         />
         {overlaySvg && (
           <div
